@@ -1,0 +1,218 @@
+import { Plus, BookOpen, Users, DollarSign, TrendingUp, BarChart3, Eye, Star } from 'lucide-react';
+import { Card } from './ui/card';
+import { Button } from './ui/button';
+import { Badge } from './ui/badge';
+import type { Screen } from '../App';
+
+interface InstructorDashboardProps {
+  navigateTo: (screen: Screen, options?: { resetCourseBuilder?: boolean }) => void;
+}
+
+export function InstructorDashboard({ navigateTo }: InstructorDashboardProps) {
+  const stats = [
+    { label: 'Total Students', value: '3,247', icon: Users, color: 'text-blue-500', bg: 'bg-blue-50' },
+    { label: 'Active Courses', value: '8', icon: BookOpen, color: 'text-green-500', bg: 'bg-green-50' },
+    { label: 'Total Revenue', value: '$12,450', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50' },
+    { label: 'Avg. Rating', value: '4.8', icon: Star, color: 'text-amber-500', bg: 'bg-amber-50' }
+  ];
+
+  const courses = [
+    {
+      id: 1,
+      title: 'Complete React Developer Course',
+      status: 'Published',
+      students: 1234,
+      revenue: '$4,920',
+      rating: 4.8,
+      reviews: 342,
+      lastUpdated: '2 days ago'
+    },
+    {
+      id: 2,
+      title: 'Advanced TypeScript Patterns',
+      status: 'Published',
+      students: 892,
+      revenue: '$3,568',
+      rating: 4.9,
+      reviews: 156,
+      lastUpdated: '5 days ago'
+    },
+    {
+      id: 3,
+      title: 'System Design Fundamentals',
+      status: 'Draft',
+      students: 0,
+      revenue: '$0',
+      rating: 0,
+      reviews: 0,
+      lastUpdated: '1 week ago'
+    }
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto px-6 py-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-gray-900 dark:text-white mb-2">Instructor Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">Manage your courses and track performance</p>
+        </div>
+        <Button 
+          className="bg-[#00BCD4] hover:bg-[#00ACC1] text-white gap-2"
+          onClick={() => navigateTo('course-builder', { resetCourseBuilder: true })}
+        >
+          <Plus className="w-5 h-5" />
+          Create New Course
+        </Button>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-4 gap-6 mb-8">
+        {stats.map((stat) => (
+          <Card key={stat.label} className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className={`w-12 h-12 ${stat.bg} rounded-lg flex items-center justify-center`}>
+                <stat.icon className={`w-6 h-6 ${stat.color}`} />
+              </div>
+              <TrendingUp className="w-5 h-5 text-green-500" />
+            </div>
+            <div className="text-2xl text-gray-900 dark:text-white mb-1">{stat.value}</div>
+            <div className="text-gray-500 dark:text-gray-400 text-sm">{stat.label}</div>
+          </Card>
+        ))}
+      </div>
+
+      {/* Recent Activity & Analytics */}
+      <div className="grid grid-cols-3 gap-6 mb-8">
+        <Card className="col-span-2 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-gray-900 dark:text-white">Revenue Overview</h2>
+            <Button variant="outline" size="sm">View Details</Button>
+          </div>
+          <div className="h-64 flex items-end justify-between gap-2">
+            {[65, 45, 78, 52, 90, 67, 85, 72, 95, 88, 75, 92].map((height, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full bg-[#1A237E] rounded-t-lg relative group cursor-pointer hover:bg-[#00BCD4] transition-colors" style={{ height: `${height}%` }}>
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    ${(height * 50).toFixed(0)}
+                  </div>
+                </div>
+                <span className="text-xs text-gray-500">{['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][i]}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h2 className="text-gray-900 dark:text-white mb-6">Quick Stats</h2>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-purple-50 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
+                  <Eye className="w-5 h-5 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-gray-900 dark:text-white">Total Views</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">This month</p>
+                </div>
+              </div>
+              <span className="text-gray-900 dark:text-white">8,234</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+                  <Users className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="text-gray-900 dark:text-white">New Students</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Last 7 days</p>
+                </div>
+              </div>
+              <span className="text-gray-900 dark:text-white">147</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
+                  <BarChart3 className="w-5 h-5 text-green-500" />
+                </div>
+                <div>
+                  <p className="text-gray-900 dark:text-white">Completion Rate</p>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">Average</p>
+                </div>
+              </div>
+              <span className="text-gray-900 dark:text-white">72%</span>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Courses Table */}
+      <Card className="overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-gray-900 dark:text-white">My Courses</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-700">
+              <tr>
+                <th className="px-6 py-4 text-left text-gray-700 dark:text-gray-300 text-sm">Course Title</th>
+                <th className="px-6 py-4 text-left text-gray-700 dark:text-gray-300 text-sm">Status</th>
+                <th className="px-6 py-4 text-left text-gray-700 dark:text-gray-300 text-sm">Students</th>
+                <th className="px-6 py-4 text-left text-gray-700 dark:text-gray-300 text-sm">Revenue</th>
+                <th className="px-6 py-4 text-left text-gray-700 dark:text-gray-300 text-sm">Rating</th>
+                <th className="px-6 py-4 text-left text-gray-700 dark:text-gray-300 text-sm">Last Updated</th>
+                <th className="px-6 py-4 text-left text-gray-700 dark:text-gray-300 text-sm">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+              {courses.map((course) => (
+                <tr key={course.id} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-[#1A237E] rounded-lg flex items-center justify-center">
+                        <BookOpen className="w-5 h-5 text-[#00BCD4]" />
+                      </div>
+                      <span className="text-gray-900">{course.title}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge 
+                      variant={course.status === 'Published' ? 'default' : 'secondary'}
+                      className={course.status === 'Published' ? 'bg-green-500' : 'bg-gray-500'}
+                    >
+                      {course.status}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-gray-700">{course.students.toLocaleString()}</td>
+                  <td className="px-6 py-4 text-gray-700">{course.revenue}</td>
+                  <td className="px-6 py-4">
+                    {course.rating > 0 ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-900">{course.rating}</span>
+                        <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                        <span className="text-gray-500 text-sm">({course.reviews})</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">No ratings</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-gray-500">{course.lastUpdated}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center gap-2">
+                      <Button variant="ghost" size="sm" className="text-[#1A237E] hover:text-[#00BCD4]">
+                        Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" className="text-gray-600 hover:text-[#00BCD4]">
+                        View
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
