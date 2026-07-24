@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     AWS_REGION: str = "ap-southeast-1"
     AWS_ACCESS_KEY_ID: Optional[str] = None
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
+    AWS_ENDPOINT_URL: Optional[str] = None
     
     # Cấu hình Tên các bảng DynamoDB
     DYNAMODB_USERS_TABLE: str = "Users"
