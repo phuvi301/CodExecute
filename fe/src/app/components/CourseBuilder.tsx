@@ -6,15 +6,15 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
-import type { Screen } from '../App';
+import { useNavigate } from 'react-router-dom';
 
 interface CourseBuilderProps {
   step: number;
   setStep: (step: number) => void;
-  navigateTo: (screen: Screen) => void;
 }
 
-export function CourseBuilder({ step, setStep, navigateTo }: CourseBuilderProps) {
+export function CourseBuilder({ step, setStep }: CourseBuilderProps) {
+  const navigate = useNavigate();
   const steps = [
     { number: 1, title: 'Basic Info', description: 'Course details' },
     { number: 2, title: 'Content Builder', description: 'Add modules & lessons' },
@@ -28,7 +28,7 @@ export function CourseBuilder({ step, setStep, navigateTo }: CourseBuilderProps)
         <Button 
           variant="ghost" 
           className="gap-2 text-gray-600 hover:text-[#1A237E] mb-4"
-          onClick={() => navigateTo('instructor-dashboard')}
+          onClick={() => navigate('/instructor')}
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
@@ -41,146 +41,7 @@ export function CourseBuilder({ step, setStep, navigateTo }: CourseBuilderProps)
       <div className="mb-8">
         <div className="flex items-center justify-between max-w-3xl mx-auto">
           {steps.map((s, index) => (
-            <div key={s.number} className="flex items-center flex-1">
-              <div className="flex flex-col items-center flex-1">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 transition-all ${
-                  step > s.number 
-                    ? 'bg-green-500 text-white' 
-                    : step === s.number 
-                    ? 'bg-[#00BCD4] text-white' 
-                    : 'bg-gray-200 text-gray-400'
-                }`}>
-                  {step > s.number ? <Check className="w-6 h-6" /> : s.number}
-                </div>
-                <div className="text-center">
-                  <p className={`text-sm mb-1 ${step === s.number ? 'text-[#1A237E]' : 'text-gray-500'}`}>
-                    {s.title}
-                  </p>
-                  <p className="text-xs text-gray-400">{s.description}</p>
-                </div>
-              </div>
-              {index < steps.length - 1 && (
-                <div className={`h-0.5 flex-1 mx-4 mt-[-40px] transition-all ${
-                  step > s.number ? 'bg-green-500' : 'bg-gray-200'
-                }`} />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Step Content */}
-      {step === 1 && <BasicInfoStep />}
-      {step === 2 && <ContentBuilderStep />}
-      {step === 3 && <PublishStep />}
-
-      {/* Navigation Buttons */}
-      <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
-        <Button
-          variant="outline"
-          onClick={() => step > 1 ? setStep(step - 1) : navigateTo('instructor-dashboard')}
-          className="gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {step > 1 ? 'Previous' : 'Cancel'}
-        </Button>
-        <Button
-          className="bg-[#00BCD4] hover:bg-[#00ACC1] text-white gap-2"
-          onClick={() => {
-            if (step < 3) {
-              setStep(step + 1);
-            } else {
-              navigateTo('instructor-dashboard');
-            }
-          }}
-        >
-          {step < 3 ? 'Next Step' : 'Publish Course'}
-          <ArrowRight className="w-4 h-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function BasicInfoStep() {
-  return (
-    <Card className="p-8">
-      <h2 className="text-gray-900 mb-6">Course Basic Information</h2>
-      
-      <div className="space-y-6">
-        <div>
-          <Label htmlFor="title">Course Title *</Label>
-          <Input
-            id="title"
-            placeholder="e.g., Complete React Developer Course"
-            className="mt-2"
-            defaultValue=""
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="subtitle">Subtitle</Label>
-          <Input
-            id="subtitle"
-            placeholder="Brief description of what students will learn"
-            className="mt-2"
-            defaultValue=""
-          />
-        </div>
-
-        <div>
-          <Label htmlFor="description">Course Description *</Label>
-          <Textarea
-            id="description"
-            placeholder="Provide a detailed description of your course..."
-            className="mt-2 min-h-[120px]"
-            defaultValue=""
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <Label htmlFor="category">Category *</Label>
-            <Select defaultValue="">
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select a category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="web-dev">Web Development</SelectItem>
-                <SelectItem value="mobile-dev">Mobile Development</SelectItem>
-                <SelectItem value="data-science">Data Science</SelectItem>
-                <SelectItem value="algorithms">Algorithms & Data Structures</SelectItem>
-                <SelectItem value="system-design">System Design</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="level">Difficulty Level *</Label>
-            <Select defaultValue="">
-              <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select difficulty" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="beginner">Beginner</SelectItem>
-                <SelectItem value="intermediate">Intermediate</SelectItem>
-                <SelectItem value="advanced">Advanced</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <Label htmlFor="price">Price (USD) *</Label>
-            <Input
-              id="price"
-              type="number"
-              placeholder="49.99"
-              className="mt-2"
-              defaultValue=""
-            />
-          </div>
+            export { CourseBuilder } from './instructor/CourseBuilder';
 
           <div>
             <Label htmlFor="duration">Estimated Duration</Label>
