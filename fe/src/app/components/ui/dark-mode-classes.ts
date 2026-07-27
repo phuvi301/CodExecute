@@ -22,5 +22,5 @@ export const darkModeClasses = {
   
   // Hover states
   hoverBg: 'hover:bg-gray-50 dark:hover:bg-gray-700',
-  hoverText: 'hover:text-[#1A237E] dark:hover:text-[#00BCD4]',
+  hoverText: 'hover:text-primary',
 };

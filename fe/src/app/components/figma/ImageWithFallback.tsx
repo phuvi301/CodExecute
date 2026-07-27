@@ -12,7 +12,7 @@ export function ImageWithFallback({ alt = 'Image', src, className, onError, ...p
 	if (!src || hasError) {
 		return (
 			<div
-				className={['flex items-center justify-center bg-gray-100 text-gray-500', className]
+				className={['flex items-center justify-center bg-muted text-muted-foreground', className]
 					.filter(Boolean)
 					.join(' ')}
 				aria-label={alt}
