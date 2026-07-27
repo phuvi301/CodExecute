@@ -63,48 +63,48 @@ export function HomeFeed() {
 					<Card className="p-6">
 						<div className="flex flex-col items-center text-center">
 							<Avatar className="w-20 h-20 mb-3">
-								<AvatarFallback className="bg-[#1A237E] text-white text-xl">JD</AvatarFallback>
+								<AvatarFallback className="bg-primary text-primary-foreground text-xl">JD</AvatarFallback>
 							</Avatar>
-							<h3 className="text-gray-900 dark:text-white mb-1">John Doe</h3>
-							<p className="text-gray-500 dark:text-gray-400 text-sm mb-4">Full Stack Developer</p>
+							<h3 className="text-foreground mb-1">John Doe</h3>
+							<p className="text-muted-foreground text-sm mb-4">Full Stack Developer</p>
 							<Button
 								variant="outline"
-								className="w-full border-[#1A237E] dark:border-[#00BCD4] text-[#1A237E] dark:text-[#00BCD4] hover:bg-[#1A237E] dark:hover:bg-[#00BCD4] hover:text-white dark:hover:text-gray-900"
+								className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground"
 								onClick={() => navigate('/profile/john-doe')}
 							>
 								View Profile
 							</Button>
 						</div>
-						<div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+						<div className="mt-6 pt-6 border-t border-border">
 							<div className="flex items-center justify-between mb-3">
-								<span className="text-gray-600 dark:text-gray-400 text-sm">Courses Completed</span>
-								<span className="text-[#1A237E] dark:text-[#00BCD4]">12</span>
+								<span className="text-muted-foreground text-sm">Courses Completed</span>
+								<span className="text-primary">12</span>
 							</div>
 							<div className="flex items-center justify-between mb-3">
-								<span className="text-gray-600 dark:text-gray-400 text-sm">Problems Solved</span>
-								<span className="text-[#1A237E] dark:text-[#00BCD4]">87</span>
+								<span className="text-muted-foreground text-sm">Problems Solved</span>
+								<span className="text-primary">87</span>
 							</div>
 							<div className="flex items-center justify-between">
-								<span className="text-gray-600 dark:text-gray-400 text-sm">Followers</span>
-								<span className="text-[#1A237E] dark:text-[#00BCD4]">342</span>
+								<span className="text-muted-foreground text-sm">Followers</span>
+								<span className="text-primary">342</span>
 							</div>
 						</div>
 					</Card>
 
 					<Card className="p-6">
-						<h3 className="text-gray-900 dark:text-white mb-4">Quick Links</h3>
+						<h3 className="text-foreground mb-4">Quick Links</h3>
 						<div className="space-y-2">
-							<button onClick={() => navigate('/problems')} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-left transition-colors">
-								<TrendingUp className="w-5 h-5 text-[#00BCD4]" />
-								<span className="text-gray-700 dark:text-gray-300">Daily Challenge</span>
+							<button onClick={() => navigate('/problems')} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent text-left transition-colors">
+								<TrendingUp className="w-5 h-5 text-primary" />
+								<span className="text-foreground">Daily Challenge</span>
 							</button>
-							<button onClick={() => navigate('/groups')} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-left transition-colors">
-								<Users className="w-5 h-5 text-[#00BCD4]" />
-								<span className="text-gray-700 dark:text-gray-300">My Groups</span>
+							<button onClick={() => navigate('/problems')} className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent text-left transition-colors">
+								<Users className="w-5 h-5 text-primary" />
+								<span className="text-foreground">Practice Problems</span>
 							</button>
-							<button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-left transition-colors">
-								<Award className="w-5 h-5 text-[#00BCD4]" />
-								<span className="text-gray-700 dark:text-gray-300">Achievements</span>
+							<button className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-accent text-left transition-colors">
+								<Award className="w-5 h-5 text-primary" />
+								<span className="text-foreground">Achievements</span>
 							</button>
 						</div>
 					</Card>
@@ -114,9 +114,9 @@ export function HomeFeed() {
 					<Card className="p-4">
 						<div className="flex items-center gap-3">
 							<Avatar>
-								<AvatarFallback className="bg-[#1A237E] dark:bg-[#00BCD4] text-white dark:text-gray-900">JD</AvatarFallback>
+								<AvatarFallback className="bg-primary text-primary-foreground">JD</AvatarFallback>
 							</Avatar>
-							<input type="text" placeholder="Share your progress, ask a question..." className="flex-1 px-4 py-2 bg-gray-50 dark:bg-gray-700 rounded-full border border-gray-200 dark:border-gray-600 focus:outline-none focus:border-[#00BCD4] text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400" />
+							<input type="text" placeholder="Share your progress, ask a question..." className="flex-1 px-4 py-2 bg-input-background rounded-full border border-border focus:outline-none focus:border-primary text-foreground placeholder:text-muted-foreground" />
 						</div>
 					</Card>
 
@@ -126,10 +126,10 @@ export function HomeFeed() {
 								<div className="flex items-start justify-between mb-4">
 									<div className="flex items-start gap-3">
 										<Avatar className="cursor-pointer" onClick={() => navigate('/profile/john-doe')}>
-											<AvatarFallback className="bg-[#1A237E] dark:bg-[#00BCD4] text-white dark:text-gray-900">{post.avatar}</AvatarFallback>
+											<AvatarFallback className="bg-primary text-primary-foreground">{post.avatar}</AvatarFallback>
 										</Avatar>
 										<div>
-											<h4 className="text-gray-900 dark:text-white cursor-pointer hover:text-[#1A237E] dark:hover:text-[#00BCD4]" onClick={() => navigate('/profile/john-doe')}>
+											<h4 className="text-gray-900 dark:text-white cursor-pointer hover:text-primary" onClick={() => navigate('/profile/john-doe')}>
 												{post.author}
 											</h4>
 											<p className="text-gray-500 dark:text-gray-400 text-sm">{post.role} • {post.time}</p>
@@ -143,8 +143,8 @@ export function HomeFeed() {
 								<p className="text-gray-700 dark:text-gray-300 mb-4">{post.content}</p>
 
 								{post.type === 'course-update' && (
-									<div className="bg-gradient-to-r from-[#1A237E] to-[#283593] p-4 rounded-lg mb-4">
-										<Badge className="bg-[#00BCD4] text-white mb-2">Course Completed</Badge>
+									<div className="bg-gradient-to-r from-primary to-blue-700 p-4 rounded-lg mb-4">
+										<Badge className="bg-white/20 text-white border-none mb-2">Course Completed</Badge>
 										<p className="text-white">{post.courseTitle}</p>
 									</div>
 								)}
@@ -166,15 +166,15 @@ export function HomeFeed() {
 								)}
 
 								<div className="flex items-center gap-1 pt-4 border-t border-gray-100 dark:border-gray-700">
-									<Button variant="ghost" className="flex-1 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-[#00BCD4]">
+									<Button variant="ghost" className="flex-1 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary">
 										<ThumbsUp className="w-5 h-5" />
 										<span>{post.likes}</span>
 									</Button>
-									<Button variant="ghost" className="flex-1 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-[#00BCD4]">
+									<Button variant="ghost" className="flex-1 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary">
 										<MessageCircle className="w-5 h-5" />
 										<span>{post.comments}</span>
 									</Button>
-									<Button variant="ghost" className="flex-1 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-[#00BCD4]">
+									<Button variant="ghost" className="flex-1 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-primary">
 										<Share2 className="w-5 h-5" />
 										<span>{post.shares}</span>
 									</Button>
@@ -190,7 +190,7 @@ export function HomeFeed() {
 						<div className="space-y-4">
 							{suggestedCourses.map((course) => (
 								<div key={course.id} className="pb-4 border-b border-gray-100 dark:border-gray-700 last:border-0 last:pb-0">
-									<h4 className="text-gray-900 dark:text-white mb-2 hover:text-[#1A237E] dark:hover:text-[#00BCD4] cursor-pointer">{course.title}</h4>
+									<h4 className="text-gray-900 dark:text-white mb-2 hover:text-primary cursor-pointer">{course.title}</h4>
 									<p className="text-gray-500 dark:text-gray-400 text-sm mb-2">by {course.instructor}</p>
 									<div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
 										<span>{course.students.toLocaleString()} students</span>
@@ -205,7 +205,7 @@ export function HomeFeed() {
 						<h3 className="text-gray-900 dark:text-white mb-4">Trending Topics</h3>
 						<div className="flex flex-wrap gap-2">
 							{['React', 'System Design', 'Algorithms', 'Python', 'TypeScript', 'AWS'].map((topic) => (
-								<Badge key={topic} variant="secondary" className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-[#1A237E] dark:hover:bg-[#00BCD4] hover:text-white dark:hover:text-gray-900 cursor-pointer">
+								<Badge key={topic} variant="secondary" className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-primary hover:text-primary-foreground cursor-pointer">
 									{topic}
 								</Badge>
 							))}

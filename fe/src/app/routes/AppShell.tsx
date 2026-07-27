@@ -1,6 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Header } from '../components/layout/Header';
-import { ThemeProvider } from '../components/shared/ThemeProvider';
 import { screenFromPathname, screenToPath, type Screen, type NavigateOptions } from './navigation';
 
 export function AppShell() {
@@ -13,11 +12,9 @@ export function AppShell() {
   };
 
   return (
-    <ThemeProvider>
-      <div className="min-h-screen bg-[#F5F5F5] dark:bg-gray-900">
-        <Header currentScreen={currentScreen} navigateTo={navigateTo} />
-        <Outlet />
-      </div>
-    </ThemeProvider>
+    <div className="min-h-screen bg-background text-foreground">
+      <Header currentScreen={currentScreen} navigateTo={navigateTo} />
+      <Outlet />
+    </div>
   );
 }
