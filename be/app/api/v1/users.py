@@ -33,7 +33,7 @@ async def get_my_profile(credentials: HTTPAuthorizationCredentials = Depends(sec
         raise HTTPException(status_code=404, detail="User not found")
     return format_user(user)
 
-@router.put("/me")
+@router.patch("/me")
 async def update_my_profile(
     payload: UserUpdate,
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
@@ -112,4 +112,4 @@ async def upload_avatar(
         "message": "Upload avatar thành công",
         "avatar_url": avatar_url,
         "user": format_user(updated_user)
-    }
+    }

@@ -71,26 +71,3 @@ async def refresh_token(request: Request):
     role = payload.get("role", "user")
     new_access_token = security.create_token(data={"sub": user_id, "role": role}, mode="access")
     return {"access_token": new_access_token, "token_type": "bearer"}
-
-@router.get("/me")
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
-    if not credentials:
-        raise HTTPException(status_code=401, detail="Chưa đăng nhập")
-    payload = security.decode_token(credentials.credentials)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
-    user_id = payload.get("sub")
-    user = auth_service.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
-    return {
-        "user_id": user.get("UserID"),
-        "email": user.get("Email"),
-        "full_name": user.get("FullName", ""),
-        "avatar_url": user.get("AvatarUrl", ""),
-        "title": user.get("Title", "Full Stack Engineer"),
-        "address": user.get("Address", "San Francisco, CA"),
-        "bio": user.get("Bio", ""),
-        "created_at": user.get("CreatedAt", "2023-03-15T00:00:00Z"),
-        "role": user.get("Role", "user")
-    }

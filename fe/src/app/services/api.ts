@@ -71,7 +71,7 @@ export async function registerApi(payload: RegisterPayload): Promise<{ message: 
 }
 
 export async function getMeApi(token: string): Promise<UserProfile> {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+  const response = await fetch(`${API_BASE_URL}/users/me`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -100,7 +100,7 @@ export interface UpdateProfilePayload {
 
 export async function updateProfileApi(token: string, payload: UpdateProfilePayload): Promise<UserProfile> {
   const response = await fetch(`${API_BASE_URL}/users/me`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,

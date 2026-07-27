@@ -22,8 +22,8 @@ class Settings(BaseSettings):
     
     # Cấu hình SQS & S3
     SQS_QUEUE_URL: str = ""
-    S3_TESTCASE_BUCKET: str = "codexecute-testcases-bucket"
-    S3_AVATAR_BUCKET: str = "codexecute-avatars-bucket"
+    S3_TESTCASE_BUCKET: str = "codeexecute-testcases"
+    S3_AVATAR_BUCKET: str = "codeexecuter-user-media"
     UPLOAD_DIR: str = "uploads"
     
     # Cấu hình JWT Security
