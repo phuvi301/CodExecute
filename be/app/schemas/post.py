@@ -1,21 +1,46 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
-from datetime import datetime
+from typing import Optional, List, Dict, Any
 
-class PostBase(BaseModel):
-    title: str = Field(..., max_length=200)
-    category: str = Field(..., description="Ví dụ: Interview Question, General Discussion")
-    content: str = Field(..., description="Nội dung bài viết (Markdown)")
+class CodeSnippetSchema(BaseModel):
+    filename: Optional[str] = "solution.py"
+    language: Optional[str] = "python"
+    code: str
+    runtime: Optional[str] = None
+    beats: Optional[str] = None
+
+class PostCreateSchema(BaseModel):
+    content: str = Field(..., min_length=1)
+    type: Optional[str] = "discussion" # 'discussion', 'code-share', 'achievement'
+    code_snippet: Optional[CodeSnippetSchema] = None
+    achievement: Optional[str] = None
     tags: Optional[List[str]] = []
 
-class PostCreate(PostBase):
-    pass
+class PostUpdateSchema(BaseModel):
+    content: Optional[str] = Field(None, min_length=1)
 
-class PostResponse(PostBase):
+class CommentCreateSchema(BaseModel):
+    content: str = Field(..., min_length=1)
+
+class CommentResponseSchema(BaseModel):
+    comment_id: str
+    user_id: str
+    user_name: str
+    user_avatar: Optional[str] = ""
+    content: str
+    created_at: str
+
+class PostResponseSchema(BaseModel):
     post_id: str
     author_id: str
-    upvotes: int = 0
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
+    author_name: str
+    author_avatar: Optional[str] = ""
+    author_title: Optional[str] = ""
+    content: str
+    type: str
+    code_snippet: Optional[Dict[str, Any]] = None
+    achievement: Optional[str] = None
+    tags: List[str] = []
+    created_at: str
+    likes_count: int = 0
+    liked_by: List[str] = []
+    comments: List[CommentResponseSchema] = []

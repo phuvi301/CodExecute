@@ -34,10 +34,10 @@ export function UserProfile() {
 	const [isFollowing, setIsFollowing] = useState(false);
 	const [copied, setCopied] = useState(false);
 
-	const displayName = user?.full_name || 'Le Minh Tri';
-	const displayEmail = user?.email || 'triminhle1604@gmail.com';
-	const displayTitle = user?.title || 'Frontend Developer';
-	const displayAddress = user?.address || 'Ho Chi Minh City, Vietnam';
+	const displayName = user?.full_name;
+	const displayEmail = user?.email;
+	const displayTitle = user?.title;
+	const displayAddress = user?.address;
 
 	const getInitials = (name: string) => {
 		const parts = name.trim().split(' ');
@@ -93,137 +93,152 @@ export function UserProfile() {
 	return (
 		<div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
 			{/* Main Profile Header Card */}
-			<Card className="overflow-hidden bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-md">
-				{/* Top Ambient Banner */}
-				<div className="h-44 bg-gradient-to-r from-primary via-blue-600 to-indigo-700 relative overflow-hidden">
-					<div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]"></div>
-					<div className="absolute -right-10 -bottom-10 w-72 h-72 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
-					<div className="absolute left-1/3 -top-10 w-60 h-60 bg-blue-400/20 rounded-full blur-3xl pointer-events-none"></div>
-				</div>
+			<Card className="relative overflow-hidden bg-card/70 backdrop-blur-xl border border-border/80 rounded-2xl shadow-lg p-6 sm:p-8 space-y-6">
+				{/* Top subtle decorative accent glow */}
+				<div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-blue-500 to-indigo-500" />
 
 				{/* Profile Info Container */}
-				<div className="px-8 pb-8">
-					<div className="flex flex-col md:flex-row md:items-end justify-between -mt-16 mb-6 gap-6">
-						<div className="flex flex-col sm:flex-row items-start sm:items-end gap-6">
-							<div className="relative">
-								<Avatar className="w-32 h-32 border-4 border-card rounded-2xl shadow-xl ring-2 ring-primary/20">
-									<AvatarImage src={user?.avatar_url} alt={displayName} />
-									<AvatarFallback className="bg-primary text-primary-foreground text-3xl font-bold rounded-2xl">
-										{getInitials(displayName)}
-									</AvatarFallback>
-								</Avatar>
-								<span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-card" title="Online"></span>
+				<div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+					<div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
+						{/* Avatar */}
+						<div className="relative shrink-0">
+							<Avatar className="w-28 h-28 sm:w-32 sm:h-32 border-4 border-background rounded-2xl shadow-xl ring-2 ring-primary/20">
+								<AvatarImage src={user?.avatar_url} alt={displayName} className="object-cover" />
+								<AvatarFallback className="bg-gradient-to-br from-primary to-blue-600 text-primary-foreground text-3xl font-extrabold rounded-2xl">
+									{getInitials(displayName || '')}
+								</AvatarFallback>
+							</Avatar>
+							<span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-background ring-2 ring-emerald-500/20" title="Online"></span>
+						</div>
+
+						{/* User Details */}
+						<div className="space-y-2">
+							<div className="flex items-center gap-3 flex-wrap">
+								<h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">{displayName}</h1>
+								{user?.role && (
+									<Badge className="bg-primary/10 text-primary border-primary/20 text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
+										{user.role}
+									</Badge>
+								)}
 							</div>
 
-							<div className="mb-1 space-y-1">
-								<div className="flex items-center gap-3 flex-wrap">
-									<h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">{displayName}</h1>
-								</div>
-								<p className="text-muted-foreground text-sm font-medium">
-									{displayTitle}
+							<p className="text-sm font-semibold text-primary/90 flex items-center gap-2">
+								<span>{displayTitle}</span>
+							</p>
+
+							{user?.bio && (
+								<p className="text-xs text-muted-foreground max-w-xl leading-relaxed italic">
+									"{user.bio}"
 								</p>
-								<div className="flex items-center gap-4 text-muted-foreground text-xs pt-1 flex-wrap">
-									<div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-primary" /><span>{displayAddress}</span></div>
-									<div className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 text-primary" /><span className="font-mono text-foreground">{displayEmail}</span></div>
+							)}
+
+							<div className="flex items-center gap-3 text-muted-foreground text-xs pt-1 flex-wrap font-medium">
+								<div className="flex items-center gap-1.5 bg-accent/50 px-3 py-1.5 rounded-xl border border-border/40">
+									<MapPin className="w-3.5 h-3.5 text-primary" />
+									<span className="text-foreground">{displayAddress}</span>
+								</div>
+								<div className="flex items-center gap-1.5 bg-accent/50 px-3 py-1.5 rounded-xl border border-border/40">
+									<Mail className="w-3.5 h-3.5 text-primary" />
+									<span className="font-mono text-foreground">{displayEmail}</span>
 								</div>
 							</div>
 						</div>
+					</div>
 
-						{/* Action Buttons */}
-						<div className="flex items-center gap-3 shrink-0">
-							<Button
-								variant="outline"
-								size="sm"
-								className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer"
-								onClick={copyProfileLink}
-							>
-								{copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Share2 className="w-4 h-4" />}
-								<span>{copied ? 'Link Copied' : 'Share'}</span>
-							</Button>
+					{/* Action Buttons */}
+					<div className="flex items-center gap-3 shrink-0 w-full sm:w-auto justify-start sm:justify-end border-t md:border-t-0 pt-4 md:pt-0 border-border/60">
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer"
+							onClick={copyProfileLink}
+						>
+							{copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Share2 className="w-4 h-4" />}
+							<span>{copied ? 'Link Copied' : 'Share'}</span>
+						</Button>
 
-							<Button
-								variant="outline"
-								size="sm"
-								className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer"
-								onClick={() => navigate('/settings')}
-							>
-								<Pencil className="w-4 h-4 text-primary" />
-								<span>Edit Profile</span>
-							</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer"
+							onClick={() => navigate('/settings')}
+						>
+							<Pencil className="w-4 h-4 text-primary" />
+							<span>Edit Profile</span>
+						</Button>
 
-							<Button
-								size="sm"
-								onClick={() => setIsFollowing(!isFollowing)}
-								className={`gap-2 rounded-xl h-10 px-5 text-xs font-semibold shadow-md transition-all ${
-									isFollowing
-										? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-										: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20'
-								}`}
-							>
-								{isFollowing ? <UserCheck className="w-4 h-4 text-emerald-500" /> : <UserPlus className="w-4 h-4" />}
-								<span>{isFollowing ? 'Following' : 'Follow'}</span>
-							</Button>
+						<Button
+							size="sm"
+							onClick={() => setIsFollowing(!isFollowing)}
+							className={`gap-2 rounded-xl h-10 px-5 text-xs font-semibold shadow-md transition-all ${
+								isFollowing
+									? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+									: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20'
+							}`}
+						>
+							{isFollowing ? <UserCheck className="w-4 h-4 text-emerald-500" /> : <UserPlus className="w-4 h-4" />}
+							<span>{isFollowing ? 'Following' : 'Follow'}</span>
+						</Button>
+					</div>
+				</div>
+
+				{/* Developer Stat Highlights Cards */}
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-border/60">
+					{/* Problems Solved */}
+					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
+						<div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20 shrink-0">
+							<Code2 className="w-6 h-6" />
 						</div>
-					</div>
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Problems Solved</p>
+							<div className="flex items-baseline gap-2 mt-0.5">
+								<span className="text-2xl font-extrabold text-foreground">87</span>
+								<span className="text-xs text-emerald-500 font-semibold font-mono">26% Total</span>
+							</div>
+						</div>
+					</Card>
 
-					{/* Developer Stat Highlights Cards */}
-					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-						{/* Problems Solved */}
-						<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4">
-							<div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20 shrink-0">
-								<Code2 className="w-6 h-6" />
+					{/* Acceptance Rate */}
+					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
+						<div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20 shrink-0">
+							<TrendingUp className="w-6 h-6" />
+						</div>
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Acceptance Rate</p>
+							<div className="flex items-baseline gap-2 mt-0.5">
+								<span className="text-2xl font-extrabold text-foreground">68.4%</span>
+								<span className="text-xs text-blue-500 font-semibold font-mono">120 Subs</span>
 							</div>
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Problems Solved</p>
-								<div className="flex items-baseline gap-2 mt-0.5">
-									<span className="text-2xl font-extrabold text-foreground">87</span>
-									<span className="text-xs text-emerald-500 font-semibold font-mono">26% Total</span>
-								</div>
-							</div>
-						</Card>
+						</div>
+					</Card>
 
-						{/* Acceptance Rate */}
-						<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4">
-							<div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20 shrink-0">
-								<TrendingUp className="w-6 h-6" />
+					{/* Day Streak */}
+					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
+						<div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20 shrink-0">
+							<Flame className="w-6 h-6 fill-amber-500" />
+						</div>
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active Streak</p>
+							<div className="flex items-baseline gap-2 mt-0.5">
+								<span className="text-2xl font-extrabold text-foreground">47 Days</span>
+								<span className="text-xs text-amber-500 font-semibold font-mono">Best: 60</span>
 							</div>
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Acceptance Rate</p>
-								<div className="flex items-baseline gap-2 mt-0.5">
-									<span className="text-2xl font-extrabold text-foreground">68.4%</span>
-									<span className="text-xs text-blue-500 font-semibold font-mono">120 Subs</span>
-								</div>
-							</div>
-						</Card>
+						</div>
+					</Card>
 
-						{/* Day Streak */}
-						<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4">
-							<div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20 shrink-0">
-								<Flame className="w-6 h-6 fill-amber-500" />
+					{/* Achievements Count */}
+					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
+						<div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center border border-purple-500/20 shrink-0">
+							<Trophy className="w-6 h-6" />
+						</div>
+						<div>
+							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Badges Unlocked</p>
+							<div className="flex items-baseline gap-2 mt-0.5">
+								<span className="text-2xl font-extrabold text-foreground">15</span>
+								<span className="text-xs text-purple-500 font-semibold font-mono">Top 5%</span>
 							</div>
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active Streak</p>
-								<div className="flex items-baseline gap-2 mt-0.5">
-									<span className="text-2xl font-extrabold text-foreground">47 Days</span>
-									<span className="text-xs text-amber-500 font-semibold font-mono">Best: 60</span>
-								</div>
-							</div>
-						</Card>
-
-						{/* Achievements Count */}
-						<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4">
-							<div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center border border-purple-500/20 shrink-0">
-								<Trophy className="w-6 h-6" />
-							</div>
-							<div>
-								<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Badges Unlocked</p>
-								<div className="flex items-baseline gap-2 mt-0.5">
-									<span className="text-2xl font-extrabold text-foreground">15</span>
-									<span className="text-xs text-purple-500 font-semibold font-mono">Top 5%</span>
-								</div>
-							</div>
-						</Card>
-					</div>
+						</div>
+					</Card>
 				</div>
 			</Card>
 

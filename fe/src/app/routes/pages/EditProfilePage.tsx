@@ -28,6 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Dialog, DialogContent } from '../../components/ui/dialog';
 
 const JOB_TITLE_SUGGESTIONS = [
+  'Developer',
   'Full Stack Engineer',
   'Frontend Developer',
   'Backend Engineer',
@@ -44,6 +45,7 @@ const JOB_TITLE_SUGGESTIONS = [
 ];
 
 const ADDRESS_SUGGESTIONS = [
+  'Ho Chi Minh, Vietnam',
   'Ho Chi Minh City, Vietnam',
   'Hanoi, Vietnam',
   'Da Nang, Vietnam',
@@ -64,6 +66,7 @@ const ADDRESS_SUGGESTIONS = [
 export function EditProfilePage() {
   const navigate = useNavigate();
   const { user, updateProfile, uploadAvatar } = useAuth();
+  const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile/me';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState('');
@@ -94,8 +97,8 @@ export function EditProfilePage() {
     if (user) {
       setFullName(user.full_name || '');
       setAvatarUrl(user.avatar_url || '');
-      setTitle(user.title || '');
-      setAddress(user.address || '');
+      setTitle(user.title || 'Developer');
+      setAddress(user.address || 'Ho Chi Minh, Vietnam');
       setBio(user.bio || '');
     }
   }, [user]);
@@ -116,11 +119,11 @@ export function EditProfilePage() {
   useEffect(() => {
     if (showSuccessModal) {
       const timer = setTimeout(() => {
-        navigate('/profile');
+        navigate(profileUrl);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [showSuccessModal, navigate]);
+  }, [showSuccessModal, navigate, profileUrl]);
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(' ');
@@ -327,12 +330,12 @@ export function EditProfilePage() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Supports JPG, PNG, WebP or GIF (max 2MB).
+                    Supports JPG, PNG, WebP or GIF (max 5MB).
                   </p>
                 </div>
               </div>
 
-              {/* Direct Image URL input */}
+              {/* Direct Image URL input
               <div className="space-y-2 pt-2">
                 <Label htmlFor="avatar-url" className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5" />
@@ -347,7 +350,7 @@ export function EditProfilePage() {
                   disabled={isSaving}
                   className="text-xs"
                 />
-              </div>
+              </div> */}
             </div>
 
             {/* Profile Fields Grid */}
@@ -568,7 +571,7 @@ export function EditProfilePage() {
                   <Input
                     id="new-password"
                     type="password"
-                    placeholder="At least 8 chars, 1 uppercase, 1 number, 1 special symbol"
+                    placeholder="Enter new password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     disabled={isSaving}
@@ -596,7 +599,7 @@ export function EditProfilePage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate('/profile')}
+            onClick={() => navigate(profileUrl)}
             disabled={isSaving}
           >
             Cancel
@@ -648,7 +651,7 @@ export function EditProfilePage() {
         onOpenChange={(open) => {
           setShowSuccessModal(open);
           if (!open) {
-            navigate('/profile');
+            navigate(profileUrl);
           }
         }}
       >
@@ -664,7 +667,7 @@ export function EditProfilePage() {
           </div>
           <div className="pt-2">
             <Button
-              onClick={() => navigate('/profile')}
+              onClick={() => navigate(profileUrl)}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-medium py-2.5 rounded-xl cursor-pointer"
             >
               Go to Profile Now
