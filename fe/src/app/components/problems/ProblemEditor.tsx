@@ -24,6 +24,8 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../ui/resizable';
+import { useIsMobile } from '../ui/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { useProblem } from '../../context/ProblemContext';
 import { useTheme } from '../shared/ThemeProvider';
@@ -51,6 +53,7 @@ const MONACO_LANGUAGES: Record<string, string> = {
 export function ProblemEditor({ problemId }: ProblemEditorProps) {
 	const navigate = useNavigate();
 	const { theme } = useTheme();
+	const isMobile = useIsMobile();
 	const {
 		problem,
 		language,
@@ -96,12 +99,19 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 
 	return (
 		<div className="h-[calc(100vh-56px)] flex flex-col bg-background text-foreground overflow-hidden select-none">
-			{/* Main IDE Layout: Left Spec Pane | Right Monaco Code Editor Pane */}
-			<div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 divide-x divide-border/80">
-				
+			{/* Main IDE Resizable Layout: Problem Spec Pane | Monaco Code Editor & Terminal Pane */}
+			<ResizablePanelGroup
+				direction={isMobile ? 'vertical' : 'horizontal'}
+				className="flex-1 overflow-hidden"
+			>
 				{/* LEFT PANE: Problem Description, Examples, Submissions, Discussions */}
-				<div className="h-full overflow-y-auto bg-card/20 flex flex-col">
-					<div className="p-6 flex-1">
+				<ResizablePanel
+					defaultSize={isMobile ? 40 : 45}
+					minSize={20}
+					maxSize={80}
+					className="h-full overflow-y-auto bg-card/20 flex flex-col"
+				>
+					<div className="p-4 sm:p-6 flex-1">
 						<Tabs defaultValue="description" className="w-full">
 							<TabsList className="mb-6 bg-muted/60 p-1 rounded-xl">
 								<TabsTrigger value="description" className="rounded-lg text-xs font-semibold px-4 py-1.5">
@@ -118,7 +128,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 							{/* Description Content */}
 							<TabsContent value="description" className="space-y-6">
 								<div>
-									<h2 className="text-xl font-bold text-foreground mb-3 flex items-center gap-2">
+									<h2 className="text-xl font-bold text-foreground mb-3 flex items-center gap-2 flex-wrap">
 										<span>{problem.title}</span>
 										<Badge
 											variant="outline"
@@ -149,7 +159,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 													<Sparkles className="w-3.5 h-3.5 text-primary" />
 													<span>Example {index + 1}</span>
 												</div>
-												<div className="space-y-1.5 font-mono text-xs leading-relaxed bg-background/60 p-3 rounded-lg border border-border/40">
+												<div className="space-y-1.5 font-mono text-xs leading-relaxed bg-background/60 p-3 rounded-lg border border-border/40 overflow-x-auto">
 													<div>
 														<span className="text-muted-foreground font-semibold">Input: </span>
 														<span className="text-foreground">{example.input}</span>
@@ -187,16 +197,16 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 								<div className="pt-4 border-t border-border/60">
 									<div className="grid grid-cols-2 gap-4">
 										<div className="flex items-center gap-3 p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-											<TrendingUp className="w-5 h-5 text-emerald-500" />
-											<div>
-												<p className="text-muted-foreground text-xs">Acceptance Rate</p>
+											<TrendingUp className="w-5 h-5 text-emerald-500 shrink-0" />
+											<div className="min-w-0">
+												<p className="text-muted-foreground text-xs truncate">Acceptance Rate</p>
 												<p className="text-foreground font-bold text-sm">{problem.acceptance}</p>
 											</div>
 										</div>
 										<div className="flex items-center gap-3 p-3 rounded-xl bg-blue-500/5 border border-blue-500/20">
-											<BookOpen className="w-5 h-5 text-blue-500" />
-											<div>
-												<p className="text-muted-foreground text-xs">Submissions</p>
+											<BookOpen className="w-5 h-5 text-blue-500 shrink-0" />
+											<div className="min-w-0">
+												<p className="text-muted-foreground text-xs truncate">Submissions</p>
 												<p className="text-foreground font-bold text-sm">{problem.submissions}</p>
 											</div>
 										</div>
@@ -227,7 +237,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 								<div className="space-y-3">
 									<Card className="p-4 border-border/80 hover:border-primary/50 transition-all cursor-pointer rounded-xl">
 										<div className="flex items-start gap-3 mb-2">
-											<MessageCircle className="w-5 h-5 text-primary mt-0.5" />
+											<MessageCircle className="w-5 h-5 text-primary mt-0.5 shrink-0" />
 											<div className="flex-1">
 												<h4 className="text-foreground font-semibold text-sm mb-1">
 													Optimal Hash Map O(n) Approach
@@ -247,224 +257,249 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 							</TabsContent>
 						</Tabs>
 					</div>
-				</div>
+				</ResizablePanel>
 
-				{/* RIGHT PANE: Modern Monaco IDE Code Editor & Integrated Terminal */}
-				<div className="h-full flex flex-col bg-[#1e1e1e] text-gray-200 overflow-hidden">
-					
-					{/* VS Code File Tab Bar */}
-					<div className="bg-[#252526] border-b border-[#333333] flex items-center justify-between px-3 h-10 shrink-0">
-						{/* Left: Window Dots & File Tab */}
-						<div className="flex items-center gap-3">
-							<div className="flex items-center gap-1.5">
-								<div className="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
-								<div className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></div>
-								<div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></div>
-							</div>
+				{/* Resizable Handle: Left Pane | Right Pane */}
+				<ResizableHandle withHandle />
 
-							<div className="flex items-center gap-2 bg-[#1e1e1e] text-primary px-3 py-1 rounded-t-md text-xs font-mono font-medium border-t-2 border-primary shadow-inner">
-								<FileCode className="w-3.5 h-3.5 text-primary" />
-								<span>{filename}</span>
-							</div>
-						</div>
+				{/* RIGHT PANE: Code Editor (Top) & Integrated Terminal Drawer (Bottom) */}
+				<ResizablePanel
+					defaultSize={isMobile ? 60 : 55}
+					minSize={20}
+					maxSize={80}
+					className="h-full overflow-hidden"
+				>
+					<ResizablePanelGroup direction="vertical" className="h-full w-full">
+						{/* TOP SUB-PANE: Monaco Code Editor */}
+						<ResizablePanel
+							defaultSize={65}
+							minSize={25}
+							maxSize={85}
+							className="h-full flex flex-col bg-[#1e1e1e] text-gray-200 overflow-hidden"
+						>
+							{/* VS Code File Tab Bar */}
+							<div className="bg-[#252526] border-b border-[#333333] flex items-center justify-between px-3 h-10 shrink-0">
+								{/* Left: Window Dots & File Tab */}
+								<div className="flex items-center gap-3">
+									<div className="flex items-center gap-1.5">
+										<div className="w-2.5 h-2.5 rounded-full bg-red-500/80"></div>
+										<div className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></div>
+										<div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></div>
+									</div>
 
-						{/* Right: IDE Controls & Hotkeys Info */}
-						<div className="flex items-center gap-3 text-[11px] text-gray-400 font-mono">
-							<span className="hidden sm:inline-flex items-center gap-1 bg-[#1e1e1e] px-2 py-0.5 rounded border border-gray-700/60 text-gray-400">
-								<kbd className="text-gray-300">Ctrl</kbd>+<kbd className="text-gray-300">Enter</kbd> to Run
-							</span>
-
-							<div className="flex items-center gap-1">
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-700/50"
-									onClick={() => setFontSize(prev => Math.max(12, prev - 1))}
-									title="Decrease font size"
-								>
-									<span className="text-xs font-bold">A-</span>
-								</Button>
-								<span className="text-xs">{fontSize}px</span>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-700/50"
-									onClick={() => setFontSize(prev => Math.min(20, prev + 1))}
-									title="Increase font size"
-								>
-									<span className="text-xs font-bold">A+</span>
-								</Button>
-							</div>
-						</div>
-					</div>
-
-					{/* IDE Breadcrumbs Bar */}
-					<div className="bg-[#1e1e1e] border-b border-[#2d2d2d] px-4 py-1 flex items-center gap-1 text-[11px] font-mono text-gray-400 shrink-0">
-						<span className="hover:text-gray-200 cursor-pointer">src</span>
-						<ChevronRight className="w-3 h-3 text-gray-600" />
-						<span className="hover:text-gray-200 cursor-pointer">{filename}</span>
-						<ChevronRight className="w-3 h-3 text-gray-600" />
-						<span className="text-primary font-semibold">twoSum</span>
-					</div>
-
-					{/* Monaco Editor Container */}
-					<div className="flex-1 relative overflow-hidden bg-[#1e1e1e]">
-						<Editor
-							height="100%"
-							language={monacoLang}
-							theme={theme === 'dark' ? 'vs-dark' : 'vs-dark'}
-							value={code}
-							onChange={(val) => setCode(val || '')}
-							onMount={handleEditorDidMount}
-							loading={
-								<div className="flex items-center justify-center h-full text-gray-400 text-xs font-mono gap-2">
-									<Code2 className="w-5 h-5 animate-spin text-primary" />
-									<span>Loading Monaco Editor...</span>
+									<div className="flex items-center gap-2 bg-[#1e1e1e] text-primary px-3 py-1 rounded-t-md text-xs font-mono font-medium border-t-2 border-primary shadow-inner">
+										<FileCode className="w-3.5 h-3.5 text-primary" />
+										<span>{filename}</span>
+									</div>
 								</div>
-							}
-							options={{
-								fontSize: fontSize,
-								fontFamily: "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
-								fontLigatures: true,
-								minimap: { enabled: false },
-								scrollBeyondLastLine: false,
-								automaticLayout: true,
-								tabSize: 4,
-								lineNumbers: 'on',
-								renderLineHighlight: 'all',
-								padding: { top: 12, bottom: 12 },
-								cursorBlinking: 'smooth',
-								cursorSmoothCaretAnimation: 'on',
-								smoothScrolling: true,
-								bracketPairColorization: { enabled: true },
-								suggestOnTriggerCharacters: true,
-								quickSuggestions: true,
-								wordWrap: 'on',
-								folding: true,
-							}}
-						/>
-					</div>
 
-					{/* VS Code Editor Bottom Status Bar */}
-					<div className="bg-[#007acc] text-white px-3 py-0.5 flex items-center justify-between text-[11px] font-mono shrink-0 select-none">
-						<div className="flex items-center gap-3">
-							<span className="flex items-center gap-1 font-semibold">
-								<Terminal className="w-3 h-3" />
-								<span>CodExecute IDE</span>
-							</span>
-							<span>•</span>
-							<span>UTF-8</span>
-							<span>•</span>
-							<span>{monacoLang.toUpperCase()}</span>
-						</div>
-						<div className="flex items-center gap-4">
-							<span>Ln {cursorPos.line}, Col {cursorPos.column}</span>
-							<span>Spaces: 4</span>
-							<Settings2 className="w-3 h-3 cursor-pointer hover:opacity-80" />
-						</div>
-					</div>
+								{/* Right: IDE Controls & Hotkeys Info */}
+								<div className="flex items-center gap-3 text-[11px] text-gray-400 font-mono">
+									<span className="hidden sm:inline-flex items-center gap-1 bg-[#1e1e1e] px-2 py-0.5 rounded border border-gray-700/60 text-gray-400">
+										<kbd className="text-gray-300">Ctrl</kbd>+<kbd className="text-gray-300">Enter</kbd> to Run
+									</span>
 
-					{/* Bottom IDE Output / Testcase Terminal Drawer */}
-					<div className="bg-[#181818] border-t border-[#333333] shrink-0">
-						<Tabs value={activeTab} onValueChange={setActiveTab}>
-							<div className="px-3 pt-2 bg-[#252526] border-b border-[#333333] flex items-center justify-between">
-								<TabsList className="bg-[#1e1e1e] border border-gray-700/60 p-0.5 rounded-lg">
-									<TabsTrigger value="testcase" className="text-xs text-gray-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md px-3 py-1 font-medium transition-all">
-										Testcase
-									</TabsTrigger>
-									<TabsTrigger value="result" className="text-xs text-gray-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md px-3 py-1 font-medium transition-all">
-										Test Result
-									</TabsTrigger>
-								</TabsList>
-
-								{testOutput && (
-									<Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] font-mono gap-1">
-										<Check className="w-3 h-3" />
-										<span>Accepted</span>
-									</Badge>
-								)}
-							</div>
-
-							{/* Testcase Input View */}
-							<TabsContent value="testcase" className="px-4 py-3 m-0 space-y-3">
-								<div className="flex items-center gap-2">
-									{problem.examples.map((_, idx) => (
-										<button
-											key={idx}
-											onClick={() => setSelectedTestCase(idx)}
-											className={`px-3 py-1 rounded-lg text-xs font-mono transition-all ${
-												selectedTestCase === idx
-													? 'bg-primary text-primary-foreground font-semibold shadow-sm'
-													: 'bg-[#252526] text-gray-400 hover:text-gray-200 border border-gray-700/60'
-											}`}
+									<div className="flex items-center gap-1">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-700/50"
+											onClick={() => setFontSize(prev => Math.max(12, prev - 1))}
+											title="Decrease font size"
 										>
-											Case {idx + 1}
-										</button>
-									))}
-								</div>
-
-								<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
-									<p className="text-gray-400 text-xs font-mono">Input:</p>
-									<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-gray-200">
-										{problem.examples[selectedTestCase]?.input || 'nums = [2,7,11,15], target = 9'}
+											<span className="text-xs font-bold">A-</span>
+										</Button>
+										<span className="text-xs">{fontSize}px</span>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-700/50"
+											onClick={() => setFontSize(prev => Math.min(20, prev + 1))}
+											title="Increase font size"
+										>
+											<span className="text-xs font-bold">A+</span>
+										</Button>
 									</div>
 								</div>
-							</TabsContent>
+							</div>
 
-							{/* Test Result Execution Output View */}
-							<TabsContent value="result" className="px-4 py-3 m-0">
-								{isRunning ? (
-									<div className="flex items-center gap-2 text-amber-400 text-xs font-mono py-2">
-										<Play className="w-4 h-4 animate-spin" />
-										Running testcases against sandbox container...
+							{/* IDE Breadcrumbs Bar */}
+							<div className="bg-[#1e1e1e] border-b border-[#2d2d2d] px-4 py-1 flex items-center gap-1 text-[11px] font-mono text-gray-400 shrink-0 overflow-x-auto">
+								<span className="hover:text-gray-200 cursor-pointer">src</span>
+								<ChevronRight className="w-3 h-3 text-gray-600 shrink-0" />
+								<span className="hover:text-gray-200 cursor-pointer">{filename}</span>
+								<ChevronRight className="w-3 h-3 text-gray-600 shrink-0" />
+								<span className="text-primary font-semibold truncate">twoSum</span>
+							</div>
+
+							{/* Monaco Editor Container */}
+							<div className="flex-1 relative overflow-hidden bg-[#1e1e1e]">
+								<Editor
+									height="100%"
+									language={monacoLang}
+									theme={theme === 'dark' ? 'vs-dark' : 'vs-dark'}
+									value={code}
+									onChange={(val) => setCode(val || '')}
+									onMount={handleEditorDidMount}
+									loading={
+										<div className="flex items-center justify-center h-full text-gray-400 text-xs font-mono gap-2">
+											<Code2 className="w-5 h-5 animate-spin text-primary" />
+											<span>Loading Monaco Editor...</span>
+										</div>
+									}
+									options={{
+										fontSize: fontSize,
+										fontFamily: "'Fira Code', 'Cascadia Code', Consolas, 'Courier New', monospace",
+										fontLigatures: true,
+										minimap: { enabled: false },
+										scrollBeyondLastLine: false,
+										automaticLayout: true,
+										tabSize: 4,
+										lineNumbers: 'on',
+										renderLineHighlight: 'all',
+										padding: { top: 12, bottom: 12 },
+										cursorBlinking: 'smooth',
+										cursorSmoothCaretAnimation: 'on',
+										smoothScrolling: true,
+										bracketPairColorization: { enabled: true },
+										suggestOnTriggerCharacters: true,
+										quickSuggestions: true,
+										wordWrap: 'on',
+										folding: true,
+									}}
+								/>
+							</div>
+
+							{/* VS Code Editor Bottom Status Bar */}
+							<div className="bg-[#007acc] text-white px-3 py-0.5 flex items-center justify-between text-[11px] font-mono shrink-0 select-none overflow-x-auto">
+								<div className="flex items-center gap-3 shrink-0">
+									<span className="flex items-center gap-1 font-semibold">
+										<Terminal className="w-3 h-3" />
+										<span>CodExecute IDE</span>
+									</span>
+									<span>•</span>
+									<span>UTF-8</span>
+									<span>•</span>
+									<span>{monacoLang.toUpperCase()}</span>
+								</div>
+								<div className="flex items-center gap-4 shrink-0">
+									<span>Ln {cursorPos.line}, Col {cursorPos.column}</span>
+									<span className="hidden sm:inline">Spaces: 4</span>
+									<Settings2 className="w-3 h-3 cursor-pointer hover:opacity-80" />
+								</div>
+							</div>
+						</ResizablePanel>
+
+						{/* Resizable Handle: Code Editor | Output & Testcases */}
+						<ResizableHandle withHandle />
+
+						{/* BOTTOM SUB-PANE: Code Output & Testcase Terminal */}
+						<ResizablePanel
+							defaultSize={35}
+							minSize={15}
+							maxSize={75}
+							className="h-full flex flex-col bg-[#181818] overflow-hidden"
+						>
+							<Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col overflow-hidden">
+								<div className="px-3 pt-2 bg-[#252526] border-b border-[#333333] flex items-center justify-between shrink-0">
+									<TabsList className="bg-[#1e1e1e] border border-gray-700/60 p-0.5 rounded-lg">
+										<TabsTrigger value="testcase" className="text-xs text-gray-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md px-3 py-1 font-medium transition-all">
+											Testcase
+										</TabsTrigger>
+										<TabsTrigger value="result" className="text-xs text-gray-300 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md px-3 py-1 font-medium transition-all">
+											Test Result
+										</TabsTrigger>
+									</TabsList>
+
+									{testOutput && (
+										<Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30 text-[10px] font-mono gap-1">
+											<Check className="w-3 h-3" />
+											<span>Accepted</span>
+										</Badge>
+									)}
+								</div>
+
+								{/* Testcase Input View */}
+								<TabsContent value="testcase" className="px-4 py-3 m-0 space-y-3 flex-1 overflow-y-auto">
+									<div className="flex items-center gap-2 overflow-x-auto pb-1">
+										{problem.examples.map((_, idx) => (
+											<button
+												key={idx}
+												onClick={() => setSelectedTestCase(idx)}
+												className={`px-3 py-1 rounded-lg text-xs font-mono transition-all shrink-0 ${
+													selectedTestCase === idx
+														? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+														: 'bg-[#252526] text-gray-400 hover:text-gray-200 border border-gray-700/60'
+												}`}
+											>
+												Case {idx + 1}
+											</button>
+										))}
 									</div>
-								) : testOutput ? (
-									<div className="space-y-3 font-mono text-xs">
-										{/* Performance Stats */}
-										<div className="flex items-center gap-4 text-emerald-400 font-bold bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">
-											<div className="flex items-center gap-1.5">
-												<CheckCircle className="w-4 h-4" />
-												<span>Accepted</span>
+
+									<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
+										<p className="text-gray-400 text-xs font-mono">Input:</p>
+										<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-gray-200 overflow-x-auto">
+											{problem.examples[selectedTestCase]?.input || 'nums = [2,7,11,15], target = 9'}
+										</div>
+									</div>
+								</TabsContent>
+
+								{/* Test Result Execution Output View */}
+								<TabsContent value="result" className="px-4 py-3 m-0 flex-1 overflow-y-auto">
+									{isRunning ? (
+										<div className="flex items-center gap-2 text-amber-400 text-xs font-mono py-2">
+											<Play className="w-4 h-4 animate-spin" />
+											Running testcases against sandbox container...
+										</div>
+									) : testOutput ? (
+										<div className="space-y-3 font-mono text-xs">
+											{/* Performance Stats */}
+											<div className="flex items-center gap-4 text-emerald-400 font-bold bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 flex-wrap">
+												<div className="flex items-center gap-1.5">
+													<CheckCircle className="w-4 h-4" />
+													<span>Accepted</span>
+												</div>
+												<span className="text-gray-600 hidden sm:inline">|</span>
+												<div className="flex items-center gap-1 text-gray-300 font-normal">
+													<Clock className="w-3.5 h-3.5 text-emerald-400" />
+													<span>Runtime: <strong className="text-emerald-400">52 ms</strong></span>
+												</div>
+												<span className="text-gray-600 hidden sm:inline">|</span>
+												<div className="flex items-center gap-1 text-gray-300 font-normal">
+													<TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+													<span>Memory: <strong className="text-blue-400">42.1 MB</strong></span>
+												</div>
 											</div>
-											<span className="text-gray-600">|</span>
-											<div className="flex items-center gap-1 text-gray-300 font-normal">
-												<Clock className="w-3.5 h-3.5 text-emerald-400" />
-												<span>Runtime: <strong className="text-emerald-400">52 ms</strong></span>
-											</div>
-											<span className="text-gray-600">|</span>
-											<div className="flex items-center gap-1 text-gray-300 font-normal">
-												<TrendingUp className="w-3.5 h-3.5 text-blue-400" />
-												<span>Memory: <strong className="text-blue-400">42.1 MB</strong></span>
+
+											{/* Detailed Diff Cards */}
+											<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
+												<div>
+													<span className="text-gray-400 text-[11px]">Input: </span>
+													<span className="text-gray-200">{problem.examples[0]?.input}</span>
+												</div>
+												<div>
+													<span className="text-gray-400 text-[11px]">Output: </span>
+													<span className="text-emerald-400 font-semibold">{problem.examples[0]?.output}</span>
+												</div>
+												<div>
+													<span className="text-gray-400 text-[11px]">Expected: </span>
+													<span className="text-emerald-400 font-semibold">{problem.examples[0]?.output}</span>
+												</div>
 											</div>
 										</div>
-
-										{/* Detailed Diff Cards */}
-										<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
-											<div>
-												<span className="text-gray-400 text-[11px]">Input: </span>
-												<span className="text-gray-200">{problem.examples[0]?.input}</span>
-											</div>
-											<div>
-												<span className="text-gray-400 text-[11px]">Output: </span>
-												<span className="text-emerald-400 font-semibold">{problem.examples[0]?.output}</span>
-											</div>
-											<div>
-												<span className="text-gray-400 text-[11px]">Expected: </span>
-												<span className="text-emerald-400 font-semibold">{problem.examples[0]?.output}</span>
-											</div>
+									) : (
+										<div className="text-gray-500 text-xs font-mono py-2 flex items-center gap-2">
+											<XCircle className="w-4 h-4 text-gray-600" />
+											<span>Click &quot;Run&quot; or &quot;Submit&quot; in the header bar to execute your solution.</span>
 										</div>
-									</div>
-								) : (
-									<div className="text-gray-500 text-xs font-mono py-2 flex items-center gap-2">
-										<XCircle className="w-4 h-4 text-gray-600" />
-										<span>Click &quot;Run&quot; or &quot;Submit&quot; in the header bar to execute your solution.</span>
-									</div>
-								)}
-							</TabsContent>
-						</Tabs>
-					</div>
-				</div>
-			</div>
+									)}
+								</TabsContent>
+							</Tabs>
+						</ResizablePanel>
+					</ResizablePanelGroup>
+				</ResizablePanel>
+			</ResizablePanelGroup>
 
 			{/* Accepted Modal Dialog */}
 			<Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
