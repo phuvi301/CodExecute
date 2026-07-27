@@ -1,3 +1,10 @@
+from pathlib import Path
+import sys
+
+# Thêm thư mục cha (FCAJ) vào sys.path để Python nhận diện được package 'app'
+ROOT_DIR = Path(__file__).resolve().parent.parent
+sys.path.append(str(ROOT_DIR))
+
 import boto3
 from botocore.exceptions import ClientError
 from app.core.config import settings
