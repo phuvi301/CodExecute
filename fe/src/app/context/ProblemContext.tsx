@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
+import { runCodeApi, submitCodeApi, getSubmissionResultApi, RunCodeResponse, SubmissionResponseData } from '../services/api';
 
 export interface Problem {
 	id: string;
@@ -17,123 +18,130 @@ export interface Problem {
 
 export const PROBLEMS_LIST: Problem[] = [
 	{
-		id: '1',
+		id: 'two-sum',
 		title: 'Two Sum',
 		difficulty: 'Easy',
 		acceptance: '48.2%',
 		submissions: '2.3M',
 		description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.
 
-You may assume that each input would have exactly one solution, and you may not use the same element twice.
+Input format:
+- Line 1: Space-separated integers for nums.
+- Line 2: Integer target.
 
-You can return the answer in any order.`,
+Example:
+Input:
+2 7 11 15
+9
+Output:
+0 1`,
 		examples: [
-			{ input: 'nums = [2,7,11,15], target = 9', output: '[0,1]', explanation: 'Because nums[0] + nums[1] == 9, we return [0, 1].' },
-			{ input: 'nums = [3,2,4], target = 6', output: '[1,2]', explanation: '' },
-			{ input: 'nums = [3,3], target = 6', output: '[0,1]', explanation: '' }
+			{ input: '2 7 11 15\n9', output: '0 1', explanation: 'Because nums[0] + nums[1] == 9, we return 0 1.' },
+			{ input: '3 2 4\n6', output: '1 2', explanation: '' },
+			{ input: '3 3\n6', output: '0 1', explanation: '' }
 		],
 		constraints: ['2 <= nums.length <= 10⁴', '-10⁹ <= nums[i] <= 10⁹', '-10⁹ <= target <= 10⁹', 'Only one valid answer exists.']
 	},
 	{
-		id: '2',
-		title: 'Add Two Numbers',
-		difficulty: 'Medium',
-		acceptance: '41.5%',
-		submissions: '1.8M',
-		description: `You are given two non-empty linked lists representing two non-negative integers. The digits are stored in reverse order, and each of their nodes contains a single digit. Add the two numbers and return the sum as a linked list.`,
+		id: '1',
+		title: 'Two Sum (Classic)',
+		difficulty: 'Easy',
+		acceptance: '48.2%',
+		submissions: '2.3M',
+		description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.`,
 		examples: [
-			{ input: 'l1 = [2,4,3], l2 = [5,6,4]', output: '[7,0,8]', explanation: '342 + 465 = 807.' }
+			{ input: '2 7 11 15\n9', output: '0 1', explanation: '' }
 		],
-		constraints: ['The number of nodes in each linked list is in the range [1, 100]', '0 <= Node.val <= 9']
-	},
-	{
-		id: '3',
-		title: 'Longest Substring Without Repeating Characters',
-		difficulty: 'Medium',
-		acceptance: '34.8%',
-		submissions: '3.1M',
-		description: `Given a string s, find the length of the longest substring without repeating characters.`,
-		examples: [
-			{ input: 's = "abcabcbb"', output: '3', explanation: 'The answer is "abc", with the length of 3.' }
-		],
-		constraints: ['0 <= s.length <= 5 * 10⁴', 's consists of English letters, digits, symbols and spaces.']
-	},
-	{
-		id: '4',
-		title: 'Median of Two Sorted Arrays',
-		difficulty: 'Hard',
-		acceptance: '37.1%',
-		submissions: '1.2M',
-		description: `Given two sorted arrays nums1 and nums2 of size m and n respectively, return the median of the two sorted arrays. The overall run time complexity should be O(log (m+n)).`,
-		examples: [
-			{ input: 'nums1 = [1,3], nums2 = [2]', output: '2.00000', explanation: 'merged array = [1,2,3] and median is 2.' }
-		],
-		constraints: ['nums1.length == m', 'nums2.length == n', '0 <= m <= 1000', '0 <= n <= 1000']
+		constraints: ['2 <= nums.length <= 10⁴']
 	}
 ];
 
 export const CODE_TEMPLATES: Record<string, string> = {
-	javascript: `function twoSum(nums, target) {
-    // Write your solution here
-    const map = new Map();
-    for (let i = 0; i < nums.length; i++) {
-        const diff = target - nums[i];
-        if (map.has(diff)) {
-            return [map.get(diff), i];
-        }
-        map.set(nums[i], i);
-    }
-    return [];
-}`,
-	python: `def twoSum(nums: list[int], target: int) -> list[int]:
-    # Write your solution here
+	python: `import sys
+
+def solve():
+    lines = sys.stdin.read().strip().splitlines()
+    if len(lines) < 2:
+        return
+    nums = list(map(int, lines[0].split()))
+    target = int(lines[1])
+    
     seen = {}
     for i, num in enumerate(nums):
         diff = target - num
         if diff in seen:
-            return [seen[diff], i]
+            print(f"{seen[diff]} {i}")
+            return
         seen[num] = i
-    return []`,
-	cpp: `class Solution {
-public:
-    vector<int> twoSum(vector<int>& nums, int target) {
-        // Write your solution here
-        unordered_map<int, int> mp;
-        for (int i = 0; i < nums.size(); i++) {
-            int diff = target - nums[i];
-            if (mp.find(diff) != mp.end()) {
-                return {mp[diff], i};
-            }
-            mp[nums[i]] = i;
-        }
-        return {};
-    }
-};`,
-	java: `class Solution {
-    public int[] twoSum(int[] nums, int target) {
-        // Write your solution here
-        Map<Integer, Integer> map = new HashMap<>();
-        for (int i = 0; i < nums.length; i++) {
-            int diff = target - nums[i];
-            if (map.containsKey(diff)) {
-                return new int[] { map.get(diff), i };
-            }
-            map.put(nums[i], i);
-        }
-        return new int[0];
-    }
-}`,
-	typescript: `function twoSum(nums: number[], target: number): number[] {
-    // Write your solution here
-    const map = new Map<number, number>();
+
+if __name__ == "__main__":
+    solve()`,
+	javascript: `const fs = require('fs');
+
+function solve() {
+    const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
+    if (lines.length < 2) return;
+    const nums = lines[0].trim().split(/\\s+/).map(Number);
+    const target = Number(lines[1].trim());
+
+    const map = new Map();
     for (let i = 0; i < nums.length; i++) {
         const diff = target - nums[i];
         if (map.has(diff)) {
-            return [map.get(diff)!, i];
+            console.log(\`\${map.get(diff)} \${i}\`);
+            return;
         }
         map.set(nums[i], i);
     }
-    return [];
+}
+
+solve();`,
+	cpp: `#include <iostream>
+#include <vector>
+#include <unordered_map>
+using namespace std;
+
+int main() {
+    vector<int> nums;
+    int val;
+    while (cin >> val) {
+        nums.push_back(val);
+    }
+    if (nums.size() < 2) return 0;
+    int target = nums.back();
+    nums.pop_back();
+
+    unordered_map<int, int> mp;
+    for (int i = 0; i < nums.size(); i++) {
+        int diff = target - nums[i];
+        if (mp.find(diff) != mp.end()) {
+            cout << mp[diff] << " " << i << endl;
+            return 0;
+        }
+        mp[nums[i]] = i;
+    }
+    return 0;
+}`,
+	java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        if (!sc.hasNextLine()) return;
+        String[] parts = sc.nextLine().trim().split("\\\\s+");
+        int target = sc.nextInt();
+
+        Map<Integer, Integer> map = new HashMap<>();
+        for (int i = 0; i < parts.length; i++) {
+            int num = Integer.parseInt(parts[i]);
+            int diff = target - num;
+            if (map.containsKey(diff)) {
+                System.out.println(map.get(diff) + " " + i);
+                return;
+            }
+            map.put(num, i);
+        }
+    }
 }`
 };
 
@@ -146,11 +154,14 @@ interface ProblemContextType {
 	code: string;
 	setCode: (code: string) => void;
 	isRunning: boolean;
-	runCode: () => void;
-	submitCode: () => void;
+	isSubmitting: boolean;
+	runCode: () => Promise<void>;
+	submitCode: () => Promise<void>;
 	showSubmitDialog: boolean;
 	setShowSubmitDialog: (show: boolean) => void;
 	testOutput: string | null;
+	submissionResult: SubmissionResponseData | null;
+	runResult: RunCodeResponse | null;
 	activeTab: string;
 	setActiveTab: (tab: string) => void;
 }
@@ -158,12 +169,15 @@ interface ProblemContextType {
 const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
 
 export function ProblemProvider({ children }: { children: React.ReactNode }) {
-	const [currentProblemId, setCurrentProblemId] = useState<string>('1');
-	const [language, setLanguageState] = useState<string>('javascript');
-	const [code, setCode] = useState<string>(CODE_TEMPLATES['javascript']);
+	const [currentProblemId, setCurrentProblemId] = useState<string>('two-sum');
+	const [language, setLanguageState] = useState<string>('python');
+	const [code, setCode] = useState<string>(CODE_TEMPLATES['python']);
 	const [isRunning, setIsRunning] = useState<boolean>(false);
+	const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 	const [showSubmitDialog, setShowSubmitDialog] = useState<boolean>(false);
 	const [testOutput, setTestOutput] = useState<string | null>(null);
+	const [runResult, setRunResult] = useState<RunCodeResponse | null>(null);
+	const [submissionResult, setSubmissionResult] = useState<SubmissionResponseData | null>(null);
 	const [activeTab, setActiveTab] = useState<string>('testcase');
 
 	const problem = PROBLEMS_LIST.find((p) => p.id === currentProblemId) || PROBLEMS_LIST[0];
@@ -175,18 +189,89 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 		}
 	};
 
-	const runCode = () => {
+	// NÚT RUN CODE: Chạy 3-5 testcase mẫu, KHÔNG LƯU DATABASE, KHÔNG PUSH SQS
+	const runCode = async () => {
 		setIsRunning(true);
 		setTestOutput(null);
+		setRunResult(null);
 		setActiveTab('result');
-		setTimeout(() => {
+
+		try {
+			const res = await runCodeApi({
+				problem_id: currentProblemId,
+				language: language,
+				code: code
+			});
+
+			setRunResult(res);
+			const formattedOutput = [
+				`Status: ${res.status}`,
+				`Testcases Passed: ${res.passed_testcases} / ${res.total_testcases}`,
+				`Execution Time: ${res.execution_time}s`,
+				`Memory Used: ${res.memory_used} MB`,
+				res.error_message ? `\n[Error Details]:\n${res.error_message}` : ''
+			].filter(Boolean).join('\n');
+
+			setTestOutput(formattedOutput);
+		} catch (error: any) {
+			setTestOutput(`Lỗi thực thi Run Code:\n${error.message || error}`);
+		} finally {
 			setIsRunning(false);
-			setTestOutput('Status: Accepted\nRuntime: 52 ms\nMemory: 42.1 MB\n\nOutput: [0, 1]\nExpected: [0, 1]');
-		}, 800);
+		}
 	};
 
-	const submitCode = () => {
+	// NÚT SUBMIT CODE: Nộp bài, LƯU DYNAMODB (Status: Pending, Code content), PUSH SQS
+	const submitCode = async () => {
+		setIsSubmitting(true);
+		setSubmissionResult(null);
 		setShowSubmitDialog(true);
+
+		try {
+			const pendingSub = await submitCodeApi({
+				problem_id: currentProblemId,
+				language: language,
+				code: code
+			});
+
+			setSubmissionResult(pendingSub);
+
+			// Poll kết quả cho đến khi hoàn thành chấm bài
+			let attempts = 0;
+			const maxAttempts = 15;
+
+			const pollInterval = setInterval(async () => {
+				attempts++;
+				try {
+					const latestResult = await getSubmissionResultApi(pendingSub.submission_id);
+					setSubmissionResult(latestResult);
+
+					if (latestResult.status !== 'Pending' || attempts >= maxAttempts) {
+						clearInterval(pollInterval);
+						setIsSubmitting(false);
+					}
+				} catch (e) {
+					clearInterval(pollInterval);
+					setIsSubmitting(false);
+				}
+			}, 1000);
+
+		} catch (error: any) {
+			setSubmissionResult({
+				submission_id: 'error',
+				user_id: '',
+				problem_id: currentProblemId,
+				language: language,
+				code: code,
+				status: 'Runtime Error',
+				execution_time: 0,
+				memory_used: 0,
+				passed_testcases: 0,
+				total_testcases: 0,
+				error_message: error.message || 'Lỗi nộp bài',
+				submitted_at: new Date().toISOString()
+			});
+			setIsSubmitting(false);
+		}
 	};
 
 	return (
@@ -200,11 +285,14 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 				code,
 				setCode,
 				isRunning,
+				isSubmitting,
 				runCode,
 				submitCode,
 				showSubmitDialog,
 				setShowSubmitDialog,
 				testOutput,
+				submissionResult,
+				runResult,
 				activeTab,
 				setActiveTab,
 			}}
@@ -217,21 +305,23 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 export function useProblem() {
 	const context = useContext(ProblemContext);
 	if (!context) {
-		// Return safe fallback if used outside ProblemProvider
 		return {
-			currentProblemId: '1',
+			currentProblemId: 'two-sum',
 			setCurrentProblemId: () => {},
 			problem: PROBLEMS_LIST[0],
-			language: 'javascript',
+			language: 'python',
 			setLanguage: () => {},
-			code: CODE_TEMPLATES['javascript'],
+			code: CODE_TEMPLATES['python'],
 			setCode: () => {},
 			isRunning: false,
-			runCode: () => {},
-			submitCode: () => {},
+			isSubmitting: false,
+			runCode: async () => {},
+			submitCode: async () => {},
 			showSubmitDialog: false,
 			setShowSubmitDialog: () => {},
 			testOutput: null,
+			submissionResult: null,
+			runResult: null,
 			activeTab: 'testcase',
 			setActiveTab: () => {},
 		};

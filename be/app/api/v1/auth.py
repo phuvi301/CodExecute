@@ -43,31 +43,54 @@ async def login(payload: LoginRequest, response: Response):
     refresh_token = security.create_token(data={"sub": user['UserID'], "role": user.get('Role', 'user')}, mode="refresh")
     access_token = security.create_token(data={"sub": user['UserID'], "role": user.get('Role', 'user')}, mode="access")
     
+    # Lưu Refresh Token vào HTTP-only cookie
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,
-        samesite="lax"
+        secure=False,  # Đổi thành True trên Production (HTTPS)
+        samesite="lax",
+        path="/"
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
 
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-security_scheme = HTTPBearer(auto_error=False)
-
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(request: Request):
+async def refresh_token(request: Request, response: Response):
     refresh_token = request.cookies.get("refresh_token")
     
-    if refresh_token is None:
-        raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token không tồn tại trong cookie")
     
     payload = security.decode_token(refresh_token)
     if not payload:
-        raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
+        raise HTTPException(status_code=401, detail="Refresh token không hợp lệ hoặc đã hết hạn")
+
     user_id = payload.get("sub")
     role = payload.get("role", "user")
+
+    # Tạo Access Token mới & gia hạn Refresh Token (Token Rotation)
     new_access_token = security.create_token(data={"sub": user_id, "role": role}, mode="access")
+    new_refresh_token = security.create_token(data={"sub": user_id, "role": role}, mode="refresh")
+
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        path="/"
+    )
+
     return {"access_token": new_access_token, "token_type": "bearer"}
+
+@router.post("/logout")
+async def logout(response: Response):
+    """Xóa HTTP-only cookie refresh_token khi người dùng đăng xuất"""
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        httponly=True,
+        samesite="lax"
+    )
+    return {"message": "Đăng xuất thành công"}

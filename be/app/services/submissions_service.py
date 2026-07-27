@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
+from decimal import Decimal
 from botocore.exceptions import ClientError
 from app.core.aws import dynamodb_resource, s3_client
 from app.core.config import settings
@@ -12,6 +13,17 @@ testcases_table = dynamodb_resource.Table(settings.DYNAMODB_TESTCASES_TABLE)
 problems_table = dynamodb_resource.Table(settings.DYNAMODB_PROBLEMS_TABLE)
 
 
+def convert_decimals(obj: Any) -> Any:
+    """Helper chuyển đổi Decimal của boto3 DynamoDB thành float/int chuẩn cho JSON serialization"""
+    if isinstance(obj, list):
+        return [convert_decimals(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: convert_decimals(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj) if float(obj) % 1 != 0 else int(obj)
+    return obj
+
+
 def create_pending_submission(
     submission_id: str,
     user_id: str,
@@ -21,6 +33,7 @@ def create_pending_submission(
 ) -> Dict[str, Any]:
     """
     Tạo pending request và lưu status 'Pending' cùng nội dung code trực tiếp vào DynamoDB.
+    Chú ý: Boto3 DynamoDB bắt buộc dùng Decimal thay cho float.
     """
     submitted_at = datetime.now(timezone.utc).isoformat()
     item = {
@@ -30,8 +43,8 @@ def create_pending_submission(
         "Language": language,
         "Code": code,  # Lưu nội dung code trực tiếp vào database
         "Status": "Pending",
-        "ExecutionTime": 0.0,
-        "MemoryUsed": 0.0,
+        "ExecutionTime": Decimal("0.0"),  # Dùng Decimal thay cho float 0.0
+        "MemoryUsed": Decimal("0.0"),     # Dùng Decimal thay cho float 0.0
         "PassedTestCases": 0,
         "TotalTestCases": 0,
         "ErrorMessage": "",
@@ -45,14 +58,15 @@ def create_pending_submission(
         logger.error(f"Lỗi khi lưu submission vào DynamoDB: {e}")
         raise e
 
-    return item
+    return convert_decimals(item)
 
 
 def get_submission_by_id(submission_id: str) -> Optional[Dict[str, Any]]:
     """Lấy thông tin chi tiết một submission theo ID"""
     try:
         response = submissions_table.get_item(Key={"SubmissionID": submission_id})
-        return response.get("Item")
+        item = response.get("Item")
+        return convert_decimals(item) if item else None
     except Exception as e:
         logger.error(f"Lỗi khi lấy submission {submission_id}: {e}")
         return None
@@ -72,9 +86,8 @@ def get_user_submissions(user_id: str, problem_id: Optional[str] = None) -> List
                 ExpressionAttributeValues={":uid": user_id}
             )
         items = response.get("Items", [])
-        # Sắp xếp mới nhất lên đầu
         items.sort(key=lambda x: x.get("SubmittedAt", ""), reverse=True)
-        return items
+        return convert_decimals(items)
     except Exception as e:
         logger.error(f"Lỗi khi lấy danh sách submissions của user {user_id}: {e}")
         return []
@@ -91,6 +104,10 @@ def update_submission_result(
 ) -> Dict[str, Any]:
     """Cập nhật kết quả chấm bài sau khi Lambda Worker thực thi xong vào DynamoDB"""
     try:
+        # Chuyển đổi float thành Decimal chuẩn của boto3 DynamoDB
+        dec_execution_time = Decimal(str(round(execution_time, 3)))
+        dec_memory_used = Decimal(str(round(memory_used, 2)))
+
         response = submissions_table.update_item(
             Key={"SubmissionID": submission_id},
             UpdateExpression="""
@@ -107,8 +124,8 @@ def update_submission_result(
             },
             ExpressionAttributeValues={
                 ":status": status,
-                ":ext": float(execution_time),
-                ":mem": float(memory_used),
+                ":ext": dec_execution_time,
+                ":mem": dec_memory_used,
                 ":ptc": int(passed_testcases),
                 ":ttc": int(total_testcases),
                 ":err": error_message,
@@ -117,7 +134,7 @@ def update_submission_result(
             ReturnValues="ALL_NEW"
         )
         logger.info(f"Updated submission {submission_id} result: {status}")
-        return response.get("Attributes", {})
+        return convert_decimals(response.get("Attributes", {}))
     except Exception as e:
         logger.error(f"Lỗi cập nhật kết quả submission {submission_id}: {e}")
         return {}
@@ -127,7 +144,8 @@ def get_problem_by_id(problem_id: str) -> Optional[Dict[str, Any]]:
     """Lấy thông tin giới hạn thời gian / bộ nhớ của bài toán từ DynamoDB Problems table"""
     try:
         response = problems_table.get_item(Key={"ProblemID": problem_id})
-        return response.get("Item")
+        item = response.get("Item")
+        return convert_decimals(item) if item else None
     except Exception as e:
         logger.warning(f"Không thể lấy thông tin problem {problem_id}: {e}")
         return None

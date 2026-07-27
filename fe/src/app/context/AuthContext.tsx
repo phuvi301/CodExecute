@@ -6,9 +6,14 @@ import {
   UserProfile,
   loginApi,
   registerApi,
+  refreshApi,
+  logoutApi,
   getMeApi,
   updateProfileApi,
   uploadAvatarApi,
+  getAccessToken,
+  setAccessToken,
+  clearAccessToken,
 } from '../services/api';
 
 interface AuthContextType {
@@ -20,47 +25,49 @@ interface AuthContextType {
   register: (payload: RegisterPayload) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<UserProfile>;
   uploadAvatar: (file: File) => Promise<{ message: string; avatar_url: string; user: UserProfile }>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = 'codexecute_token';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY));
+  const [token, setTokenState] = useState<string | null>(() => getAccessToken());
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Helper đồng bộ token vào runtime memory
+  const updateRuntimeToken = (newToken: string | null) => {
+    setAccessToken(newToken);
+    setTokenState(newToken);
+  };
+
   useEffect(() => {
-    async function loadUser() {
-      if (!token) {
-        setIsLoading(false);
-        setUser(null);
-        return;
-      }
+    async function initAuth() {
       try {
-        const profile = await getMeApi(token);
+        // Tự động khôi phục phiên bằng HTTP-only refreshToken cookie khi load lại trang
+        const authRes = await refreshApi();
+        updateRuntimeToken(authRes.access_token);
+
+        const profile = await getMeApi(authRes.access_token);
         setUser(profile);
-      } catch (error) {
-        console.error('Failed to fetch user profile:', error);
-        localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
+      } catch {
+        // Không có cookie refreshToken hợp lệ -> Chuyển về trạng thái guest
+        clearAccessToken();
+        setTokenState(null);
         setUser(null);
       } finally {
         setIsLoading(false);
       }
     }
 
-    loadUser();
-  }, [token]);
+    initAuth();
+  }, []);
 
   const login = async (payload: LoginPayload) => {
     setIsLoading(true);
     try {
       const res = await loginApi(payload);
-      localStorage.setItem(TOKEN_KEY, res.access_token);
-      setToken(res.access_token);
+      updateRuntimeToken(res.access_token);
 
       const profile = await getMeApi(res.access_token);
       setUser(profile);
@@ -73,7 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       await registerApi(payload);
-      // Auto login after registration
+      // Tự động đăng nhập sau khi đăng ký
       await login({ email: payload.email, password: payload.password });
     } finally {
       setIsLoading(false);
@@ -81,22 +88,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updateProfile = async (payload: UpdateProfilePayload): Promise<UserProfile> => {
-    if (!token) throw new Error('Not authenticated');
-    const updated = await updateProfileApi(token, payload);
+    const currentToken = getAccessToken();
+    if (!currentToken) throw new Error('Not authenticated');
+    const updated = await updateProfileApi(currentToken, payload);
     setUser(updated);
     return updated;
   };
 
   const uploadAvatar = async (file: File): Promise<{ message: string; avatar_url: string; user: UserProfile }> => {
-    if (!token) throw new Error('Not authenticated');
-    const res = await uploadAvatarApi(token, file);
+    const currentToken = getAccessToken();
+    if (!currentToken) throw new Error('Not authenticated');
+    const res = await uploadAvatarApi(currentToken, file);
     setUser(res.user);
     return res;
   };
 
-  const logout = () => {
-    localStorage.removeItem(TOKEN_KEY);
-    setToken(null);
+  const logout = async () => {
+    await logoutApi();
+    updateRuntimeToken(null);
     setUser(null);
   };
 
@@ -104,7 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        token,
+        token: getAccessToken(),
         isAuthenticated: !!user,
         isLoading,
         login,
@@ -126,4 +135,3 @@ export function useAuth() {
   }
   return context;
 }
-

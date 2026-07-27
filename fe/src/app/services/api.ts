@@ -1,5 +1,20 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 
+// --- RUNTIME TOKEN STORAGE (Biến lưu ở RAM, không dùng localStorage) ---
+let inMemoryAccessToken: string | null = null;
+
+export function getAccessToken(): string | null {
+  return inMemoryAccessToken;
+}
+
+export function setAccessToken(token: string | null): void {
+  inMemoryAccessToken = token;
+}
+
+export function clearAccessToken(): void {
+  inMemoryAccessToken = null;
+}
+
 export interface LoginPayload {
   email: string;
   password: string;
@@ -28,12 +43,58 @@ export interface UserProfile {
   role: string;
 }
 
+// --- TỰ ĐỘNG REFRESH TOKEN VÀ GỬI REQUEST CÓ AUTHENTICATION ---
+async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+  let token = getAccessToken();
+
+  // 1. Nếu runtime chưa có accessToken, thử silent refresh bằng cookie refreshToken
+  if (!token) {
+    try {
+      const res = await refreshApi();
+      token = res.access_token;
+    } catch {
+      // Không có cookie hoặc refreshToken hết hạn
+    }
+  }
+
+  const headers = new Headers(options.headers || {});
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  options.headers = headers;
+  options.credentials = 'include';
+
+  let response = await fetch(url, options);
+
+  // 2. Nếu accessToken mất hoặc hết hạn (HTTP 401), tự động gọi refresh token mới
+  if (response.status === 401) {
+    try {
+      const refreshRes = await refreshApi();
+      const newToken = refreshRes.access_token;
+
+      const newHeaders = new Headers(options.headers || {});
+      newHeaders.set('Authorization', `Bearer ${newToken}`);
+      options.headers = newHeaders;
+
+      // Retry lại API request gốc với accessToken vừa cấp mới
+      response = await fetch(url, options);
+    } catch {
+      clearAccessToken();
+    }
+  }
+
+  return response;
+}
+
+// --- API AUTHENTICATION ---
+
 export async function loginApi(payload: LoginPayload): Promise<AuthTokenResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include', // Để trình duyệt lưu HTTP-only refreshToken cookie từ server
     body: JSON.stringify(payload),
   });
 
@@ -46,7 +107,41 @@ export async function loginApi(payload: LoginPayload): Promise<AuthTokenResponse
     throw new Error(errorMsg);
   }
 
+  setAccessToken(data.access_token);
   return data;
+}
+
+export async function refreshApi(): Promise<AuthTokenResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'include', // Gửi HTTP-only refreshToken cookie lên backend
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    clearAccessToken();
+    throw new Error(data.detail || 'Phiên đăng nhập đã hết hạn');
+  }
+
+  setAccessToken(data.access_token);
+  return data;
+}
+
+export async function logoutApi(): Promise<void> {
+  try {
+    await fetch(`${API_BASE_URL}/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch (err) {
+    console.error('Lỗi đăng xuất:', err);
+  } finally {
+    clearAccessToken();
+  }
 }
 
 export async function registerApi(payload: RegisterPayload): Promise<{ message: string; user_id: string }> {
@@ -70,12 +165,11 @@ export async function registerApi(payload: RegisterPayload): Promise<{ message: 
   return data;
 }
 
-export async function getMeApi(token: string): Promise<UserProfile> {
-  const response = await fetch(`${API_BASE_URL}/users/me`, {
+export async function getMeApi(tokenOverride?: string): Promise<UserProfile> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/me`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
     },
   });
 
@@ -98,12 +192,11 @@ export interface UpdateProfilePayload {
   new_password?: string;
 }
 
-export async function updateProfileApi(token: string, payload: UpdateProfilePayload): Promise<UserProfile> {
-  const response = await fetch(`${API_BASE_URL}/users/me`, {
+export async function updateProfileApi(_token: string, payload: UpdateProfilePayload): Promise<UserProfile> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/me`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify(payload),
   });
@@ -120,15 +213,12 @@ export async function updateProfileApi(token: string, payload: UpdateProfilePayl
   return data;
 }
 
-export async function uploadAvatarApi(token: string, file: File): Promise<{ message: string; avatar_url: string; user: UserProfile }> {
+export async function uploadAvatarApi(_token: string, file: File): Promise<{ message: string; avatar_url: string; user: UserProfile }> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${API_BASE_URL}/users/me/avatar`, {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/me/avatar`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
     body: formData,
   });
 
@@ -144,3 +234,86 @@ export async function uploadAvatarApi(token: string, file: File): Promise<{ mess
   return data;
 }
 
+// --- SUBMISSIONS & RUN CODE APIs ---
+
+export interface RunCodePayload {
+  problem_id: string;
+  language: string;
+  code: string;
+}
+
+export interface RunCodeResponse {
+  status: string;
+  execution_time: number;
+  memory_used: number;
+  passed_testcases: number;
+  total_testcases: number;
+  error_message: string;
+  testcases?: Array<{ testcase_id?: string; input: string; output: string }>;
+  is_run_only: boolean;
+}
+
+export interface SubmissionResponseData {
+  submission_id: string;
+  user_id: string;
+  problem_id: string;
+  language: string;
+  code: string;
+  status: string;
+  execution_time: number;
+  memory_used: number;
+  passed_testcases: number;
+  total_testcases: number;
+  error_message: string;
+  submitted_at: string;
+}
+
+export async function runCodeApi(payload: RunCodePayload, _token?: string): Promise<RunCodeResponse> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/submissions/run`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi khi chạy thử code');
+  }
+
+  return data;
+}
+
+export async function submitCodeApi(payload: RunCodePayload, _token?: string): Promise<SubmissionResponseData> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/submissions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi khi nộp bài');
+  }
+
+  return data;
+}
+
+export async function getSubmissionResultApi(submissionId: string, _token?: string): Promise<SubmissionResponseData> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/submissions/${submissionId}`, {
+    method: 'GET',
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi lấy kết quả bài nộp');
+  }
+
+  return data;
+}
