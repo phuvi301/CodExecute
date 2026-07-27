@@ -1,9 +1,10 @@
-import { ArrowRight, Code2, Moon, ShieldCheck, Sparkles, Sun, Users } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useState, FormEvent, useEffect } from 'react';
+import { ArrowRight, Code2, Moon, ShieldCheck, Sparkles, Sun, Loader2, AlertCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../shared/ThemeProvider';
+import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
-import { Checkbox } from '../ui/checkbox';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
@@ -22,40 +23,159 @@ const featureItems = [
   },
 ];
 
-
-
 function AuthForm({ mode }: { mode: AuthMode }) {
   const isLogin = mode === 'login';
+  const { login, register, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/feed');
+    }
+  }, [isAuthenticated, navigate]);
+
+  const validatePasswordStrength = (pass: string) => {
+    if (pass.length < 8) return 'Password must be at least 8 characters';
+    if (!/[A-Z]/.test(pass)) return 'Password must contain at least 1 uppercase letter';
+    if (!/[0-9]/.test(pass)) return 'Password must contain at least 1 number';
+    if (!/[!@#$%^&*(),.?":{}|<>_\-\=\+\[\]\\\/]/.test(pass)) return 'Password must contain at least 1 special character (e.g., !@#$%^&*)';
+    return null;
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!email || !password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    if (!isLogin) {
+      if (!fullName.trim()) {
+        setError('Please enter your full name');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+      const pwdError = validatePasswordStrength(password);
+      if (pwdError) {
+        setError(pwdError);
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (isLogin) {
+        await login({ email, password });
+      } else {
+        await register({ email, password, full_name: fullName.trim() });
+      }
+      navigate('/feed');
+    } catch (err: any) {
+      setError(err.message || 'An error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
-    <form className="space-y-5" onSubmit={(event) => event.preventDefault()}>
+    <form className="space-y-5" onSubmit={handleSubmit}>
+      {error && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <AlertCircle className="size-4 shrink-0" />
+          <span>{error}</span>
+        </div>
+      )}
+
       {!isLogin && (
         <div className="space-y-2">
           <Label htmlFor="full-name">Full name</Label>
-          <Input id="full-name" type="text" placeholder="Enter your full name" autoComplete="name" />
+          <Input
+            id="full-name"
+            type="text"
+            placeholder="Enter your full name"
+            autoComplete="name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            disabled={isSubmitting}
+            required
+          />
         </div>
       )}
 
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
-        <Input id="email" type="email" placeholder="Enter your email" autoComplete="email" />
+        <Input
+          id="email"
+          type="email"
+          placeholder="Enter your email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={isSubmitting}
+          required
+        />
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input id="password" type="password" placeholder="Enter your password" autoComplete={isLogin ? 'current-password' : 'new-password'} />
+        <Input
+          id="password"
+          type="password"
+          placeholder={isLogin ? "Enter your password" : "Enter your password"}
+          autoComplete={isLogin ? 'current-password' : 'new-password'}
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={isSubmitting}
+          required
+        />
+        {!isLogin && (
+          <p className="text-[11px] text-muted-foreground">
+            Requires at least 8 characters, 1 uppercase letter, 1 number, and 1 special symbol (!@#$%^&*).
+          </p>
+        )}
       </div>
 
       {!isLogin && (
         <div className="space-y-2">
           <Label htmlFor="confirm-password">Confirm password</Label>
-          <Input id="confirm-password" type="password" placeholder="Repeat your password" autoComplete="new-password" />
+          <Input
+            id="confirm-password"
+            type="password"
+            placeholder="Repeat your password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            disabled={isSubmitting}
+            required
+          />
         </div>
       )}
 
-      <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-        {isLogin ? 'Sign in to CodExecute' : 'Create account'}
-        <ArrowRight className="size-4" />
+      <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isSubmitting}>
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {isLogin ? 'Signing in...' : 'Registering...'}
+          </>
+        ) : (
+          <>
+            {isLogin ? 'Sign in to CodExecute' : 'Create account'}
+            <ArrowRight className="size-4" />
+          </>
+        )}
       </Button>
     </form>
   );
