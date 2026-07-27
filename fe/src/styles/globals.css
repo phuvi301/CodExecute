@@ -187,3 +187,11 @@
 html {
   font-size: var(--font-size);
 }
+
+/* VS Code Syntax Highlighting Classes */
+.syn-kw { color: #c586c0 !important; font-weight: 600; }
+.syn-bi { color: #4fc1ff !important; font-weight: 600; }
+.syn-num { color: #b5cea8 !important; }
+.syn-str { color: #ce9178 !important; }
+.syn-com { color: #6a9955 !important; font-style: italic; }
+.syn-fn { color: #dcdcaa !important; }

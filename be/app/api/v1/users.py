@@ -9,13 +9,21 @@ security_scheme = HTTPBearer(auto_error=False)
 
 def format_user(user: dict):
     raw_avatar = user.get("AvatarUrl", "")
+    title = user.get("Title")
+    if not title or title == "Full Stack Engineer":
+        title = "Developer"
+    
+    address = user.get("Address")
+    if not address or address == "San Francisco, CA":
+        address = "Ho Chi Minh, Vietnam"
+
     return {
         "user_id": user.get("UserID"),
         "email": user.get("Email"),
         "full_name": user.get("FullName", ""),
         "avatar_url": storage_service.get_public_avatar_url(raw_avatar),
-        "title": user.get("Title", "Full Stack Engineer"),
-        "address": user.get("Address", "San Francisco, CA"),
+        "title": title,
+        "address": address,
         "bio": user.get("Bio", ""),
         "created_at": user.get("CreatedAt", "2023-03-15T00:00:00Z"),
         "role": user.get("Role", "user")
@@ -34,6 +42,7 @@ async def get_my_profile(credentials: HTTPAuthorizationCredentials = Depends(sec
         raise HTTPException(status_code=404, detail="User not found")
     return format_user(user)
 
+@router.put("/me")
 @router.patch("/me")
 async def update_my_profile(
     payload: UserUpdate,

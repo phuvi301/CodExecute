@@ -43,7 +43,7 @@ export function screenToPath(screen: Screen, options?: NavigateOptions) {
     case 'problem-editor':
       return `/problems/${options?.problemId ?? '1'}`;
     case 'user-profile':
-      return '/profile';
+      return `/profile/${options?.userId ?? 'me'}`;
     case 'settings':
       return '/settings';
     default:

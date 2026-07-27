@@ -28,6 +28,7 @@ export function Header({ currentScreen }: HeaderProps) {
 	const { theme, toggleTheme } = useTheme();
 	const { user, isAuthenticated, logout } = useAuth();
 	const navigate = useNavigate();
+	const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile/me';
 
 	const { problem, language, setLanguage, runCode, submitCode, isRunning, isSubmitting } = useProblem();
 
@@ -184,7 +185,7 @@ export function Header({ currentScreen }: HeaderProps) {
 									<DropdownMenuContent align="end" sideOffset={12} className="w-72 p-3 rounded-2xl border-border/80 bg-card/95 backdrop-blur-xl shadow-2xl space-y-1">
 										<DropdownMenuLabel
 											className="font-normal p-2 cursor-pointer hover:bg-accent/50 rounded-xl transition-colors"
-											onClick={() => navigate('/profile')}
+											onClick={() => navigate(profileUrl)}
 										>
 											<div className="flex items-center gap-3">
 												<Avatar className="h-10 w-10">
@@ -210,7 +211,7 @@ export function Header({ currentScreen }: HeaderProps) {
 										<DropdownMenuGroup className="space-y-1">
 											<DropdownMenuItem
 												className="cursor-pointer gap-3 p-2 rounded-xl font-medium text-foreground hover:bg-accent transition-colors"
-												onClick={() => navigate('/profile')}
+												onClick={() => navigate(profileUrl)}
 											>
 												<User className="h-4 w-4 text-muted-foreground" />
 												<span>Profile</span>
@@ -284,7 +285,7 @@ export function Header({ currentScreen }: HeaderProps) {
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
 							<Input
 								type="text"
-								placeholder="Search courses, problems, people..."
+								placeholder="Search"
 								className="pl-10 bg-input-background border-border text-foreground placeholder:text-muted-foreground"
 							/>
 						</div>
@@ -321,7 +322,7 @@ export function Header({ currentScreen }: HeaderProps) {
 									<DropdownMenuContent align="end" sideOffset={32} className="w-72 p-3 rounded-2xl border-border/80 bg-card/95 backdrop-blur-xl shadow-2xl space-y-1">
 										<DropdownMenuLabel
 											className="font-normal p-2 cursor-pointer hover:bg-accent/50 rounded-xl transition-colors"
-											onClick={() => navigate('/profile')}
+											onClick={() => navigate(profileUrl)}
 										>
 											<div className="flex items-center gap-3">
 												<Avatar className="h-11 w-11">
@@ -347,7 +348,7 @@ export function Header({ currentScreen }: HeaderProps) {
 										<DropdownMenuGroup className="space-y-1">
 											<DropdownMenuItem
 												className="cursor-pointer gap-3 p-2.5 rounded-xl font-medium text-foreground hover:bg-accent transition-colors"
-												onClick={() => navigate('/profile')}
+												onClick={() => navigate(profileUrl)}
 											>
 												<User className="h-4 w-4 text-muted-foreground" />
 												<span>Profile</span>
