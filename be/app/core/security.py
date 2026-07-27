@@ -22,16 +22,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 # --- 2. XỬ LÝ JWT TOKEN ---
 
-def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
+def create_token(data: Dict[str, Any], mode: Optional[str] = None) -> str:
     """
-    Tạo chuỗi JWT Access Token.
+    Tạo chuỗi JWT Token.
     `data` thường chứa: {"sub": user_id, "role": "user"}
     """
     to_encode = data.copy()
 
     # Tính thời điểm hết hạn (Expiration Time)
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+    if mode == "refresh":
+        expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
@@ -46,7 +46,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     return encoded_jwt
 
 
-def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
+def decode_token(token: str) -> Optional[Dict[str, Any]]:
     """
     Giải mã JWT Token. 
     Trả về Payload nếu hợp lệ, trả về None nếu Token bị sửa đổi hoặc hết hạn.

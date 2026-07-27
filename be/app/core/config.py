@@ -4,7 +4,7 @@ from typing import Optional
 
 class Settings(BaseSettings):
     # Cấu hình Chung
-    PROJECT_NAME: str = "CodeMaster API"
+    PROJECT_NAME: str = "CodExecute API"
     ENVIRONMENT: str = "development"
     
     # Cấu hình AWS
@@ -22,12 +22,13 @@ class Settings(BaseSettings):
     
     # Cấu hình SQS & S3
     SQS_QUEUE_URL: str = ""
-    S3_TESTCASE_BUCKET: str = "codemaster-testcases-bucket"
+    S3_TESTCASE_BUCKET: str = "codexecute-testcases-bucket"
     
     # Cấu hình JWT Security
     JWT_SECRET_KEY: str = "super-secret-key-for-local-dev-only"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 giờ
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # 7 ngày
 
     # Tự động nạp các biến từ file .env nếu có
     model_config = SettingsConfigDict(
