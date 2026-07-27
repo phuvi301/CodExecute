@@ -8,11 +8,12 @@ router = APIRouter()
 security_scheme = HTTPBearer(auto_error=False)
 
 def format_user(user: dict):
+    raw_avatar = user.get("AvatarUrl", "")
     return {
         "user_id": user.get("UserID"),
         "email": user.get("Email"),
         "full_name": user.get("FullName", ""),
-        "avatar_url": user.get("AvatarUrl", ""),
+        "avatar_url": storage_service.get_public_avatar_url(raw_avatar),
         "title": user.get("Title", "Full Stack Engineer"),
         "address": user.get("Address", "San Francisco, CA"),
         "bio": user.get("Bio", ""),
@@ -49,12 +50,6 @@ async def update_my_profile(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    if not payload.old_password:
-        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại là bắt buộc để lưu thay đổi")
-
-    if not security.verify_password(payload.old_password, user.get("PasswordHash", "")):
-        raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác")
-
     update_fields = {}
 
     if payload.full_name is not None:
@@ -76,11 +71,18 @@ async def update_my_profile(
         update_fields["Bio"] = payload.bio.strip()
 
     if payload.new_password:
+        if not payload.old_password or not payload.old_password.strip():
+            raise HTTPException(status_code=400, detail="Mật khẩu hiện tại là bắt buộc khi thay đổi mật khẩu")
+        if not security.verify_password(payload.old_password, user.get("PasswordHash", "")):
+            raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác")
         try:
             security.validate_password_strength(payload.new_password)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         update_fields["PasswordHash"] = security.hash_password(payload.new_password)
+    elif payload.old_password and payload.old_password.strip():
+        if not security.verify_password(payload.old_password, user.get("PasswordHash", "")):
+            raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác")
 
     if not update_fields:
         return format_user(user)

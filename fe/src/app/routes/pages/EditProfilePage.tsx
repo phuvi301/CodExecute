@@ -63,7 +63,7 @@ const ADDRESS_SUGGESTIONS = [
 
 export function EditProfilePage() {
   const navigate = useNavigate();
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, uploadAvatar } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [fullName, setFullName] = useState('');
@@ -83,6 +83,7 @@ export function EditProfilePage() {
   const addressRef = useRef<HTMLDivElement>(null);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
@@ -127,7 +128,7 @@ export function EditProfilePage() {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -136,19 +137,24 @@ export function EditProfilePage() {
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      setError('Image size should be less than 2MB');
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image size should be less than 5MB');
       return;
     }
 
     setError(null);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setAvatarUrl(event.target.result as string);
+    setIsUploadingAvatar(true);
+    try {
+      const res = await uploadAvatar(file);
+      setAvatarUrl(res.avatar_url);
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload avatar');
+    } finally {
+      setIsUploadingAvatar(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
       }
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const filteredTitles = JOB_TITLE_SUGGESTIONS.filter(item =>
@@ -176,12 +182,11 @@ export function EditProfilePage() {
       return;
     }
 
-    if (!oldPassword.trim()) {
-      setError('Please enter your current password to confirm and save changes');
-      return;
-    }
-
     if (newPassword || confirmNewPassword) {
+      if (!oldPassword.trim()) {
+        setError('Please enter your current password to set a new password');
+        return;
+      }
       if (newPassword !== confirmNewPassword) {
         setError('New passwords do not match');
         return;
@@ -201,7 +206,7 @@ export function EditProfilePage() {
         title: title.trim(),
         address: address.trim(),
         bio: bio.trim(),
-        old_password: oldPassword,
+        old_password: oldPassword.trim() || undefined,
         new_password: newPassword || undefined,
       });
 
@@ -291,11 +296,21 @@ export function EditProfilePage() {
                       type="button"
                       variant="outline"
                       size="sm"
+                      disabled={isUploadingAvatar}
                       onClick={() => fileInputRef.current?.click()}
                       className="gap-2 cursor-pointer"
                     >
-                      <Upload className="w-4 h-4 text-primary" />
-                      Upload Photo
+                      {isUploadingAvatar ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 text-primary" />
+                          Upload Photo
+                        </>
+                      )}
                     </Button>
 
                     {avatarUrl && (
@@ -518,25 +533,22 @@ export function EditProfilePage() {
               Security & Authentication
             </CardTitle>
             <CardDescription>
-              Verify your identity with your current password to apply changes.
+              Provide current password only when updating your account password.
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6 space-y-5">
             <div className="space-y-2 max-w-md">
               <Label htmlFor="old-password" className="text-sm font-medium flex items-center justify-between">
-                <span>
-                  Current Password <span className="text-destructive">*</span>
-                </span>
-                <span className="text-xs text-destructive font-normal">Required to confirm updates</span>
+                <span>Current Password</span>
+                <span className="text-xs text-muted-foreground font-normal">Required if changing password</span>
               </Label>
               <Input
                 id="old-password"
                 type="password"
-                placeholder="Enter current password to save changes"
+                placeholder="Enter current password (required if setting new password)"
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
                 disabled={isSaving}
-                required
               />
             </div>
 
