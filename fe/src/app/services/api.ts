@@ -119,3 +119,28 @@ export async function updateProfileApi(token: string, payload: UpdateProfilePayl
 
   return data;
 }
+
+export async function uploadAvatarApi(token: string, file: File): Promise<{ message: string; avatar_url: string; user: UserProfile }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_BASE_URL}/users/me/avatar`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const errorMsg = Array.isArray(data.detail)
+      ? data.detail[0]?.msg || 'Failed to upload avatar'
+      : data.detail || 'Failed to upload avatar';
+    throw new Error(errorMsg);
+  }
+
+  return data;
+}
+

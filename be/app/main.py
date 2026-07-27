@@ -26,8 +26,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 3. Đăng ký các API Routers
-# từ các file trong app/api/v1/
+# 3. Đăng ký các API Routers & Static Files
+import os
+from fastapi.staticfiles import StaticFiles
+
+os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+app.mount("/static", StaticFiles(directory=settings.UPLOAD_DIR), name="static")
+
 app.include_router(api_router, prefix="/api/v1")
 
 # 4. Route kiểm tra trạng thái Server (Health Check)

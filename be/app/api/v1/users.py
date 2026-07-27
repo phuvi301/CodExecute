@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.user import UserUpdate
-from app.services import auth_service
+from app.services import auth_service, storage_service
 from app.core import security
 
 router = APIRouter()
@@ -87,3 +87,29 @@ async def update_my_profile(
 
     updated_user = auth_service.update_user(user_id, update_fields)
     return format_user(updated_user)
+
+
+@router.post("/me/avatar", summary="Upload avatar cho người dùng đang đăng nhập")
+async def upload_avatar(
+    file: UploadFile = File(...),
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
+):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    token_data = security.decode_token(credentials.credentials)
+    if not token_data:
+        raise HTTPException(status_code=401, detail="Token is invalid or expired")
+
+    user_id = token_data.get("sub")
+    user = auth_service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    avatar_url = await storage_service.upload_avatar_file(file, user_id)
+    updated_user = auth_service.update_user(user_id, {"AvatarUrl": avatar_url})
+
+    return {
+        "message": "Upload avatar thành công",
+        "avatar_url": avatar_url,
+        "user": format_user(updated_user)
+    }
