@@ -72,6 +72,8 @@ async def refresh_token(request: Request):
     new_access_token = security.create_token(data={"sub": user_id, "role": role}, mode="access")
     return {"access_token": new_access_token, "token_type": "bearer"}
 
+from app.services import auth_service, storage_service
+
 @router.get("/me")
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
     if not credentials:
@@ -83,11 +85,12 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     user = auth_service.get_user_by_id(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
+    raw_avatar = user.get("AvatarUrl", "")
     return {
         "user_id": user.get("UserID"),
         "email": user.get("Email"),
         "full_name": user.get("FullName", ""),
-        "avatar_url": user.get("AvatarUrl", ""),
+        "avatar_url": storage_service.get_public_avatar_url(raw_avatar),
         "title": user.get("Title", "Full Stack Engineer"),
         "address": user.get("Address", "San Francisco, CA"),
         "bio": user.get("Bio", ""),

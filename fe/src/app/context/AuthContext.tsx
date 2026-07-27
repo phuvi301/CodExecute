@@ -8,6 +8,7 @@ import {
   registerApi,
   getMeApi,
   updateProfileApi,
+  uploadAvatarApi,
 } from '../services/api';
 
 interface AuthContextType {
@@ -18,6 +19,7 @@ interface AuthContextType {
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<UserProfile>;
+  uploadAvatar: (file: File) => Promise<{ message: string; avatar_url: string; user: UserProfile }>;
   logout: () => void;
 }
 
@@ -85,6 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return updated;
   };
 
+  const uploadAvatar = async (file: File): Promise<{ message: string; avatar_url: string; user: UserProfile }> => {
+    if (!token) throw new Error('Not authenticated');
+    const res = await uploadAvatarApi(token, file);
+    setUser(res.user);
+    return res;
+  };
+
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     setToken(null);
@@ -101,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         updateProfile,
+        uploadAvatar,
         logout,
       }}
     >
@@ -116,3 +126,4 @@ export function useAuth() {
   }
   return context;
 }
+
