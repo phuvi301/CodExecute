@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     DYNAMODB_TESTCASES_TABLE: str = "TestCases"
     DYNAMODB_NOTIFICATIONS_TABLE: str = "Notifications"
     DYNAMODB_POSTS_TABLE: str = "Posts"
+    DYNAMODB_PROBLEMS_TABLE: str = "Problems"
     
     # Cấu hình SQS & S3
     SQS_QUEUE_URL: str = ""

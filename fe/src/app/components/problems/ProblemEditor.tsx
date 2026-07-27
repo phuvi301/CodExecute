@@ -60,11 +60,14 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 		code,
 		setCode,
 		isRunning,
+		isSubmitting,
 		runCode,
 		submitCode,
 		showSubmitDialog,
 		setShowSubmitDialog,
 		testOutput,
+		runResult,
+		submissionResult,
 		activeTab,
 		setActiveTab,
 		setCurrentProblemId,
@@ -450,48 +453,46 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 									{isRunning ? (
 										<div className="flex items-center gap-2 text-amber-400 text-xs font-mono py-2">
 											<Play className="w-4 h-4 animate-spin" />
-											Running testcases against sandbox container...
+											Running sample testcases in sandbox...
 										</div>
-									) : testOutput ? (
+									) : runResult ? (
 										<div className="space-y-3 font-mono text-xs">
 											{/* Performance Stats */}
-											<div className="flex items-center gap-4 text-emerald-400 font-bold bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 flex-wrap">
+											<div className={`flex items-center gap-4 font-bold p-3 rounded-xl border flex-wrap ${
+												runResult.status === 'Accepted'
+													? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+													: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+											}`}>
 												<div className="flex items-center gap-1.5">
-													<CheckCircle className="w-4 h-4" />
-													<span>Accepted</span>
+													{runResult.status === 'Accepted' ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+													<span>{runResult.status}</span>
+												</div>
+												<span className="text-gray-600 hidden sm:inline">|</span>
+												<div className="flex items-center gap-1 text-gray-300 font-normal">
+													<span>Passed: <strong className="text-emerald-400">{runResult.passed_testcases} / {runResult.total_testcases}</strong></span>
 												</div>
 												<span className="text-gray-600 hidden sm:inline">|</span>
 												<div className="flex items-center gap-1 text-gray-300 font-normal">
 													<Clock className="w-3.5 h-3.5 text-emerald-400" />
-													<span>Runtime: <strong className="text-emerald-400">52 ms</strong></span>
-												</div>
-												<span className="text-gray-600 hidden sm:inline">|</span>
-												<div className="flex items-center gap-1 text-gray-300 font-normal">
-													<TrendingUp className="w-3.5 h-3.5 text-blue-400" />
-													<span>Memory: <strong className="text-blue-400">42.1 MB</strong></span>
+													<span>Runtime: <strong className="text-emerald-400">{runResult.execution_time} s</strong></span>
 												</div>
 											</div>
 
-											{/* Detailed Diff Cards */}
-											<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
-												<div>
-													<span className="text-gray-400 text-[11px]">Input: </span>
-													<span className="text-gray-200">{problem.examples[0]?.input}</span>
+											{/* Detailed Diff / Error Details */}
+											{runResult.error_message && (
+												<div className="bg-[#1e1e1e] rounded-xl p-3 border border-rose-500/30 text-rose-300 font-mono text-xs whitespace-pre-wrap">
+													{runResult.error_message}
 												</div>
-												<div>
-													<span className="text-gray-400 text-[11px]">Output: </span>
-													<span className="text-emerald-400 font-semibold">{problem.examples[0]?.output}</span>
-												</div>
-												<div>
-													<span className="text-gray-400 text-[11px]">Expected: </span>
-													<span className="text-emerald-400 font-semibold">{problem.examples[0]?.output}</span>
-												</div>
-											</div>
+											)}
+										</div>
+									) : testOutput ? (
+										<div className="space-y-3 font-mono text-xs whitespace-pre-wrap bg-[#1e1e1e] p-3 rounded-xl border border-gray-800 text-gray-200">
+											{testOutput}
 										</div>
 									) : (
 										<div className="text-gray-500 text-xs font-mono py-2 flex items-center gap-2">
 											<XCircle className="w-4 h-4 text-gray-600" />
-											<span>Click &quot;Run&quot; or &quot;Submit&quot; in the header bar to execute your solution.</span>
+											<span>Click &quot;Run&quot; (runs sample testcases without saving) or &quot;Submit&quot; (evaluates full testcases) in header.</span>
 										</div>
 									)}
 								</TabsContent>
@@ -501,18 +502,42 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 				</ResizablePanel>
 			</ResizablePanelGroup>
 
-			{/* Accepted Modal Dialog */}
+			{/* Submission Modal Dialog */}
 			<Dialog open={showSubmitDialog} onOpenChange={setShowSubmitDialog}>
 				<DialogContent className="max-w-xl rounded-2xl p-6 border-border bg-card">
 					<DialogHeader>
 						<div className="flex items-center gap-3 mb-4">
-							<div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20">
-								<CheckCircle className="w-7 h-7 text-emerald-500" />
+							<div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${
+								isSubmitting
+									? 'bg-blue-500/10 border-blue-500/20'
+									: submissionResult?.status === 'Accepted'
+									? 'bg-emerald-500/10 border-emerald-500/20'
+									: 'bg-rose-500/10 border-rose-500/20'
+							}`}>
+								{isSubmitting ? (
+									<Play className="w-7 h-7 text-blue-500 animate-spin" />
+								) : submissionResult?.status === 'Accepted' ? (
+									<CheckCircle className="w-7 h-7 text-emerald-500" />
+								) : (
+									<XCircle className="w-7 h-7 text-rose-500" />
+								)}
 							</div>
 							<div>
-								<DialogTitle className="text-2xl text-emerald-500 font-bold">Accepted</DialogTitle>
+								<DialogTitle className={`text-2xl font-bold ${
+									isSubmitting
+										? 'text-blue-500'
+										: submissionResult?.status === 'Accepted'
+										? 'text-emerald-500'
+										: 'text-rose-500'
+								}`}>
+									{isSubmitting ? 'Evaluating Code...' : submissionResult?.status || 'Submission Result'}
+								</DialogTitle>
 								<DialogDescription className="text-muted-foreground text-xs">
-									Congratulations! Your code passed all test cases.
+									{isSubmitting
+										? 'Your code has been queued and is executing against full testcases.'
+										: submissionResult?.status === 'Accepted'
+										? 'Congratulations! Your code passed all full testcases.'
+										: 'Your submission did not pass all testcases.'}
 								</DialogDescription>
 							</div>
 						</div>
@@ -525,8 +550,9 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 									<Clock className="w-6 h-6 text-emerald-500" />
 									<div>
 										<p className="text-muted-foreground text-xs">Runtime</p>
-										<p className="text-foreground font-bold text-sm">52 ms</p>
-										<p className="text-emerald-500 text-[11px]">Beats 88.4% of submissions</p>
+										<p className="text-foreground font-bold text-sm">
+											{submissionResult ? `${submissionResult.execution_time} s` : '--'}
+										</p>
 									</div>
 								</div>
 							</Card>
@@ -534,30 +560,20 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 								<div className="flex items-center gap-3">
 									<TrendingUp className="w-6 h-6 text-blue-500" />
 									<div>
-										<p className="text-muted-foreground text-xs">Memory</p>
-										<p className="text-foreground font-bold text-sm">42.1 MB</p>
-										<p className="text-blue-500 text-[11px]">Beats 92.1% of submissions</p>
+										<p className="text-muted-foreground text-xs">Testcases Passed</p>
+										<p className="text-foreground font-bold text-sm">
+											{submissionResult ? `${submissionResult.passed_testcases} / ${submissionResult.total_testcases}` : '--'}
+										</p>
 									</div>
 								</div>
 							</Card>
 						</div>
 
-						<div>
-							<h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-								Test Summary
-							</h4>
-							<div className="space-y-2">
-								{[1, 2, 3].map((i) => (
-									<div key={i} className="flex items-center gap-3 p-2.5 bg-emerald-500/5 border border-emerald-500/15 rounded-xl text-xs">
-										<CheckCircle className="w-4 h-4 text-emerald-500" />
-										<span className="text-foreground font-medium">Test Case {i}</span>
-										<Badge variant="outline" className="ml-auto bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
-											Passed
-										</Badge>
-									</div>
-								))}
+						{submissionResult?.error_message && (
+							<div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl font-mono text-xs text-rose-300 whitespace-pre-wrap">
+								{submissionResult.error_message}
 							</div>
-						</div>
+						)}
 
 						<div className="flex gap-3 pt-2">
 							<Button

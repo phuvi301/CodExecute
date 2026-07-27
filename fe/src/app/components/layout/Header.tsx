@@ -30,7 +30,7 @@ export function Header({ currentScreen }: HeaderProps) {
 	const navigate = useNavigate();
 	const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile/me';
 
-	const { problem, language, setLanguage, runCode, submitCode, isRunning } = useProblem();
+	const { problem, language, setLanguage, runCode, submitCode, isRunning, isSubmitting } = useProblem();
 
 	const navItemClass = (active: boolean) =>
 		`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
@@ -135,7 +135,7 @@ export function Header({ currentScreen }: HeaderProps) {
 							variant="outline"
 							size="sm"
 							onClick={runCode}
-							disabled={isRunning}
+							disabled={isRunning || isSubmitting}
 							className="h-8 gap-1.5 text-xs font-medium border-border bg-background hover:bg-accent text-foreground"
 						>
 							<Play className={`w-3.5 h-3.5 text-emerald-500 ${isRunning ? 'animate-spin' : ''}`} />
@@ -145,10 +145,11 @@ export function Header({ currentScreen }: HeaderProps) {
 						<Button
 							size="sm"
 							onClick={submitCode}
+							disabled={isRunning || isSubmitting}
 							className="h-8 gap-1.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm shadow-primary/20"
 						>
-							<Send className="w-3.5 h-3.5" />
-							<span>Submit</span>
+							<Send className={`w-3.5 h-3.5 ${isSubmitting ? 'animate-spin' : ''}`} />
+							<span>{isSubmitting ? 'Submitting...' : 'Submit'}</span>
 						</Button>
 					</div>
 

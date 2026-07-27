@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Union
 from datetime import datetime
 from enum import Enum
 
@@ -30,9 +30,12 @@ class SubmissionResponse(SubmissionBase):
     submission_id: str
     user_id: str
     status: SubmissionStatus = SubmissionStatus.PENDING
-    execution_time: Optional[float] = Field(None, description="Thời gian chạy thực tế (giây)")
-    memory_used: Optional[float] = Field(None, description="Bộ nhớ đã dùng (MB)")
-    submitted_at: datetime
+    execution_time: Optional[float] = Field(0.0, description="Thời gian chạy thực tế (giây)")
+    memory_used: Optional[float] = Field(0.0, description="Bộ nhớ đã dùng (MB)")
+    passed_testcases: Optional[int] = Field(0, description="Số testcase đã vượt qua")
+    total_testcases: Optional[int] = Field(0, description="Tổng số testcase")
+    error_message: Optional[str] = Field(None, description="Chi tiết lỗi nếu có (Compile Error, Diff...)")
+    submitted_at: Optional[str] = None
 
     class Config:
         from_attributes = True
