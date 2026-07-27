@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Any, Dict
+import re
 import jwt
 from passlib.context import CryptContext
 from app.core.config import settings
@@ -9,6 +10,18 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # --- 1. XỬ LÝ MẬT KHẨU ---
+
+def validate_password_strength(password: str) -> None:
+    """Xác thực độ mạnh của mật khẩu: >=8 ký tự, ít nhất 1 chữ hoa, 1 chữ số, 1 ký tự đặc biệt"""
+    if len(password) < 8:
+        raise ValueError("Mật khẩu phải có ít nhất 8 ký tự")
+    if not re.search(r'[A-Z]', password):
+        raise ValueError("Mật khẩu phải chứa ít nhất 1 chữ cái viết hoa")
+    if not re.search(r'[0-9]', password):
+        raise ValueError("Mật khẩu phải chứa ít nhất 1 chữ số")
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>_\-\=\+\[\]\\\/]', password):
+        raise ValueError("Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (ví dụ: !@#$%^&*)")
+
 
 def hash_password(password: str) -> str:
     """Mã hóa mật khẩu từ dạng plain text thành chuỗi Hash an toàn"""

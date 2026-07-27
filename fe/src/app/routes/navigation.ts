@@ -2,7 +2,8 @@ export type Screen =
   | 'home-feed'
   | 'user-profile'
   | 'problem-list'
-  | 'problem-editor';
+  | 'problem-editor'
+  | 'settings';
 
 export type NavigateOptions = {
   problemId?: string;
@@ -22,6 +23,10 @@ export function screenFromPathname(pathname: string): Screen {
     return 'problem-list';
   }
 
+  if (pathname.startsWith('/settings')) {
+    return 'settings';
+  }
+
   if (pathname.startsWith('/profile')) {
     return 'user-profile';
   }
@@ -38,7 +43,9 @@ export function screenToPath(screen: Screen, options?: NavigateOptions) {
     case 'problem-editor':
       return `/problems/${options?.problemId ?? '1'}`;
     case 'user-profile':
-      return `/profile/${options?.userId ?? 'john-doe'}`;
+      return '/profile';
+    case 'settings':
+      return '/settings';
     default:
       return '/problems';
   }

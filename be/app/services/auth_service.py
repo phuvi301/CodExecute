@@ -20,3 +20,28 @@ def get_user_by_email(email: str):
 def create_user(user_data: dict):
     users_table.put_item(Item=user_data)
     return user_data
+
+def update_user(user_id: str, update_fields: dict):
+    update_expr = []
+    expr_attr_values = {}
+    expr_attr_names = {}
+
+    for key, val in update_fields.items():
+        if val is not None:
+            attr_name = f"#{key}"
+            attr_val = f":{key}"
+            update_expr.append(f"{attr_name} = {attr_val}")
+            expr_attr_names[attr_name] = key
+            expr_attr_values[attr_val] = val
+
+    if not update_expr:
+        return get_user_by_id(user_id)
+
+    response = users_table.update_item(
+        Key={'UserID': user_id},
+        UpdateExpression="SET " + ", ".join(update_expr),
+        ExpressionAttributeNames=expr_attr_names,
+        ExpressionAttributeValues=expr_attr_values,
+        ReturnValues="ALL_NEW"
+    )
+    return response.get('Attributes', {})
