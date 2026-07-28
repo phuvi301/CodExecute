@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 giờ
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # 7 ngày
 
+    # Cấu hình SMTP Email
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAILS_FROM_EMAIL: str = "noreply@codexecute.com"
+    SMTP_TLS: bool = True
+
     # Tự động nạp các biến từ file .env nếu có
     model_config = SettingsConfigDict(
         env_file=".env", 

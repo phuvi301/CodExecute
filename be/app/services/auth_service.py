@@ -9,15 +9,20 @@ def get_user_by_id(user_id: str):
     return response.get('Item')
 
 def get_user_by_email(email: str):
+    sanitized_email = email.strip().lower() if email else ""
     response = users_table.query(
         IndexName='Email-index',
         KeyConditionExpression='Email = :email',
-        ExpressionAttributeValues={':email': email}
+        ExpressionAttributeValues={':email': sanitized_email}
     )
     items = response.get('Items', [])
     return items[0] if items else None
 
 def create_user(user_data: dict):
+    if 'Email' in user_data and user_data['Email']:
+        user_data['Email'] = user_data['Email'].strip().lower()
+    if 'IsEmailVerified' not in user_data:
+        user_data['IsEmailVerified'] = True
     users_table.put_item(Item=user_data)
     return user_data
 
