@@ -3,11 +3,13 @@ export type Screen =
   | 'user-profile'
   | 'problem-list'
   | 'problem-editor'
-  | 'settings';
+  | 'settings'
+  | 'search';
 
 export type NavigateOptions = {
   problemId?: string;
   userId?: string;
+  query?: string;
 };
 
 export function screenFromPathname(pathname: string): Screen {
@@ -31,6 +33,10 @@ export function screenFromPathname(pathname: string): Screen {
     return 'user-profile';
   }
 
+  if (pathname.startsWith('/search')) {
+    return 'search';
+  }
+
   return 'problem-list';
 }
 
@@ -46,7 +52,9 @@ export function screenToPath(screen: Screen, options?: NavigateOptions) {
       return `/profile/${options?.userId ?? 'me'}`;
     case 'settings':
       return '/settings';
+    case 'search':
+      return `/search${options?.query ? `?q=${encodeURIComponent(options.query)}` : ''}`;
     default:
       return '/problems';
   }
-}
+}

@@ -8,6 +8,7 @@ import { ProblemListPage } from './pages/ProblemListPage';
 import { ProblemEditorPage } from './pages/ProblemEditorPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { EditProfilePage } from './pages/EditProfilePage';
+import { SearchPage } from './pages/SearchPage';
 
 export function AppRoutes() {
   return (
@@ -25,6 +26,7 @@ export function AppRoutes() {
           <Route path="profile" element={<UserProfilePage />} />
           <Route path="profile/:userId" element={<UserProfilePage />} />
           <Route path="settings" element={<EditProfilePage />} />
+          <Route path="search" element={<SearchPage />} />
           <Route path="profile/edit" element={<Navigate to="/settings" replace />} />
         </Route>
       </Route>

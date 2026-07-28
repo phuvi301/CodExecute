@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, users, storage, problems, submissions, posts, notifications
+from app.api.v1 import auth, users, storage, problems, submissions, posts, notifications, search
 
 api_router = APIRouter()
 
@@ -11,3 +11,4 @@ api_router.include_router(problems.router, prefix="/problems", tags=["Problems"]
 api_router.include_router(submissions.router, prefix="/submissions", tags=["Submissions"])
 api_router.include_router(posts.router, prefix="/posts", tags=["Posts & Feed"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
+api_router.include_router(search.router, prefix="/search", tags=["Search"])

@@ -1,5 +1,6 @@
+import { useState, useEffect, FormEvent } from 'react';
 import { Bell, Search, Code2, Moon, Sun, LogOut, User, Settings, ArrowLeft, Play, Send, ChevronLeft, ChevronRight, Rss } from 'lucide-react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -29,7 +30,21 @@ export function Header({ currentScreen }: HeaderProps) {
 	const { theme, toggleTheme } = useTheme();
 	const { user, isAuthenticated, logout } = useAuth();
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	const [headerSearchQuery, setHeaderSearchQuery] = useState(searchParams.get('q') || '');
 	const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile';
+
+	useEffect(() => {
+		setHeaderSearchQuery(searchParams.get('q') || '');
+	}, [searchParams]);
+
+	const handleSearchSubmit = (e: FormEvent) => {
+		e.preventDefault();
+		if (headerSearchQuery.trim()) {
+			navigate(`/search?q=${encodeURIComponent(headerSearchQuery.trim())}`);
+		}
+	};
+
 
 	const { problem, language, setLanguage, runCode, submitCode, isRunning, isSubmitting } = useProblem();
 
@@ -277,16 +292,18 @@ export function Header({ currentScreen }: HeaderProps) {
 						</NavLink>
 					</nav>
 
-					<div className="flex-1 max-w-md">
+					<form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
 						<div className="relative">
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
 							<Input
 								type="text"
-								placeholder="Search"
-								className="pl-10 bg-input-background border-border text-foreground placeholder:text-muted-foreground"
+								placeholder="Search problems or users..."
+								value={headerSearchQuery}
+								onChange={(e) => setHeaderSearchQuery(e.target.value)}
+								className="pl-10 bg-input-background border-border text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary"
 							/>
 						</div>
-					</div>
+					</form>
 
 					<div className="flex items-center gap-4">
 						<Button

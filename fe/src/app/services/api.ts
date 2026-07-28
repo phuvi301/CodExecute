@@ -678,4 +678,53 @@ export async function markAllNotificationsReadApi(): Promise<void> {
   }
 }
 
+// --- SEARCH APIS ---
+
+export interface SearchProblemItem {
+  id: string;
+  title: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard' | string;
+  category: string;
+  acceptance: string;
+  description?: string;
+}
+
+export interface SearchUserItem {
+  user_id: string;
+  email: string;
+  full_name: string;
+  avatar_url?: string;
+  title?: string;
+  bio?: string;
+  role: string;
+  is_self?: boolean;
+  is_following?: boolean;
+  followers_count?: number;
+  following_count?: number;
+}
+
+export interface SearchResponseData {
+  query: string;
+  problems: SearchProblemItem[];
+  users: SearchUserItem[];
+}
+
+export async function searchApi(query: string): Promise<SearchResponseData> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi khi thực hiện tìm kiếm');
+  }
+
+  return data;
+}
+
+
 
