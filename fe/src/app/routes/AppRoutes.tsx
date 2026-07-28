@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './AppShell';
 import { ProtectedRoute } from './ProtectedRoute';
+import { AdminRoute } from './AdminRoute';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { HomeFeedPage } from './pages/HomeFeedPage';
@@ -9,6 +10,10 @@ import { ProblemEditorPage } from './pages/ProblemEditorPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { EditProfilePage } from './pages/EditProfilePage';
 import { SearchPage } from './pages/SearchPage';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { AdminProblemsPage } from './pages/AdminProblemsPage';
+import { AdminProblemFormPage } from './pages/AdminProblemFormPage';
+import { AdminUsersPage } from './pages/AdminUsersPage';
 
 export function AppRoutes() {
   return (
@@ -28,6 +33,15 @@ export function AppRoutes() {
           <Route path="settings" element={<EditProfilePage />} />
           <Route path="search" element={<SearchPage />} />
           <Route path="profile/edit" element={<Navigate to="/settings" replace />} />
+
+          {/* Admin Routes - require Admin role */}
+          <Route element={<AdminRoute />}>
+            <Route path="admin" element={<AdminDashboardPage />} />
+            <Route path="admin/problems" element={<AdminProblemsPage />} />
+            <Route path="admin/problems/new" element={<AdminProblemFormPage />} />
+            <Route path="admin/problems/:problemId/edit" element={<AdminProblemFormPage />} />
+            <Route path="admin/users" element={<AdminUsersPage />} />
+          </Route>
         </Route>
       </Route>
 

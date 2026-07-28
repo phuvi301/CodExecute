@@ -772,5 +772,115 @@ export async function searchApi(query: string): Promise<SearchResponseData> {
   return data;
 }
 
+// --- ADMIN APIS ---
+
+export interface TestCaseData {
+  testcase_id?: string;
+  is_sample: boolean;
+  input: string;
+  output: string;
+}
+
+export interface AdminProblemPayload {
+  problem_id?: string;
+  title: string;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  category: string;
+  time_limit: number;
+  memory_limit: number;
+  time_complexity?: string;
+  space_complexity?: string;
+  description: string;
+  constraints: string;
+  testcases?: TestCaseData[];
+}
+
+export interface AdminUserUpdatePayload {
+  email?: string;
+  full_name?: string;
+  role?: string;
+  title?: string;
+  address?: string;
+  bio?: string;
+  new_password?: string;
+}
+
+export async function adminGetUsersApi(): Promise<UserProfile[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/admin/all`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Không thể lấy danh sách người dùng');
+  }
+  return data;
+}
+
+export async function adminUpdateUserApi(userId: string, payload: AdminUserUpdatePayload): Promise<UserProfile> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/admin/${userId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const errorMsg = Array.isArray(data.detail) ? data.detail[0]?.msg || 'Lỗi cập nhật user' : data.detail || 'Lỗi cập nhật user';
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function adminCreateProblemApi(payload: AdminProblemPayload): Promise<any> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/problems`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const errorMsg = Array.isArray(data.detail) ? data.detail[0]?.msg || 'Lỗi tạo bài toán' : data.detail || 'Lỗi tạo bài toán';
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function adminUpdateProblemApi(problemId: string, payload: Partial<AdminProblemPayload>): Promise<any> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/problems/${problemId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const errorMsg = Array.isArray(data.detail) ? data.detail[0]?.msg || 'Lỗi cập nhật bài toán' : data.detail || 'Lỗi cập nhật bài toán';
+    throw new Error(errorMsg);
+  }
+  return data;
+}
+
+export async function adminDeleteProblemApi(problemId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/problems/${problemId}`, {
+    method: 'DELETE',
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi xóa bài toán');
+  }
+}
+
+export async function adminGetProblemDetailApi(problemId: string): Promise<any> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/problems/${problemId}/admin-detail`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Không thể lấy chi tiết bài toán cho Admin');
+  }
+  return data;
+}
+
+
 
 

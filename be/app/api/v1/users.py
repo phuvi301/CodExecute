@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from app.schemas.user import UserUpdate
+from app.schemas.user import UserUpdate, AdminUserUpdate
 from app.services import auth_service, storage_service, follow_service, notification_service, posts_service
 from app.core import security
+from app.core.dependencies import require_admin
 
 router = APIRouter()
 security_scheme = HTTPBearer(auto_error=False)
@@ -42,7 +43,52 @@ def format_user_profile(user: dict, current_user_id: str = None):
         "following_count": follow_counts["following_count"],
     }
 
-@router.get("/{user_id}", summary="Lấy thông tin profile của user-id cụ thể")
+@router.get("/admin/all", summary="Get all users list (Admin Only)")
+async def admin_get_all_users(
+    current_admin: dict = Depends(require_admin)
+):
+    """Admin retrieves a list of all registered users"""
+    users = auth_service.get_all_users()
+    formatted = []
+    for u in users:
+        formatted.append({
+            "user_id": u.get("UserID"),
+            "email": u.get("Email"),
+            "full_name": u.get("FullName", ""),
+            "avatar_url": storage_service.get_public_avatar_url(u.get("AvatarUrl", "")),
+            "role": u.get("Role", "user"),
+            "title": u.get("Title", ""),
+            "address": u.get("Address", ""),
+            "bio": u.get("Bio", ""),
+            "created_at": u.get("CreatedAt", "")
+        })
+    return formatted
+
+@router.patch("/admin/{user_id}", summary="Admin edit profile and role of another user")
+async def admin_update_user_endpoint(
+    user_id: str,
+    payload: AdminUserUpdate,
+    current_admin: dict = Depends(require_admin)
+):
+    """Admin updates any information or role of a target user"""
+    target_user = auth_service.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    update_dict = payload.dict(exclude_unset=True)
+
+    if payload.new_password:
+        try:
+            security.validate_password_strength(payload.new_password)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        update_dict["password_hash"] = security.hash_password(payload.new_password)
+        del update_dict["new_password"]
+
+    updated = auth_service.admin_update_user(user_id, update_dict)
+    return format_user_profile(updated, current_user_id=current_admin.get("UserID"))
+
+@router.get("/{user_id}", summary="Get user profile by User ID")
 async def get_user_profile(
     user_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
@@ -59,7 +105,7 @@ async def get_user_profile(
 
     return format_user_profile(user, current_user_id=current_user_id)
 
-@router.post("/{user_id}/follow", summary="Follow người dùng")
+@router.post("/{user_id}/follow", summary="Follow user")
 async def follow_user_endpoint(
     user_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
@@ -72,7 +118,7 @@ async def follow_user_endpoint(
 
     current_user_id = payload.get("sub")
     if current_user_id == user_id:
-        raise HTTPException(status_code=400, detail="Không thể follow chính bản thân mình")
+        raise HTTPException(status_code=400, detail="Cannot follow yourself")
 
     target_user = auth_service.get_user_by_id(user_id)
     if not target_user:
@@ -91,7 +137,7 @@ async def follow_user_endpoint(
 
     return format_user_profile(target_user, current_user_id=current_user_id)
 
-@router.post("/{user_id}/unfollow", summary="Unfollow người dùng")
+@router.post("/{user_id}/unfollow", summary="Unfollow user")
 async def unfollow_user_endpoint(
     user_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
@@ -104,7 +150,7 @@ async def unfollow_user_endpoint(
 
     current_user_id = payload.get("sub")
     if current_user_id == user_id:
-        raise HTTPException(status_code=400, detail="Không thể unfollow chính bản thân mình")
+        raise HTTPException(status_code=400, detail="Cannot unfollow yourself")
 
     target_user = auth_service.get_user_by_id(user_id)
     if not target_user:
@@ -113,7 +159,7 @@ async def unfollow_user_endpoint(
     follow_service.unfollow_user(current_user_id, user_id)
     return format_user_profile(target_user, current_user_id=current_user_id)
 
-@router.get("/{user_id}/followers", summary="Lấy danh sách người theo dõi của user")
+@router.get("/{user_id}/followers", summary="Get user followers")
 async def get_user_followers(
     user_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
@@ -135,7 +181,7 @@ async def get_user_followers(
             result.append(format_user_profile(u, current_user_id=current_user_id))
     return result
 
-@router.get("/{user_id}/following", summary="Lấy danh sách người mà user đang theo dõi")
+@router.get("/{user_id}/following", summary="Get users followed by user")
 async def get_user_following(
     user_id: str,
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
@@ -204,9 +250,9 @@ async def update_my_profile(
 
     if payload.new_password:
         if not payload.old_password or not payload.old_password.strip():
-            raise HTTPException(status_code=400, detail="Mật khẩu hiện tại là bắt buộc khi thay đổi mật khẩu")
+            raise HTTPException(status_code=400, detail="Current password is required when changing password")
         if not security.verify_password(payload.old_password, user.get("PasswordHash", "")):
-            raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác")
+            raise HTTPException(status_code=400, detail="Incorrect current password")
         try:
             security.validate_password_strength(payload.new_password)
         except ValueError as e:
@@ -214,7 +260,7 @@ async def update_my_profile(
         update_fields["PasswordHash"] = security.hash_password(payload.new_password)
     elif payload.old_password and payload.old_password.strip():
         if not security.verify_password(payload.old_password, user.get("PasswordHash", "")):
-            raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác")
+            raise HTTPException(status_code=400, detail="Incorrect current password")
 
     if not update_fields:
         return format_user_profile(user, current_user_id=user_id)
@@ -222,7 +268,7 @@ async def update_my_profile(
     updated_user = auth_service.update_user(user_id, update_fields)
     return format_user_profile(updated_user, current_user_id=user_id)
 
-@router.post("/me/avatar", summary="Upload avatar cho người dùng đang đăng nhập")
+@router.post("/me/avatar", summary="Upload avatar for current user")
 async def upload_avatar(
     file: UploadFile = File(...),
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
@@ -242,7 +288,7 @@ async def upload_avatar(
     updated_user = auth_service.update_user(user_id, {"AvatarUrl": avatar_url})
 
     return {
-        "message": "Upload avatar thành công",
+        "message": "Avatar uploaded successfully",
         "avatar_url": avatar_url,
         "user": format_user_profile(updated_user, current_user_id=user_id)
     }
