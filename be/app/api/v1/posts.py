@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.post import PostCreateSchema, PostUpdateSchema, CommentCreateSchema
-from app.services import auth_service, posts_service
+from app.services import auth_service, posts_service, notification_service
 from app.core import security
 
 router = APIRouter()
@@ -82,6 +82,20 @@ async def add_comment(
     updated_post = posts_service.add_comment_to_post(post_id, user, payload.content.strip())
     if not updated_post:
         raise HTTPException(status_code=404, detail="Bài viết không tồn tại")
+
+    author_id = updated_post.get("author_id")
+    if author_id and author_id != user.get("UserID"):
+        comment_snippet = payload.content.strip()
+        if len(comment_snippet) > 40:
+            comment_snippet = comment_snippet[:37] + "..."
+        notification_service.create_notification(
+            recipient_id=author_id,
+            sender=user,
+            notif_type="COMMENT",
+            content=f'commented on your post: "{comment_snippet}"',
+            post_id=post_id
+        )
+
     return updated_post
 
 @router.post("/{post_id}/like", summary="Thả tim hoặc bỏ thả tim bài viết")
@@ -93,6 +107,18 @@ async def toggle_like_post(
     updated_post = posts_service.toggle_like_post(post_id, user_id)
     if not updated_post:
         raise HTTPException(status_code=404, detail="Bài viết không tồn tại")
+
+    if user_id in updated_post.get("liked_by", []):
+        author_id = updated_post.get("author_id")
+        if author_id and author_id != user_id:
+            notification_service.create_notification(
+                recipient_id=author_id,
+                sender=user,
+                notif_type="LIKE",
+                content="liked your post",
+                post_id=post_id
+            )
+
     return updated_post
 
 @router.delete("/{post_id}/comments/{comment_id}", summary="Xóa bình luận bài viết")

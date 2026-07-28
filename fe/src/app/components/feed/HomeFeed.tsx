@@ -23,7 +23,7 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
 	DropdownMenu,
@@ -52,6 +52,7 @@ import {
 
 export function HomeFeed() {
 	const navigate = useNavigate();
+	const location = useLocation();
 	const { user, token } = useAuth();
 	const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile/me';
 
@@ -171,6 +172,26 @@ export function HomeFeed() {
 	useEffect(() => {
 		fetchFeedPosts();
 	}, []);
+
+	useEffect(() => {
+		const searchParams = new URLSearchParams(location.search);
+		const openCommentsPostId = searchParams.get('open_comments');
+		if (openCommentsPostId) {
+			setOpenCommentsMap((prev) => ({ ...prev, [openCommentsPostId]: true }));
+		}
+
+		if (location.hash) {
+			const targetId = location.hash.replace('#', '');
+			setTimeout(() => {
+				const el = document.getElementById(targetId);
+				if (el) {
+					el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+					el.classList.add('ring-2', 'ring-primary', 'transition-all');
+					setTimeout(() => el.classList.remove('ring-2', 'ring-primary'), 2500);
+				}
+			}, 300);
+		}
+	}, [location.search, location.hash, posts]);
 
 	const topSolvers = [
 		{ id: 1, name: 'David Kim', username: '@davidk', avatar: 'DK', solved: 412, rank: 1, streak: '45 days' },
@@ -534,8 +555,6 @@ export function HomeFeed() {
 										setIsCreateModalOpen(true);
 									}}
 								>
-									<ImageIcon className="w-4 h-4 text-blue-500" />
-									<span>Image</span>
 								</Button>
 							</div>
 
@@ -618,7 +637,7 @@ export function HomeFeed() {
 								const isAuthor = !post.author_id || (user?.user_id && post.author_id === user.user_id) || user?.role === 'admin';
 
 								return (
-									<Card key={post.post_id} className="p-6 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm hover:shadow-md transition-all">
+									<Card id={`post-${post.post_id}`} key={post.post_id} className="p-6 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm hover:shadow-md transition-all">
 										{/* Post Author Info */}
 										<div className="flex items-start justify-between mb-3">
 											<div className="flex items-center gap-3">
