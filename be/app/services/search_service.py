@@ -34,8 +34,8 @@ def format_user_for_search(user: dict, current_user_id: Optional[str] = None) ->
     }
 
 def search_problems(query: str) -> List[Dict[str, Any]]:
-    """Tìm kiếm bài toán CHỈ theo tên bài toán (Title)"""
-    q = query.strip().lower()
+    """Tìm kiếm bài toán theo Tên bài toán (Title) hoặc Topic Category"""
+    q = query.strip().lstrip('#').lower()
     if not q:
         return []
 
@@ -44,8 +44,10 @@ def search_problems(query: str) -> List[Dict[str, Any]]:
     
     for p in all_problems:
         title = str(p.get("Title", "")).lower()
+        category = str(p.get("Category", "")).lower()
+        category_compact = category.replace(" ", "").replace("&", "")
         
-        if q in title:
+        if q in title or q in category or q in category_compact:
             results.append({
                 "id": p.get("ProblemID", "1"),
                 "title": p.get("Title", "Untitled"),

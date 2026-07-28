@@ -27,6 +27,7 @@ import { Badge } from '../ui/badge';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { PROBLEMS_LIST } from '../../context/ProblemContext';
+import { TrendingTopics } from './TrendingTopics';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -62,9 +63,19 @@ export function HomeFeed() {
 	const [posts, setPosts] = useState<PostItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState<'all' | 'code' | 'milestones' | 'discussions'>('all');
+	const [selectedTopicFilter, setSelectedTopicFilter] = useState<string | null>(null);
 	const [isPosting, setIsPosting] = useState(false);
 	const [followingMap, setFollowingMap] = useState<Record<number, boolean>>({});
 	const [bookmarkedMap, setBookmarkedMap] = useState<Record<string, boolean>>({});
+
+	const handleTopicClick = (topic: string) => {
+		const clean = topic.trim().replace(/^#/, '');
+		if (selectedTopicFilter && selectedTopicFilter.toLowerCase() === clean.toLowerCase()) {
+			setSelectedTopicFilter(null);
+		} else {
+			setSelectedTopicFilter(clean);
+		}
+	};
 
 	// Create Post Popup Modal states
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -504,9 +515,17 @@ export function HomeFeed() {
 	};
 
 	const filteredPosts = posts.filter(post => {
-		if (activeTab === 'code') return post.type === 'code-share';
-		if (activeTab === 'milestones') return post.type === 'achievement';
-		if (activeTab === 'discussions') return post.type === 'discussion';
+		if (activeTab === 'code' && post.type !== 'code-share') return false;
+		if (activeTab === 'milestones' && post.type !== 'achievement') return false;
+		if (activeTab === 'discussions' && post.type !== 'discussion') return false;
+
+		if (selectedTopicFilter) {
+			const target = selectedTopicFilter.toLowerCase();
+			const matchInTags = post.tags?.some(t => t.toLowerCase().replace(/^#/, '') === target);
+			const matchInContent = post.content?.toLowerCase().includes(`#${target}`) || post.content?.toLowerCase().includes(target);
+			if (!matchInTags && !matchInContent) return false;
+		}
+
 		return true;
 	});
 
@@ -706,6 +725,24 @@ export function HomeFeed() {
 						</button>
 					</div>
 
+					{/* Active Topic Filter Indicator */}
+					{selectedTopicFilter && (
+						<div className="flex items-center justify-between p-3.5 px-4 bg-primary/10 border border-primary/25 rounded-2xl text-xs backdrop-blur-md">
+							<div className="flex items-center gap-2.5 text-foreground font-medium">
+								<span className="text-muted-foreground">Filtered by topic:</span>
+								<span className="font-mono font-bold text-primary bg-primary/20 px-3 py-1 rounded-xl border border-primary/30 text-xs shadow-sm">
+									#{selectedTopicFilter}
+								</span>
+							</div>
+							<button
+								onClick={() => setSelectedTopicFilter(null)}
+								className="text-xs text-muted-foreground hover:text-foreground font-semibold underline cursor-pointer transition-colors"
+							>
+								Clear filter
+							</button>
+						</div>
+					)}
+
 					{/* Feed Items List */}
 					<div className="space-y-4">
 						{isLoading ? (
@@ -867,8 +904,12 @@ export function HomeFeed() {
 										{post.tags && post.tags.length > 0 && (
 											<div className="flex flex-wrap gap-1.5 mb-4">
 												{post.tags.map((tag) => (
-													<span key={tag} className="text-xs text-primary font-mono bg-primary/10 px-2.5 py-0.5 rounded-md hover:bg-primary/20 cursor-pointer">
-														#{tag}
+													<span
+														key={tag}
+														onClick={() => handleTopicClick(tag)}
+														className="text-xs text-primary font-mono bg-primary/10 px-2.5 py-0.5 rounded-md hover:bg-primary/20 cursor-pointer transition-colors"
+													>
+														#{tag.replace(/^#/, '')}
 													</span>
 												))}
 											</div>
@@ -1079,24 +1120,11 @@ export function HomeFeed() {
 					</Card>
 
 					{/* Trending Coding Topics Widget */}
-					<Card className="p-5 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm space-y-3">
-						<h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-							<Sparkles className="w-4 h-4 text-primary" />
-							<span>Trending Topics</span>
-						</h4>
-
-						<div className="flex flex-wrap gap-1.5">
-							{['#DynamicProgramming', '#GraphTheory', '#BinarySearch', '#SystemDesign', '#TwoPointers', '#Recursion', '#Python'].map((tag) => (
-								<Badge
-									key={tag}
-									variant="secondary"
-									className="bg-muted/60 text-muted-foreground hover:bg-primary hover:text-primary-foreground cursor-pointer text-[11px] font-mono transition-colors rounded-lg px-2.5 py-1"
-								>
-									{tag}
-								</Badge>
-							))}
-						</div>
-					</Card>
+					<TrendingTopics
+						posts={posts}
+						selectedTopic={selectedTopicFilter}
+						onTopicClick={handleTopicClick}
+					/>
 
 					{/* Upcoming Challenge Banner */}
 					<Card className="p-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl shadow-sm space-y-3">
