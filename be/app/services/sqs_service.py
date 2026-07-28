@@ -26,9 +26,9 @@ def push_submission_to_queue(submission_id: str, user_id: str, problem_id: str, 
         return None
 
     # Ở môi trường local development, ưu tiên dùng local BackgroundTasks để chấm bài tức thì
-    if settings.ENVIRONMENT == "development":
-        logger.info(f"💡 [Development Mode] Bỏ qua SQS Queue, sử dụng local BackgroundTasks để chấm bài tức thì cho {submission_id}")
-        return None
+    # if settings.ENVIRONMENT == "development":
+    #     logger.info(f"💡 [Development Mode] Bỏ qua SQS Queue, sử dụng local BackgroundTasks để chấm bài tức thì cho {submission_id}")
+    #     return None
 
     try:
         logger.info(f"📡 Đang gửi message đến AWS SQS Queue...")

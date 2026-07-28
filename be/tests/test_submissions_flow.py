@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.core import security
+from app.core.config import settings
 from app.executor import runner
 from lambda_worker import process_single_submission
 
@@ -46,6 +47,7 @@ class TestSubmissionsFlow(unittest.TestCase):
         self.assertEqual(saved_item["Status"], "Pending")
         self.assertEqual(saved_item["Code"], "print('Hello World')")
 
+    @patch.object(settings, "EXECUTION_MODE", "tmp")
     def test_runner_tmp_creation_and_cleanup(self):
         submission_id = "test_sub_cleanup_123"
         code = "import sys\nline = sys.stdin.read().strip()\nprint(f'Hello {line}')"
@@ -71,6 +73,7 @@ class TestSubmissionsFlow(unittest.TestCase):
         work_dir = os.path.join(tmp_dir, f"sub_{submission_id}")
         self.assertFalse(os.path.exists(work_dir), "Thư mục tạm trong /tmp phải được xóa sau khi chấm xong")
 
+    @patch.object(settings, "EXECUTION_MODE", "tmp")
     @patch("app.services.submissions_service.submissions_table")
     @patch("app.services.submissions_service.get_problem_by_id")
     @patch("app.services.submissions_service.get_testcases_with_content")
@@ -101,6 +104,7 @@ class TestSubmissionsFlow(unittest.TestCase):
         call_kwargs = mock_submissions_table.update_item.call_args[1]
         self.assertEqual(call_kwargs["ExpressionAttributeValues"][":status"], "Accepted")
         self.assertEqual(call_kwargs["ExpressionAttributeValues"][":ptc"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
