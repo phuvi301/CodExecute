@@ -34,6 +34,7 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { PROBLEMS_LIST } from '../../context/ProblemContext';
 import {
 	getProfileApi,
 	followUserApi,
@@ -109,6 +110,12 @@ export function UserProfile() {
 		if (diffHour < 24) return `${diffHour}h ago`;
 		if (diffDay < 7) return `${diffDay}d ago`;
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	};
+
+	const getProblemTitle = (problemId: string) => {
+		const found = PROBLEMS_LIST.find(p => p.id === problemId || p.id === problemId.toLowerCase());
+		if (found) return found.title;
+		return problemId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 	};
 
 	const highlightCodeToHtml = (codeStr: string) => {
@@ -716,6 +723,24 @@ export function UserProfile() {
 													</Button>
 												)}
 											</div>
+
+											{/* Topic Badge if associated with a Problem */}
+											{post.problem_id && (
+												<div className="mb-2">
+													<button
+														type="button"
+														onClick={(e) => {
+															e.stopPropagation();
+															navigate(`/problems/${post.problem_id}`);
+														}}
+														className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-semibold transition-all cursor-pointer group shadow-xs"
+													>
+														<Code2 className="w-3.5 h-3.5" />
+														<span>Topic: <strong className="font-semibold">{getProblemTitle(post.problem_id)}</strong></span>
+														<ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity ml-0.5" />
+													</button>
+												</div>
+											)}
 
 											{/* Content */}
 											<p className="text-foreground text-sm leading-relaxed whitespace-pre-line">{post.content}</p>

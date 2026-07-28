@@ -32,6 +32,7 @@ def format_post(item: dict) -> dict:
         "author_title": item.get("AuthorTitle", "Developer"),
         "content": item.get("Content", ""),
         "type": item.get("Type", "discussion"),
+        "problem_id": item.get("ProblemID"),
         "code_snippet": item.get("CodeSnippet"),
         "achievement": item.get("Achievement"),
         "tags": item.get("Tags", []),
@@ -69,6 +70,8 @@ def create_post(user: dict, payload: PostCreateSchema) -> dict:
         "Comments": []
     }
     
+    if payload.problem_id:
+        item["ProblemID"] = payload.problem_id
     if payload.code_snippet:
         item["CodeSnippet"] = payload.code_snippet.model_dump()
     if payload.achievement:
@@ -251,4 +254,16 @@ def get_user_posts(target_user_id: str) -> list[dict]:
             
     filtered_items.sort(key=lambda x: x.get('CreatedAt', ''), reverse=True)
     return [format_post(item) for item in filtered_items]
+
+def get_problem_posts(problem_id: str) -> list[dict]:
+    response = posts_table.scan()
+    items = response.get('Items', [])
+    
+    filtered_items = [
+        item for item in items
+        if str(item.get('ProblemID', '')) == str(problem_id)
+    ]
+    filtered_items.sort(key=lambda x: x.get('CreatedAt', ''), reverse=True)
+    return [format_post(item) for item in filtered_items]
+
 

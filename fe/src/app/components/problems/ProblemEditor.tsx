@@ -21,11 +21,17 @@ import {
 	History,
 	RotateCcw,
 	ChevronDown,
-	ChevronUp
+	ChevronUp,
+	Plus,
+	Trash2,
+	Loader2,
+	Repeat,
+	Share2
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../ui/resizable';
@@ -33,7 +39,20 @@ import { useIsMobile } from '../ui/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { useProblem } from '../../context/ProblemContext';
 import { useTheme } from '../shared/ThemeProvider';
-import { getMySubmissionsApi, SubmissionResponseData } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import {
+	getMySubmissionsApi,
+	getProblemPostsApi,
+	createPostApi,
+	toggleLikePostApi,
+	toggleRepostPostApi,
+	addCommentApi,
+	deletePostApi,
+	deleteCommentApi,
+	getAccessToken,
+	PostItem,
+	SubmissionResponseData
+} from '../../services/api';
 
 interface ProblemEditorProps {
 	problemId: string | null;
@@ -86,7 +105,244 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 	const [isLoadingSubmissions, setIsLoadingSubmissions] = useState<boolean>(false);
 	const [expandedSubmissionId, setExpandedSubmissionId] = useState<string | null>(null);
 
+	const { user: currentUser } = useAuth();
+
+	// State cho Discussions Tab
+	const [discussionsList, setDiscussionsList] = useState<PostItem[]>([]);
+	const [isLoadingDiscussions, setIsLoadingDiscussions] = useState<boolean>(false);
+	const [isCreatingDiscussion, setIsCreatingDiscussion] = useState<boolean>(false);
+	const [newDiscussionContent, setNewDiscussionContent] = useState<string>('');
+	const [attachCodeSnippet, setAttachCodeSnippet] = useState<boolean>(false);
+	const [newDiscussionTagInput, setNewDiscussionTagInput] = useState<string>('Discussion, Algorithm');
+	const [isPostingDiscussion, setIsPostingDiscussion] = useState<boolean>(false);
+
+	const [discOpenCommentsMap, setDiscOpenCommentsMap] = useState<Record<string, boolean>>({});
+	const [discCommentInputsMap, setDiscCommentInputsMap] = useState<Record<string, string>>({});
+	const [discCommentSubmittingMap, setDiscCommentSubmittingMap] = useState<Record<string, boolean>>({});
+
 	const targetProblemId = problemId || currentProblemId || 'two-sum';
+
+	const fetchDiscussions = useCallback(async () => {
+		setIsLoadingDiscussions(true);
+		try {
+			const list = await getProblemPostsApi(targetProblemId);
+			setDiscussionsList(list);
+		} catch (err) {
+			console.error('Failed to fetch problem discussions:', err);
+		} finally {
+			setIsLoadingDiscussions(false);
+		}
+	}, [targetProblemId]);
+
+	useEffect(() => {
+		fetchDiscussions();
+	}, [fetchDiscussions]);
+
+	const highlightCodeToHtml = (codeStr: string) => {
+		if (!codeStr) return '';
+
+		let escaped = codeStr
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;');
+
+		const comments: string[] = [];
+		escaped = escaped.replace(/(#.*|\/\/.*)/g, (match) => {
+			comments.push(match);
+			return `§C${comments.length - 1}§`;
+		});
+
+		const strings: string[] = [];
+		escaped = escaped.replace(/(".*?"|'.*?'|`.*?`)/g, (match) => {
+			strings.push(match);
+			return `§S${strings.length - 1}§`;
+		});
+
+		const keywords = /\b(def|class|return|if|elif|else|for|while|import|from|in|as|try|except|finally|raise|pass|lambda|const|let|var|function|async|await|public|private|static|void|int|float|double|char|bool|string|include|using|namespace|struct|interface|type)\b/g;
+		escaped = escaped.replace(keywords, '<span class="syn-kw">$1</span>');
+
+		const builtins = /\b(self|True|False|None|true|false|null|undefined|this|console|print|len|range|enumerate|zip|dict|list|set|int|str)\b/g;
+		escaped = escaped.replace(builtins, '<span class="syn-bi">$1</span>');
+
+		const numbers = /\b(\d+(\.\d+)?)\b/g;
+		escaped = escaped.replace(numbers, '<span class="syn-num">$1</span>');
+
+		const functions = /\b([a-zA-Z_]\w*)\s*\(/g;
+		escaped = escaped.replace(functions, '<span class="syn-fn">$1</span>(');
+
+		escaped = escaped.replace(/§S(\d+)§/g, (_, idx) => {
+			return `<span class="syn-str">${strings[parseInt(idx)]}</span>`;
+		});
+
+		escaped = escaped.replace(/§C(\d+)§/g, (_, idx) => {
+			return `<span class="syn-com">${comments[parseInt(idx)]}</span>`;
+		});
+
+		return escaped;
+	};
+
+	const formatTimeAgo = (dateStr?: string) => {
+		if (!dateStr) return 'Just now';
+		const date = new Date(dateStr);
+		if (isNaN(date.getTime())) return dateStr;
+
+		const now = new Date();
+		const diffMs = now.getTime() - date.getTime();
+		const diffSec = Math.floor(diffMs / 1000);
+		const diffMin = Math.floor(diffSec / 60);
+		const diffHour = Math.floor(diffMin / 60);
+		const diffDay = Math.floor(diffHour / 24);
+
+		if (diffSec < 60) return 'Just now';
+		if (diffMin < 60) return `${diffMin}m ago`;
+		if (diffHour < 24) return `${diffHour}h ago`;
+		if (diffDay < 7) return `${diffDay}d ago`;
+		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	};
+
+	const handleCreateDiscussionPost = async () => {
+		if (!newDiscussionContent.trim()) return;
+
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+
+		setIsPostingDiscussion(true);
+		try {
+			const parsedTags = newDiscussionTagInput.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
+			const payload: any = {
+				content: newDiscussionContent.trim(),
+				type: 'discussion',
+				problem_id: targetProblemId,
+				tags: parsedTags.length > 0 ? parsedTags : ['Discussion', 'Algorithm']
+			};
+
+			if (attachCodeSnippet && code) {
+				payload.code_snippet = {
+					filename: EXTENSIONS[language] || 'solution.py',
+					language: language || 'python',
+					code: code,
+				};
+			}
+
+			const newPost = await createPostApi(authToken, payload);
+			setDiscussionsList(prev => [newPost, ...prev]);
+			setNewDiscussionContent('');
+			setIsCreatingDiscussion(false);
+		} catch (err: any) {
+			console.error('Failed to create discussion:', err);
+		} finally {
+			setIsPostingDiscussion(false);
+		}
+	};
+
+	const handleToggleLikeDiscussion = async (postId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+		const currentUserId = currentUser?.user_id || '';
+
+		setDiscussionsList(prev =>
+			prev.map(p => {
+				if (p.post_id !== postId) return p;
+				const isLiked = p.liked_by?.includes(currentUserId);
+				const newLikedBy = isLiked
+					? (p.liked_by || []).filter(id => id !== currentUserId)
+					: [...(p.liked_by || []), currentUserId];
+				const newLikesCount = isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1;
+				return { ...p, likes_count: newLikesCount, liked_by: newLikedBy };
+			})
+		);
+
+		try {
+			const updatedPost = await toggleLikePostApi(authToken, postId);
+			setDiscussionsList(prev =>
+				prev.map(p => (p.post_id === postId ? { ...p, likes_count: updatedPost.likes_count, liked_by: updatedPost.liked_by } : p))
+			);
+		} catch (err) {
+			fetchDiscussions();
+		}
+	};
+
+	const handleToggleRepostDiscussion = async (postId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+		const currentUserId = currentUser?.user_id || '';
+
+		setDiscussionsList(prev =>
+			prev.map(p => {
+				if (p.post_id !== postId) return p;
+				const isReposted = p.reposted_by?.includes(currentUserId);
+				const newRepostedBy = isReposted
+					? (p.reposted_by || []).filter(id => id !== currentUserId)
+					: [...(p.reposted_by || []), currentUserId];
+				const newRepostsCount = isReposted ? Math.max(0, (p.reposts_count || 0) - 1) : (p.reposts_count || 0) + 1;
+				return { ...p, reposts_count: newRepostsCount, reposted_by: newRepostedBy };
+			})
+		);
+
+		try {
+			const updatedPost = await toggleRepostPostApi(authToken, postId);
+			setDiscussionsList(prev =>
+				prev.map(p => (p.post_id === postId ? { ...p, reposts_count: updatedPost.reposts_count, reposted_by: updatedPost.reposted_by } : p))
+			);
+		} catch (err) {
+			fetchDiscussions();
+		}
+	};
+
+	const handleAddCommentDiscussion = async (postId: string) => {
+		const commentText = (discCommentInputsMap[postId] || '').trim();
+		if (!commentText) return;
+
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+
+		setDiscCommentSubmittingMap(prev => ({ ...prev, [postId]: true }));
+		try {
+			const updatedPost = await addCommentApi(authToken, postId, commentText);
+			setDiscussionsList(prev => prev.map(p => (p.post_id === postId ? updatedPost : p)));
+			setDiscCommentInputsMap(prev => ({ ...prev, [postId]: '' }));
+		} catch (err) {
+			console.error('Failed to add comment:', err);
+		} finally {
+			setDiscCommentSubmittingMap(prev => ({ ...prev, [postId]: false }));
+		}
+	};
+
+	const handleDeleteCommentDiscussion = async (postId: string, commentId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) return;
+
+		try {
+			const updatedPost = await deleteCommentApi(authToken, postId, commentId);
+			setDiscussionsList(prev => prev.map(p => (p.post_id === postId ? updatedPost : p)));
+		} catch (err) {
+			console.error('Failed to delete comment:', err);
+		}
+	};
+
+	const handleDeleteDiscussionPost = async (postId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) return;
+
+		try {
+			await deletePostApi(authToken, postId);
+			setDiscussionsList(prev => prev.filter(p => p.post_id !== postId));
+		} catch (err) {
+			console.error('Failed to delete discussion:', err);
+		}
+	};
 
 	useEffect(() => {
 		if (problemId) {
@@ -125,18 +381,6 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 		editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Enter, () => {
 			runCode();
 		});
-	};
-
-	const formatTimeAgo = (dateStr?: string) => {
-		if (!dateStr) return 'Just now';
-		const date = new Date(dateStr);
-		if (isNaN(date.getTime())) return dateStr;
-		const now = new Date();
-		const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-		if (diffInSeconds < 60) return 'Just now';
-		if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-		if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-		return `${Math.floor(diffInSeconds / 86400)}d ago`;
 	};
 
 	return (
@@ -397,27 +641,268 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 								</div>
 							</TabsContent>
 
-							<TabsContent value="discussions">
-								<div className="space-y-3">
-									<Card className="p-4 border-border/80 hover:border-primary/50 transition-all cursor-pointer rounded-xl">
-										<div className="flex items-start gap-3 mb-2">
-											<MessageCircle className="w-5 h-5 text-primary mt-0.5 shrink-0" />
-											<div className="flex-1">
-												<h4 className="text-foreground font-semibold text-sm mb-1">
-													Optimal Hash Map O(n) Approach
-												</h4>
-												<p className="text-muted-foreground text-xs line-clamp-2">
-													Detailed walkthrough using single-pass hash table with O(n) time and O(n) space complexity...
-												</p>
+							<TabsContent value="discussions" className="space-y-4">
+								{/* Header & Create Discussion Trigger */}
+								<div className="flex items-center justify-between sticky top-0 bg-card/90 backdrop-blur-sm z-10 py-1 border-b border-border/40 pb-2">
+									<h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+										<MessageCircle className="w-4 h-4 text-primary" />
+										<span>Problem Discussions ({discussionsList.length})</span>
+									</h3>
+									<div className="flex items-center gap-2">
+										<Button
+											variant="ghost"
+											size="sm"
+											onClick={fetchDiscussions}
+											disabled={isLoadingDiscussions}
+											className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+										>
+											<RotateCcw className={`w-3.5 h-3.5 ${isLoadingDiscussions ? 'animate-spin' : ''}`} />
+										</Button>
+										<Button
+											size="sm"
+											onClick={() => setIsCreatingDiscussion(prev => !prev)}
+											className="h-8 rounded-xl px-3 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold cursor-pointer"
+										>
+											<Plus className="w-3.5 h-3.5" />
+											<span>New Discussion</span>
+										</Button>
+									</div>
+								</div>
+
+								{/* Inline Discussion Creator Form */}
+								{isCreatingDiscussion && (
+									<Card className="p-4 bg-muted/30 border-border/80 rounded-2xl space-y-3 shadow-md">
+										<div className="flex items-center gap-3">
+											<Avatar className="w-8 h-8 border border-border">
+												<AvatarImage src={currentUser?.avatar_url} />
+												<AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">
+													{currentUser?.full_name?.substring(0, 2).toUpperCase() || 'DEV'}
+												</AvatarFallback>
+											</Avatar>
+											<span className="text-xs font-bold text-foreground">Post a new discussion for this problem</span>
+										</div>
+
+										<textarea
+											className="w-full h-28 p-3 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all resize-none placeholder:text-muted-foreground"
+											value={newDiscussionContent}
+											onChange={(e) => setNewDiscussionContent(e.target.value)}
+											placeholder="Ask a question, share an optimal solution idea, or start a discussion..."
+										/>
+
+										<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+											<label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+												<input
+													type="checkbox"
+													checked={attachCodeSnippet}
+													onChange={(e) => setAttachCodeSnippet(e.target.checked)}
+													className="rounded border-border text-primary focus:ring-primary"
+												/>
+												<Code2 className="w-3.5 h-3.5 text-primary" />
+												<span>Attach current code solution</span>
+											</label>
+
+											<div className="flex items-center gap-2 justify-end">
+												<Button
+													type="button"
+													variant="outline"
+													size="sm"
+													onClick={() => setIsCreatingDiscussion(false)}
+													className="h-8 rounded-xl text-xs"
+												>
+													Cancel
+												</Button>
+												<Button
+													type="button"
+													size="sm"
+													disabled={isPostingDiscussion || !newDiscussionContent.trim()}
+													onClick={handleCreateDiscussionPost}
+													className="h-8 rounded-xl px-4 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold"
+												>
+													{isPostingDiscussion ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+													<span>Post Discussion</span>
+												</Button>
 											</div>
 										</div>
-										<div className="flex items-center gap-3 text-muted-foreground text-xs pt-2 border-t border-border/40">
-											<span>45 replies</span>
-											<span>•</span>
-											<span>2 hours ago</span>
-										</div>
 									</Card>
-								</div>
+								)}
+
+								{/* Discussions Stream */}
+								{isLoadingDiscussions ? (
+									<div className="p-8 text-center text-xs text-muted-foreground font-mono flex items-center justify-center gap-2">
+										<RotateCcw className="w-4 h-4 animate-spin text-primary" />
+										<span>Loading discussions...</span>
+									</div>
+								) : discussionsList.length === 0 ? (
+									<div className="p-8 rounded-2xl bg-muted/20 border border-border/60 text-center space-y-2">
+										<MessageCircle className="w-8 h-8 mx-auto text-muted-foreground/60" />
+										<p className="text-sm font-semibold text-foreground">No Discussions Yet</p>
+										<p className="text-xs text-muted-foreground">Be the first to start a conversation or share a solution for this problem!</p>
+									</div>
+								) : (
+									<div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-1 custom-scrollbar">
+										{discussionsList.map((disc) => {
+											const isLiked = currentUser?.user_id ? disc.liked_by?.includes(currentUser.user_id) : false;
+											const isReposted = currentUser?.user_id ? disc.reposted_by?.includes(currentUser.user_id) : false;
+											const isOwner = currentUser?.user_id === disc.author_id;
+											const isCommentsOpen = !!discOpenCommentsMap[disc.post_id];
+
+											return (
+												<Card key={disc.post_id} className="p-4 border-border/80 bg-card rounded-2xl space-y-3 hover:border-border transition-all">
+													{/* Author Row */}
+													<div className="flex items-center justify-between">
+														<div className="flex items-center gap-2.5">
+															<Avatar className="w-8 h-8 border border-border">
+																<AvatarImage src={disc.author_avatar} />
+																<AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">
+																	{disc.author_name?.substring(0, 2).toUpperCase() || 'DEV'}
+																</AvatarFallback>
+															</Avatar>
+															<div>
+																<h4 className="text-xs font-bold text-foreground">{disc.author_name}</h4>
+																<p className="text-[10px] text-muted-foreground">{disc.author_title || 'CodExecute Member'}</p>
+															</div>
+														</div>
+														<div className="flex items-center gap-2">
+															<span className="text-[11px] text-muted-foreground">{formatTimeAgo(disc.created_at)}</span>
+															{isOwner && (
+																<Button
+																	variant="ghost"
+																	size="icon"
+																	onClick={() => handleDeleteDiscussionPost(disc.post_id)}
+																	className="h-7 w-7 text-muted-foreground hover:text-rose-500 cursor-pointer"
+																>
+																	<Trash2 className="w-3.5 h-3.5" />
+																</Button>
+															)}
+														</div>
+													</div>
+
+													{/* Content */}
+													<p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{disc.content}</p>
+
+													{/* Attached Code Snippet if present */}
+													{disc.code_snippet && (
+														<div className="rounded-xl border border-border bg-[#1e1e1e] overflow-hidden font-mono text-xs">
+															<div className="bg-[#252526] px-3 py-1.5 flex items-center justify-between border-b border-[#333333] text-[11px] text-gray-300">
+																<span className="flex items-center gap-1.5 text-primary">
+																	<Code2 className="w-3.5 h-3.5" />
+																	{disc.code_snippet.filename || 'solution.py'}
+																</span>
+																<span className="uppercase text-[10px] bg-[#333] px-1.5 py-0.5 rounded text-gray-400">
+																	{disc.code_snippet.language || 'code'}
+																</span>
+															</div>
+															<pre
+																className="p-3.5 text-gray-200 overflow-x-auto max-h-60 leading-relaxed font-mono whitespace-pre"
+																dangerouslySetInnerHTML={{ __html: highlightCodeToHtml(disc.code_snippet.code) }}
+															/>
+														</div>
+													)}
+
+													{/* Tags */}
+													{disc.tags && disc.tags.length > 0 && (
+														<div className="flex flex-wrap gap-1.5 pt-1">
+															{disc.tags.map(t => (
+																<span key={t} className="text-[10px] text-primary bg-primary/10 px-2 py-0.5 rounded-md font-mono">
+																	#{t}
+																</span>
+															))}
+														</div>
+													)}
+
+													{/* Action Bar */}
+													<div className="flex items-center gap-4 pt-2 border-t border-border/40 text-xs text-muted-foreground">
+														<button
+															onClick={() => handleToggleLikeDiscussion(disc.post_id)}
+															className={`flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer ${
+																isLiked ? 'text-primary font-bold' : ''
+															}`}
+														>
+															<ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-primary' : ''}`} />
+															<span>{disc.likes_count || 0}</span>
+														</button>
+
+														<button
+															onClick={() => setDiscOpenCommentsMap(prev => ({ ...prev, [disc.post_id]: !prev[disc.post_id] }))}
+															className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+														>
+															<MessageCircle className="w-3.5 h-3.5" />
+															<span>{disc.comments?.length || 0}</span>
+														</button>
+
+														<button
+															onClick={() => handleToggleRepostDiscussion(disc.post_id)}
+															className={`flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-pointer ${
+																isReposted ? 'text-emerald-500 font-bold' : ''
+															}`}
+														>
+															<Repeat className="w-3.5 h-3.5" />
+															<span>{disc.reposts_count || 0}</span>
+														</button>
+													</div>
+
+													{/* Comments Section */}
+													{isCommentsOpen && (
+														<div className="pt-3 border-t border-border/40 space-y-3">
+															{/* Input reply */}
+															<div className="flex gap-2">
+																<input
+																	type="text"
+																	value={discCommentInputsMap[disc.post_id] || ''}
+																	onChange={(e) => setDiscCommentInputsMap(prev => ({ ...prev, [disc.post_id]: e.target.value }))}
+																	onKeyDown={(e) => {
+																		if (e.key === 'Enter') handleAddCommentDiscussion(disc.post_id);
+																	}}
+																	placeholder="Write a reply..."
+																	className="flex-1 px-3 py-1.5 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40"
+																/>
+																<Button
+																	size="sm"
+																	disabled={discCommentSubmittingMap[disc.post_id] || !(discCommentInputsMap[disc.post_id] || '').trim()}
+																	onClick={() => handleAddCommentDiscussion(disc.post_id)}
+																	className="rounded-xl px-3 h-8 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+																>
+																	{discCommentSubmittingMap[disc.post_id] ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Reply'}
+																</Button>
+															</div>
+
+															{/* Comments List */}
+															{disc.comments && disc.comments.length > 0 && (
+																<div className="space-y-2 pt-1">
+																	{disc.comments.map(c => (
+																		<div key={c.comment_id} className="p-2.5 rounded-xl bg-muted/40 border border-border/40 text-xs space-y-1">
+																			<div className="flex items-center justify-between">
+																				<div className="flex items-center gap-2">
+																					<Avatar className="w-5 h-5 border border-border">
+																						<AvatarImage src={c.user_avatar} />
+																						<AvatarFallback className="bg-primary text-primary-foreground font-bold text-[9px]">
+																							{c.user_name?.substring(0, 2).toUpperCase() || 'U'}
+																						</AvatarFallback>
+																					</Avatar>
+																					<span className="font-semibold text-foreground text-[11px]">{c.user_name}</span>
+																					<span className="text-[10px] text-muted-foreground">{formatTimeAgo(c.created_at)}</span>
+																				</div>
+																				{currentUser?.user_id === c.user_id && (
+																					<button
+																						onClick={() => handleDeleteCommentDiscussion(disc.post_id, c.comment_id)}
+																						className="text-muted-foreground hover:text-rose-500 text-[10px] cursor-pointer"
+																					>
+																						Delete
+																					</button>
+																				)}
+																			</div>
+																			<p className="text-foreground text-xs pl-7">{c.content}</p>
+																		</div>
+																	))}
+																</div>
+															)}
+														</div>
+													)}
+												</Card>
+											);
+										})}
+									</div>
+								)}
 							</TabsContent>
 						</Tabs>
 					</div>

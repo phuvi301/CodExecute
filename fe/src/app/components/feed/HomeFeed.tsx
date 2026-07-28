@@ -17,7 +17,8 @@ import {
 	MoreVertical,
 	Pencil,
 	Trash2,
-	AlertTriangle
+	AlertTriangle,
+	ExternalLink
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -25,6 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { PROBLEMS_LIST } from '../../context/ProblemContext';
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -71,6 +73,33 @@ export function HomeFeed() {
 	const [tagInput, setTagInput] = useState('Discussion, CodExecute');
 	const [tags, setTags] = useState<string[]>(['Discussion', 'CodExecute']);
 
+	const getDefaultTagsForType = (type: 'discussion' | 'code-share' | 'achievement') => {
+		switch (type) {
+			case 'code-share':
+				return { input: 'Solution, CodeShare', list: ['Solution', 'CodeShare'] };
+			case 'achievement':
+				return { input: 'Achievement, Milestone', list: ['Achievement', 'Milestone'] };
+			case 'discussion':
+			default:
+				return { input: 'Discussion, CodExecute', list: ['Discussion', 'CodExecute'] };
+		}
+	};
+
+	const handleOpenCreateModal = (type: 'discussion' | 'code-share' | 'achievement') => {
+		setPostType(type);
+		const defaultTags = getDefaultTagsForType(type);
+		setTagInput(defaultTags.input);
+		setTags(defaultTags.list);
+		setIsCreateModalOpen(true);
+	};
+
+	const handleSwitchPostType = (type: 'discussion' | 'code-share' | 'achievement') => {
+		setPostType(type);
+		const defaultTags = getDefaultTagsForType(type);
+		setTagInput(defaultTags.input);
+		setTags(defaultTags.list);
+	};
+
 	// Code Snippet attachment states
 	const [codeFilename, setCodeFilename] = useState('solution.py');
 	const [codeLanguage, setCodeLanguage] = useState('python');
@@ -100,6 +129,12 @@ export function HomeFeed() {
 		const parts = name.trim().split(' ');
 		if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
 		return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+	};
+
+	const getProblemTitle = (problemId: string) => {
+		const found = PROBLEMS_LIST.find(p => p.id === problemId || p.id === problemId.toLowerCase());
+		if (found) return found.title;
+		return problemId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 	};
 
 	const highlightCodeToHtml = (codeStr: string) => {
@@ -311,8 +346,6 @@ export function HomeFeed() {
 					filename: codeFilename || 'solution.py',
 					language: codeLanguage || 'python',
 					code: codeText.trim(),
-					runtime: codeRuntime || undefined,
-					beats: codeBeats || undefined
 				};
 			}
 
@@ -542,10 +575,7 @@ export function HomeFeed() {
 					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm space-y-3">
 						<div
 							className="flex items-center gap-3 cursor-pointer group"
-							onClick={() => {
-								setPostType('discussion');
-								setIsCreateModalOpen(true);
-							}}
+							onClick={() => handleOpenCreateModal('discussion')}
 						>
 							<Avatar className="w-9 h-9 border border-border">
 								<AvatarImage src={user?.avatar_url} />
@@ -564,10 +594,7 @@ export function HomeFeed() {
 									variant="ghost"
 									size="sm"
 									className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-primary cursor-pointer"
-									onClick={() => {
-										setPostType('code-share');
-										setIsCreateModalOpen(true);
-									}}
+									onClick={() => handleOpenCreateModal('code-share')}
 								>
 									<Code2 className="w-4 h-4 text-primary" />
 									<span>Code Snippet</span>
@@ -576,32 +603,16 @@ export function HomeFeed() {
 									variant="ghost"
 									size="sm"
 									className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-amber-500 cursor-pointer"
-									onClick={() => {
-										setPostType('achievement');
-										setIsCreateModalOpen(true);
-									}}
+									onClick={() => handleOpenCreateModal('achievement')}
 								>
 									<Trophy className="w-4 h-4 text-amber-500" />
 									<span>Milestone</span>
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-blue-500 cursor-pointer"
-									onClick={() => {
-										setPostType('discussion');
-										setIsCreateModalOpen(true);
-									}}
-								>
 								</Button>
 							</div>
 
 							<Button
 								size="sm"
-								onClick={() => {
-									setPostType('discussion');
-									setIsCreateModalOpen(true);
-								}}
+								onClick={() => handleOpenCreateModal('discussion')}
 								className="h-8 rounded-xl px-4 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-sm cursor-pointer"
 							>
 								<Send className="w-3.5 h-3.5" />
@@ -669,7 +680,6 @@ export function HomeFeed() {
 							filteredPosts.map((post) => {
 								const isLikedByMe = user?.user_id ? post.liked_by?.includes(user.user_id) : false;
 								const isRepostedByMe = user?.user_id ? post.reposted_by?.includes(user.user_id) : false;
-								const isBookmarked = bookmarkedMap[post.post_id];
 								const isCommentsOpen = openCommentsMap[post.post_id];
 								const commentText = commentInputsMap[post.post_id] || '';
 								const isSubmittingCmt = commentSubmittingMap[post.post_id];
@@ -710,7 +720,6 @@ export function HomeFeed() {
 													className="h-8 w-8 text-muted-foreground hover:text-foreground"
 													onClick={() => toggleBookmark(post.post_id)}
 												>
-													<Bookmark className={`w-4 h-4 ${isBookmarked ? 'fill-primary text-primary' : ''}`} />
 												</Button>
 
 												{isAuthor && (
@@ -748,13 +757,31 @@ export function HomeFeed() {
 											</div>
 										</div>
 
+										{/* Topic Badge if associated with a Problem */}
+										{post.problem_id && (
+											<div className="mb-3">
+												<button
+													type="button"
+													onClick={(e) => {
+														e.stopPropagation();
+														navigate(`/problems/${post.problem_id}`);
+													}}
+													className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary text-xs font-semibold transition-all cursor-pointer group shadow-xs"
+												>
+													<Code2 className="w-3.5 h-3.5" />
+													<span>Topic: <strong className="font-semibold">{getProblemTitle(post.problem_id)}</strong></span>
+													<ExternalLink className="w-3 h-3 opacity-60 group-hover:opacity-100 transition-opacity ml-0.5" />
+												</button>
+											</div>
+										)}
+
 										{/* Post Body Content */}
 										<p className="text-foreground text-sm leading-relaxed mb-4 whitespace-pre-line">
 											{post.content}
 										</p>
 
-										{/* Code Share Block Attachment */}
-										{post.type === 'code-share' && post.code_snippet && (
+										{/* Code Block Attachment (for Code Shares or Discussions with attached code) */}
+										{post.code_snippet && (
 											<div className="mb-4 rounded-xl border border-border bg-[#1e1e1e] text-gray-200 overflow-hidden font-mono text-xs shadow-md">
 												<div className="bg-[#252526] px-4 py-2 flex items-center justify-between border-b border-[#333333]">
 													<span className="text-gray-300 text-xs font-semibold flex items-center gap-2">
@@ -1161,15 +1188,15 @@ export function HomeFeed() {
 			</Dialog>
 			{/* Create Post Popup Modal */}
 			<Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-				<DialogContent className="sm:max-w-xl p-6 space-y-4 rounded-2xl border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+				<DialogContent className="sm:max-w-2xl p-6 space-y-4 rounded-2xl border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
 					<DialogHeader>
 						<DialogTitle className="text-lg font-bold text-foreground">Create Post</DialogTitle>
 					</DialogHeader>
 
-					<div className="overflow-y-auto space-y-4 pr-1 flex-1">
+					<div className="overflow-y-auto space-y-4 px-1 py-1 flex-1">
 						{/* Author info & Post Type Selectors */}
-						<div className="flex items-center justify-between">
-							<div className="flex items-center gap-3">
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div className="flex items-center gap-3 shrink-0">
 								<Avatar className="w-10 h-10 border border-border">
 									<AvatarImage src={user?.avatar_url} />
 									<AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">
@@ -1183,11 +1210,11 @@ export function HomeFeed() {
 							</div>
 
 							{/* Type Selector Tabs */}
-							<div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/50">
+							<div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/50 shrink-0 overflow-x-auto self-start sm:self-auto">
 								<button
 									type="button"
-									onClick={() => setPostType('discussion')}
-									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+									onClick={() => handleSwitchPostType('discussion')}
+									className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
 										postType === 'discussion'
 											? 'bg-primary text-primary-foreground shadow-xs'
 											: 'text-muted-foreground hover:text-foreground'
@@ -1198,8 +1225,8 @@ export function HomeFeed() {
 
 								<button
 									type="button"
-									onClick={() => setPostType('code-share')}
-									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+									onClick={() => handleSwitchPostType('code-share')}
+									className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
 										postType === 'code-share'
 											? 'bg-primary text-primary-foreground shadow-xs'
 											: 'text-muted-foreground hover:text-foreground'
@@ -1211,8 +1238,8 @@ export function HomeFeed() {
 
 								<button
 									type="button"
-									onClick={() => setPostType('achievement')}
-									className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+									onClick={() => handleSwitchPostType('achievement')}
+									className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
 										postType === 'achievement'
 											? 'bg-primary text-primary-foreground shadow-xs'
 											: 'text-muted-foreground hover:text-foreground'
@@ -1227,7 +1254,7 @@ export function HomeFeed() {
 						{/* Main Post Content Textarea */}
 						<div>
 							<textarea
-								className="w-full h-32 p-3 bg-background rounded-xl border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none placeholder:text-muted-foreground"
+								className="w-full h-32 p-3 bg-background rounded-xl border border-border text-foreground text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all resize-none placeholder:text-muted-foreground"
 								value={postContent}
 								onChange={(e) => setPostContent(e.target.value)}
 								placeholder="Share code snippet, ask an algorithm question, or post a coding milestone..."
@@ -1330,37 +1357,12 @@ export function HomeFeed() {
 									</div>
 								</div>
 
-								{/* IDE Footer Metrics Bar */}
+								{/* IDE Footer Bar */}
 								<div className="bg-[#252526] px-4 py-2 flex items-center justify-between border-t border-[#333333] text-[11px] text-gray-400">
 									<div className="flex items-center gap-4">
 										<span>UTF-8</span>
 										<span>Spaces: 4</span>
 										<span className="capitalize">{codeLanguage}</span>
-									</div>
-
-									<div className="flex items-center gap-3">
-										<div className="flex items-center gap-1.5">
-											<span className="text-gray-400 text-[10px]">Runtime:</span>
-											<input
-												type="text"
-												value={codeRuntime}
-												onChange={(e) => setCodeRuntime(e.target.value)}
-												placeholder="24ms"
-												className="w-16 bg-[#1e1e1e] px-2 py-0.5 rounded border border-[#3c3c3c] text-[11px] text-emerald-400 font-mono focus:outline-none focus:border-primary"
-												spellCheck={false}
-											/>
-										</div>
-										<div className="flex items-center gap-1.5">
-											<span className="text-gray-400 text-[10px]">Beats:</span>
-											<input
-												type="text"
-												value={codeBeats}
-												onChange={(e) => setCodeBeats(e.target.value)}
-												placeholder="98.5%"
-												className="w-16 bg-[#1e1e1e] px-2 py-0.5 rounded border border-[#3c3c3c] text-[11px] text-emerald-400 font-mono focus:outline-none focus:border-primary"
-												spellCheck={false}
-											/>
-										</div>
 									</div>
 								</div>
 							</div>
@@ -1378,7 +1380,7 @@ export function HomeFeed() {
 									value={achievementText}
 									onChange={(e) => setAchievementText(e.target.value)}
 									placeholder="e.g. Solved 100 Dynamic Programming Problems!"
-									className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-amber-500"
+									className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all"
 								/>
 							</div>
 						)}
@@ -1392,10 +1394,17 @@ export function HomeFeed() {
 								onChange={(e) => {
 									setTagInput(e.target.value);
 									const parsed = e.target.value.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
-									setTags(parsed.length > 0 ? parsed : ['CodExecute']);
+									const fallback = postType === 'code-share' ? ['Solution', 'CodeShare'] : postType === 'achievement' ? ['Achievement', 'Milestone'] : ['Discussion', 'CodExecute'];
+									setTags(parsed.length > 0 ? parsed : fallback);
 								}}
-								placeholder="Discussion, Algorithm, Python"
-								className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+								placeholder={
+									postType === 'code-share'
+										? 'Solution, CodeShare, Python'
+										: postType === 'achievement'
+										? 'Achievement, Milestone, Streak'
+										: 'Discussion, Algorithm, Question'
+								}
+								className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all"
 							/>
 							<div className="flex flex-wrap gap-1.5 pt-1">
 								{tags.map((tag) => (

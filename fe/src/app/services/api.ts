@@ -324,6 +324,7 @@ export interface PostItem {
   author_title?: string;
   content: string;
   type: 'discussion' | 'code-share' | 'achievement';
+  problem_id?: string;
   code_snippet?: {
     filename?: string;
     language?: string;
@@ -344,6 +345,7 @@ export interface PostItem {
 export interface CreatePostPayload {
   content: string;
   type?: 'discussion' | 'code-share' | 'achievement';
+  problem_id?: string;
   code_snippet?: {
     filename?: string;
     language?: string;
@@ -484,6 +486,19 @@ export async function toggleRepostPostApi(token: string, postId: string): Promis
   }
   return data;
 }
+
+export async function getProblemPostsApi(problemId: string): Promise<PostItem[]> {
+  const response = await fetch(`${API_BASE_URL}/posts/problem/${problemId}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to fetch problem discussions');
+  }
+  return data;
+}
+
 
 
 

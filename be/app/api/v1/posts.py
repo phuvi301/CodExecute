@@ -20,9 +20,13 @@ def get_current_user_from_token(credentials: HTTPAuthorizationCredentials = Depe
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@router.get("", summary="Lấy danh sách các bài viết trên feed")
+@router.get("", summary="Get community feed posts")
 async def get_feed_posts(limit: int = 50):
     return posts_service.get_feed_posts(limit=limit)
+
+@router.get("/problem/{problem_id}", summary="Get discussion posts for a specific problem")
+async def get_problem_posts(problem_id: str):
+    return posts_service.get_problem_posts(problem_id)
 
 @router.post("", summary="Đăng bài viết mới")
 async def create_post(

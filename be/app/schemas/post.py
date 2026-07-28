@@ -11,6 +11,7 @@ class CodeSnippetSchema(BaseModel):
 class PostCreateSchema(BaseModel):
     content: str = Field(..., min_length=1)
     type: Optional[str] = "discussion" # 'discussion', 'code-share', 'achievement'
+    problem_id: Optional[str] = None
     code_snippet: Optional[CodeSnippetSchema] = None
     achievement: Optional[str] = None
     tags: Optional[List[str]] = []
@@ -37,6 +38,7 @@ class PostResponseSchema(BaseModel):
     author_title: Optional[str] = ""
     content: str
     type: str
+    problem_id: Optional[str] = None
     code_snippet: Optional[Dict[str, Any]] = None
     achievement: Optional[str] = None
     tags: List[str] = []
