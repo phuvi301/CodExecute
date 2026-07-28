@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     ECS_SECURITY_GROUP_IDS: str = "" # Danh sách security group IDs phân tách bởi dấu phẩy
     ECS_LOG_GROUP_NAME: str = "/ecs/codeexecute-runner"
 
+    # Cấu hình SMTP Email
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USER: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    EMAILS_FROM_EMAIL: str = "noreply@codexecute.com"
+    SMTP_TLS: bool = True
+
     # Tự động nạp các biến từ file .env nếu có
     model_config = SettingsConfigDict(
         env_file=".env", 

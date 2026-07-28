@@ -2,16 +2,51 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
-from app.services import auth_service
+from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, SendOTPRequest, VerifyOTPRequest
+from app.services import auth_service, otp_service, email_service
 from app.core import security
 
 router = APIRouter()
+
+@router.post("/send-otp")
+async def send_otp(payload: SendOTPRequest):
+    """
+    Tạo và gửi mã OTP xác thực tới email người dùng.
+    """
+    if auth_service.get_user_by_email(payload.email):
+        raise HTTPException(status_code=400, detail="Email này đã được sử dụng cho một tài khoản khác")
+
+    otp_code = otp_service.generate_otp(payload.email)
+    sent = email_service.send_otp_email(payload.email, otp_code)
+    
+    if not sent:
+        raise HTTPException(status_code=500, detail="Không thể gửi email OTP, vui lòng thử lại sau")
+
+    return {
+        "message": "Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.",
+        "email": payload.email
+    }
+
+@router.post("/verify-otp")
+async def verify_otp(payload: VerifyOTPRequest):
+    """
+    Xác thực mã OTP nhập vào bởi người dùng.
+    """
+    is_valid = otp_service.verify_otp(payload.email, payload.otp_code)
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Mã OTP không chính xác hoặc đã hết hạn")
+
+    return {"message": "Xác thực email thành công", "verified": True}
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(payload: RegisterRequest):
     if auth_service.get_user_by_email(payload.email):
         raise HTTPException(status_code=400, detail="Email đã được sử dụng")
+
+    if payload.otp_code:
+        is_valid = otp_service.verify_otp(payload.email, payload.otp_code)
+        if not is_valid:
+            raise HTTPException(status_code=400, detail="Mã OTP không chính xác hoặc đã hết hạn")
 
     try:
         security.validate_password_strength(payload.password)
@@ -28,7 +63,8 @@ async def register(payload: RegisterRequest):
         "Address": "",
         "Bio": "",
         "CreatedAt": datetime.utcnow().isoformat(),
-        "Role": "user"
+        "Role": "user",
+        "IsEmailVerified": True
     }
     new_user = auth_service.create_user(user_data)
     

@@ -24,7 +24,9 @@ export interface RegisterPayload {
   email: string;
   password: string;
   full_name: string;
+  otp_code?: string;
 }
+
 
 export interface AuthTokenResponse {
   access_token: string;
@@ -169,6 +171,50 @@ export async function registerApi(payload: RegisterPayload): Promise<{ message: 
 
   return data;
 }
+
+export async function sendOtpApi(email: string): Promise<{ message: string; email: string }> {
+
+  const response = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const errorMsg = Array.isArray(data.detail)
+      ? data.detail[0]?.msg || 'Không thể gửi mã OTP'
+      : data.detail || 'Không thể gửi mã OTP';
+    throw new Error(errorMsg);
+  }
+
+  return data;
+}
+
+export async function verifyOtpApi(email: string, otpCode: string): Promise<{ message: string; verified: boolean }> {
+  const response = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, otp_code: otpCode }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const errorMsg = Array.isArray(data.detail)
+      ? data.detail[0]?.msg || 'Mã OTP không hợp lệ'
+      : data.detail || 'Mã OTP không hợp lệ';
+    throw new Error(errorMsg);
+  }
+
+  return data;
+}
+
 
 export async function getProfileApi(userId: string): Promise<UserProfile> {
   const response = await fetchWithAuth(`${API_BASE_URL}/users/${userId}`, {

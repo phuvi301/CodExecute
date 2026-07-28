@@ -1,5 +1,5 @@
 import { useState, FormEvent, useEffect } from 'react';
-import { ArrowRight, Code2, Moon, ShieldCheck, Sparkles, Sun, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowRight, Code2, Moon, ShieldCheck, Sparkles, Sun, Loader2, AlertCircle, Mail, KeyRound, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../shared/ThemeProvider';
 import { useAuth } from '../../context/AuthContext';
@@ -7,6 +7,8 @@ import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { sanitizeEmail, validateEmailFormat } from '../../utils/email';
+import { sendOtpApi } from '../../services/api';
 
 type AuthMode = 'login' | 'register';
 
@@ -32,6 +34,12 @@ function AuthForm({ mode }: { mode: AuthMode }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // OTP Verification state
+  const [step, setStep] = useState<'form' | 'otp'>('form');
+  const [otpCode, setOtpCode] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,56 +50,211 @@ function AuthForm({ mode }: { mode: AuthMode }) {
     }
   }, [isAuthenticated, navigate]);
 
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
   const validatePasswordStrength = (pass: string) => {
-    if (pass.length < 8) return 'Password must be at least 8 characters';
-    if (!/[A-Z]/.test(pass)) return 'Password must contain at least 1 uppercase letter';
-    if (!/[0-9]/.test(pass)) return 'Password must contain at least 1 number';
-    if (!/[!@#$%^&*(),.?":{}|<>_\-\=\+\[\]\\\/]/.test(pass)) return 'Password must contain at least 1 special character (e.g., !@#$%^&*)';
+    if (pass.length < 8) return 'Mật khẩu phải chứa ít nhất 8 ký tự';
+    if (!/[A-Z]/.test(pass)) return 'Mật khẩu phải chứa ít nhất 1 chữ cái viết hoa';
+    if (!/[0-9]/.test(pass)) return 'Mật khẩu phải chứa ít nhất 1 chữ số';
+    if (!/[!@#$%^&*(),.?":{}|<>_\-\=\+\[\]\\\/]/.test(pass)) return 'Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (e.g., !@#$%^&*)';
     return null;
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleRequestOTP = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccessMessage(null);
 
-    if (!email || !password) {
-      setError('Please fill in all required fields');
+    const sanitized = sanitizeEmail(email);
+    setEmail(sanitized);
+
+    const emailVal = validateEmailFormat(sanitized);
+    if (!emailVal.isValid) {
+      setError(emailVal.error || 'Email không đúng định dạng dạng user@domain.com');
       return;
     }
 
-    if (!isLogin) {
-      if (!fullName.trim()) {
-        setError('Please enter your full name');
+    if (isLogin) {
+      if (!password) {
+        setError('Vui lòng nhập mật khẩu');
         return;
       }
-      if (password !== confirmPassword) {
-        setError('Passwords do not match');
-        return;
+      setIsSubmitting(true);
+      try {
+        await login({ email: sanitized, password });
+        navigate('/feed');
+      } catch (err: any) {
+        setError(err.message || 'Đăng nhập thất bại. Vui lòng thử lại.');
+      } finally {
+        setIsSubmitting(false);
       }
-      const pwdError = validatePasswordStrength(password);
-      if (pwdError) {
-        setError(pwdError);
-        return;
-      }
+      return;
+    }
+
+    // Process Register Request: Step 1 Send OTP
+    if (!fullName.trim()) {
+      setError('Vui lòng nhập họ và tên');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Mật khẩu nhập lại không khớp');
+      return;
+    }
+    const pwdError = validatePasswordStrength(password);
+    if (pwdError) {
+      setError(pwdError);
+      return;
     }
 
     setIsSubmitting(true);
     try {
-      if (isLogin) {
-        await login({ email, password });
-      } else {
-        await register({ email, password, full_name: fullName.trim() });
-      }
-      navigate('/feed');
+      const res = await sendOtpApi(sanitized);
+      setSuccessMessage(res.message);
+      setStep('otp');
+      setResendCooldown(60);
     } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+      setError(err.message || 'Không thể gửi mã OTP. Vui lòng kiểm tra lại email.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleResendOTP = async () => {
+    if (resendCooldown > 0 || isSubmitting) return;
+    setError(null);
+    setSuccessMessage(null);
+    setIsSubmitting(true);
+    try {
+      const sanitized = sanitizeEmail(email);
+      const res = await sendOtpApi(sanitized);
+      setSuccessMessage(res.message);
+      setResendCooldown(60);
+    } catch (err: any) {
+      setError(err.message || 'Không thể gửi lại mã OTP');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifyAndRegister = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+
+    const sanitized = sanitizeEmail(email);
+    if (!otpCode || otpCode.trim().length !== 6) {
+      setError('Vui lòng nhập đủ 6 chữ số mã OTP');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await register({
+        email: sanitized,
+        password,
+        full_name: fullName.trim(),
+        otp_code: otpCode.trim()
+      });
+      navigate('/feed');
+    } catch (err: any) {
+      setError(err.message || 'Xác thực OTP thất bại. Vui lòng kiểm tra lại.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (step === 'otp' && !isLogin) {
+    return (
+      <form className="space-y-5" onSubmit={handleVerifyAndRegister}>
+        {error && (
+          <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircle className="size-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="size-4 shrink-0" />
+            <span>{successMessage}</span>
+          </div>
+        )}
+
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 text-center space-y-2">
+          <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Mail className="size-5" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Mã xác minh 6 chữ số đã được gửi tới email:
+          </p>
+          <p className="font-semibold text-foreground break-all">{sanitizeEmail(email)}</p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="otp-code">Mã xác thực OTP (6 chữ số)</Label>
+          <div className="relative">
+            <KeyRound className="absolute left-3 top-3 size-4 text-muted-foreground" />
+            <Input
+              id="otp-code"
+              type="text"
+              maxLength={6}
+              placeholder="123456"
+              className="pl-10 text-center font-mono text-lg tracking-[0.3em] uppercase"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+              disabled={isSubmitting}
+              autoFocus
+              required
+            />
+          </div>
+        </div>
+
+        <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={isSubmitting}>
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Đang xác thực tài khoản...
+            </>
+          ) : (
+            <>
+              Xác thực & Tạo tài khoản
+              <ArrowRight className="size-4 ml-2" />
+            </>
+          )}
+        </Button>
+
+        <div className="flex items-center justify-between text-xs pt-2">
+          <button
+            type="button"
+            onClick={() => setStep('form')}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+            disabled={isSubmitting}
+          >
+            <ArrowLeft className="size-3" /> Quay lại sửa thông tin
+          </button>
+
+          <button
+            type="button"
+            onClick={handleResendOTP}
+            disabled={resendCooldown > 0 || isSubmitting}
+            className="font-medium text-primary hover:underline disabled:opacity-50"
+          >
+            {resendCooldown > 0 ? `Gửi lại mã (${resendCooldown}s)` : 'Gửi lại mã OTP'}
+          </button>
+        </div>
+      </form>
+    );
+  }
+
   return (
-    <form className="space-y-5" onSubmit={handleSubmit}>
+    <form className="space-y-5" onSubmit={handleRequestOTP}>
       {error && (
         <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           <AlertCircle className="size-4 shrink-0" />
@@ -120,13 +283,17 @@ function AuthForm({ mode }: { mode: AuthMode }) {
         <Input
           id="email"
           type="email"
-          placeholder="Enter your email"
+          placeholder="user@domain.com"
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          onBlur={() => setEmail(sanitizeEmail(email))}
           disabled={isSubmitting}
           required
         />
+        <p className="text-[11px] text-muted-foreground">
+          Định dạng yêu cầu: user@domain.com (tự động hạ chữ thường & xóa khoảng trắng)
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -168,11 +335,11 @@ function AuthForm({ mode }: { mode: AuthMode }) {
         {isSubmitting ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {isLogin ? 'Signing in...' : 'Registering...'}
+            {isLogin ? 'Signing in...' : 'Đang gửi mã OTP...'}
           </>
         ) : (
           <>
-            {isLogin ? 'Sign in to CodExecute' : 'Create account'}
+            {isLogin ? 'Sign in to CodExecute' : 'Gửi mã OTP xác thực'}
             <ArrowRight className="size-4" />
           </>
         )}
@@ -180,6 +347,7 @@ function AuthForm({ mode }: { mode: AuthMode }) {
     </form>
   );
 }
+
 
 export function AuthPage({ mode }: { mode: AuthMode }) {
   const { theme, toggleTheme } = useTheme();
