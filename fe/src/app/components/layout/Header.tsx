@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Bell, Search, Code2, Moon, Sun, LogOut, User, Settings, ArrowLeft, Play, Send, ChevronLeft, ChevronRight, Rss } from 'lucide-react';
+import { Bell, Search, Code2, Moon, Sun, LogOut, User, Settings, ArrowLeft, Play, Send, ChevronLeft, ChevronRight, Rss, ShieldCheck } from 'lucide-react';
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -235,6 +235,15 @@ export function Header({ currentScreen }: HeaderProps) {
 												<Settings className="h-4 w-4 text-muted-foreground" />
 												<span>Settings</span>
 											</DropdownMenuItem>
+											{user?.role === 'admin' && (
+												<DropdownMenuItem
+													className="cursor-pointer gap-3 p-2 rounded-xl font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 transition-colors"
+													onClick={() => navigate('/admin')}
+												>
+													<ShieldCheck className="h-4 w-4 text-purple-500" />
+													<span>Admin Portal</span>
+												</DropdownMenuItem>
+											)}
 										</DropdownMenuGroup>
 										<DropdownMenuSeparator className="my-2" />
 										<DropdownMenuItem
@@ -290,6 +299,12 @@ export function Header({ currentScreen }: HeaderProps) {
 							<Code2 className="w-5 h-5" />
 							<span>Problems</span>
 						</NavLink>
+						{user?.role === 'admin' && (
+							<NavLink to="/admin" className={({ isActive }) => navItemClass(isActive || currentScreen.startsWith('admin'))}>
+								<ShieldCheck className="w-5 h-5 text-purple-500" />
+								<span className="font-semibold text-purple-600 dark:text-purple-400">Admin</span>
+							</NavLink>
+						)}
 					</nav>
 
 					<form onSubmit={handleSearchSubmit} className="flex-1 max-w-md">
@@ -371,6 +386,15 @@ export function Header({ currentScreen }: HeaderProps) {
 												<Settings className="h-4 w-4 text-muted-foreground" />
 												<span>Settings</span>
 											</DropdownMenuItem>
+											{user?.role === 'admin' && (
+												<DropdownMenuItem
+													className="cursor-pointer gap-3 p-2.5 rounded-xl font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 transition-colors"
+													onClick={() => navigate('/admin')}
+												>
+													<ShieldCheck className="h-4 w-4 text-purple-500" />
+													<span>Admin Portal</span>
+												</DropdownMenuItem>
+											)}
 										</DropdownMenuGroup>
 										<DropdownMenuSeparator className="my-2" />
 										<DropdownMenuItem

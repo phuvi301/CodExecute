@@ -24,6 +24,26 @@ class UserUpdate(BaseModel):
     old_password: Optional[str] = None
     new_password: Optional[str] = None
 
+class AdminUserUpdate(BaseModel):
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
+    role: Optional[str] = None
+    title: Optional[str] = None
+    address: Optional[str] = None
+    bio: Optional[str] = None
+    new_password: Optional[str] = None
+
+class UserAdminListItem(BaseModel):
+    user_id: str
+    email: str
+    full_name: str
+    avatar_url: Optional[str] = ""
+    role: str = "user"
+    title: Optional[str] = ""
+    address: Optional[str] = ""
+    bio: Optional[str] = ""
+    created_at: Optional[str] = ""
+
 class UserResponse(UserBase):
     user_id: str
     provider_id: str
@@ -46,4 +66,4 @@ class UserProfileResponse(BaseModel):
     can_follow: bool = True
     is_following: bool = False
     followers_count: int = 0
-    following_count: int = 0
+    following_count: int = 0

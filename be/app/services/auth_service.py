@@ -1,5 +1,9 @@
+import logging
+from typing import List, Dict, Any
 from app.core.aws import dynamodb_resource
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Lấy instance bảng Users
 users_table = dynamodb_resource.Table(settings.DYNAMODB_USERS_TABLE)
@@ -45,3 +49,32 @@ def update_user(user_id: str, update_fields: dict):
         ReturnValues="ALL_NEW"
     )
     return response.get('Attributes', {})
+
+def get_all_users() -> List[Dict[str, Any]]:
+    """Scan tất cả người dùng cho Admin quản lý"""
+    try:
+        response = users_table.scan()
+        return response.get("Items", [])
+    except Exception as e:
+        logger.error(f"Lỗi scan Users table: {e}")
+        return []
+
+def admin_update_user(user_id: str, update_data: dict) -> Dict[str, Any]:
+    """Cập nhật thông tin profile và Role của người dùng bất kỳ bởi Admin"""
+    field_mappings = {
+        "email": "Email",
+        "full_name": "FullName",
+        "role": "Role",
+        "title": "Title",
+        "address": "Address",
+        "bio": "Bio",
+        "avatar_url": "AvatarUrl",
+        "password_hash": "PasswordHash"
+    }
+
+    update_fields = {}
+    for key, attr_name in field_mappings.items():
+        if key in update_data and update_data[key] is not None:
+            update_fields[attr_name] = update_data[key]
+
+    return update_user(user_id, update_fields)

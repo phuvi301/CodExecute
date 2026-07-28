@@ -4,7 +4,11 @@ export type Screen =
   | 'problem-list'
   | 'problem-editor'
   | 'settings'
-  | 'search';
+  | 'search'
+  | 'admin-dashboard'
+  | 'admin-problems'
+  | 'admin-problem-form'
+  | 'admin-users';
 
 export type NavigateOptions = {
   problemId?: string;
@@ -13,6 +17,18 @@ export type NavigateOptions = {
 };
 
 export function screenFromPathname(pathname: string): Screen {
+  if (pathname.startsWith('/admin/problems')) {
+    return pathname.includes('/new') || pathname.includes('/edit') ? 'admin-problem-form' : 'admin-problems';
+  }
+
+  if (pathname.startsWith('/admin/users')) {
+    return 'admin-users';
+  }
+
+  if (pathname.startsWith('/admin')) {
+    return 'admin-dashboard';
+  }
+
   if (pathname.startsWith('/feed')) {
     return 'home-feed';
   }
@@ -42,6 +58,14 @@ export function screenFromPathname(pathname: string): Screen {
 
 export function screenToPath(screen: Screen, options?: NavigateOptions) {
   switch (screen) {
+    case 'admin-dashboard':
+      return '/admin';
+    case 'admin-problems':
+      return '/admin/problems';
+    case 'admin-problem-form':
+      return options?.problemId ? `/admin/problems/${options.problemId}/edit` : '/admin/problems/new';
+    case 'admin-users':
+      return '/admin/users';
     case 'home-feed':
       return '/feed';
     case 'problem-list':
@@ -57,4 +81,4 @@ export function screenToPath(screen: Screen, options?: NavigateOptions) {
     default:
       return '/problems';
   }
-}
+}
