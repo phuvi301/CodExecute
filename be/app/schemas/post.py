@@ -18,6 +18,9 @@ class PostCreateSchema(BaseModel):
 
 class PostUpdateSchema(BaseModel):
     content: Optional[str] = Field(None, min_length=1)
+    code_snippet: Optional[CodeSnippetSchema] = None
+    achievement: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 class CommentCreateSchema(BaseModel):
     content: str = Field(..., min_length=1)

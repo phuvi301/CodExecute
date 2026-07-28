@@ -417,14 +417,25 @@ export async function toggleLikePostApi(token: string, postId: string): Promise<
   return data;
 }
 
-export async function updatePostApi(token: string, postId: string, content: string): Promise<PostItem> {
+export interface UpdatePostPayload {
+  content?: string;
+  code_snippet?: {
+    filename?: string;
+    language?: string;
+    code: string;
+  };
+  achievement?: string;
+  tags?: string[];
+}
+
+export async function updatePostApi(token: string, postId: string, payload: UpdatePostPayload): Promise<PostItem> {
   const response = await fetch(`${API_BASE_URL}/posts/${postId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify(payload),
   });
   const data = await response.json();
   if (!response.ok) {

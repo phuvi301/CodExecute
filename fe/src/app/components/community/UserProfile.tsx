@@ -200,6 +200,10 @@ export function UserProfile() {
 		}
 
 		const currentUserId = currentUser?.user_id || '';
+		const targetPost = userPosts.find(p => p.post_id === postId);
+		if (targetPost && targetPost.author_id === currentUserId) {
+			return;
+		}
 
 		setUserPosts(prev =>
 			prev.map(p => {
@@ -680,6 +684,7 @@ export function UserProfile() {
 									const isCommentsOpen = openCommentsMap[post.post_id];
 									const commentText = commentInputsMap[post.post_id] || '';
 									const isSubmittingCmt = commentSubmittingMap[post.post_id];
+									const isAuthor = Boolean(currentUser?.user_id && post.author_id === currentUser.user_id);
 									const canDeletePost = currentUser?.user_id && (post.author_id === currentUser.user_id || currentUser.role === 'admin');
 
 									return (
@@ -819,9 +824,15 @@ export function UserProfile() {
 												<Button
 													variant="ghost"
 													size="sm"
-													onClick={() => handleToggleRepost(post.post_id)}
+													disabled={isAuthor}
+													title={isAuthor ? "Bạn không thể chia sẻ lại bài viết của chính mình" : undefined}
+													onClick={() => !isAuthor && handleToggleRepost(post.post_id)}
 													className={`h-8 gap-1.5 text-xs font-semibold ${
-														isRepostedByMe ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground'
+														isAuthor
+															? 'opacity-40 cursor-not-allowed text-muted-foreground'
+															: isRepostedByMe
+															? 'text-emerald-500 bg-emerald-500/10'
+															: 'text-muted-foreground hover:text-foreground'
 													}`}
 												>
 													<Repeat className="w-4 h-4" />

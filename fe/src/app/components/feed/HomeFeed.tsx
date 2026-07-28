@@ -118,6 +118,13 @@ export function HomeFeed() {
 	// Edit & Delete Post & Comment states
 	const [editingPostId, setEditingPostId] = useState<string | null>(null);
 	const [editContent, setEditContent] = useState('');
+	const [editPostType, setEditPostType] = useState<'discussion' | 'code-share' | 'achievement'>('discussion');
+	const [editCodeFilename, setEditCodeFilename] = useState('solution.py');
+	const [editCodeLanguage, setEditCodeLanguage] = useState('python');
+	const [editCodeText, setEditCodeText] = useState('');
+	const [editAchievementText, setEditAchievementText] = useState('');
+	const [editTagInput, setEditTagInput] = useState('');
+	const [editTags, setEditTags] = useState<string[]>([]);
 	const [isUpdating, setIsUpdating] = useState(false);
 
 	const [deletingCommentTarget, setDeletingCommentTarget] = useState<{ postId: string; commentId: string } | null>(null);
@@ -283,6 +290,10 @@ export function HomeFeed() {
 		}
 
 		const currentUserId = user?.user_id || '';
+		const targetPost = posts.find(p => p.post_id === postId);
+		if (targetPost && targetPost.author_id === currentUserId) {
+			return;
+		}
 
 		setPosts(prev =>
 			prev.map(p => {
@@ -440,6 +451,19 @@ export function HomeFeed() {
 		}
 	};
 
+	const handleOpenEditModal = (post: PostItem) => {
+		setEditingPostId(post.post_id);
+		setEditContent(post.content);
+		setEditPostType(post.type || 'discussion');
+		setEditCodeFilename(post.code_snippet?.filename || 'solution.py');
+		setEditCodeLanguage(post.code_snippet?.language || 'python');
+		setEditCodeText(post.code_snippet?.code || '');
+		setEditAchievementText(post.achievement || '');
+		const existingTags = post.tags || [];
+		setEditTagInput(existingTags.join(', '));
+		setEditTags(existingTags);
+	};
+
 	const handleSaveEditPost = async () => {
 		if (!editingPostId || !editContent.trim()) return;
 
@@ -451,10 +475,27 @@ export function HomeFeed() {
 
 		try {
 			setIsUpdating(true);
-			const updatedPost = await updatePostApi(authToken, editingPostId, editContent.trim());
+			const parsedTags = editTagInput.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
+			const payload: any = {
+				content: editContent.trim(),
+				tags: parsedTags,
+			};
+
+			if (editCodeText.trim()) {
+				payload.code_snippet = {
+					filename: editCodeFilename || 'solution.py',
+					language: editCodeLanguage || 'python',
+					code: editCodeText.trim(),
+				};
+			}
+
+			if (editAchievementText.trim()) {
+				payload.achievement = editAchievementText.trim();
+			}
+
+			const updatedPost = await updatePostApi(authToken, editingPostId, payload);
 			setPosts(prev => prev.map(p => (p.post_id === editingPostId ? updatedPost : p)));
 			setEditingPostId(null);
-			setEditContent('');
 		} catch (err: any) {
 			alert(err.message || 'Không thể cập nhật bài viết');
 		} finally {
@@ -735,10 +776,7 @@ export function HomeFeed() {
 														<DropdownMenuContent align="end" sideOffset={6} className="w-40 p-1.5 rounded-xl border-border bg-card shadow-2xl z-50 space-y-0.5">
 															<DropdownMenuItem
 																className="cursor-pointer gap-2.5 p-2 rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors"
-																onClick={() => {
-																	setEditingPostId(post.post_id);
-																	setEditContent(post.content);
-																}}
+																onClick={() => handleOpenEditModal(post)}
 															>
 																<Pencil className="w-3.5 h-3.5 text-primary" />
 																<span>Edit Post</span>
@@ -865,9 +903,15 @@ export function HomeFeed() {
 											<Button
 												variant="ghost"
 												size="sm"
-												onClick={() => toggleRepost(post.post_id)}
+												disabled={isAuthor}
+												title={isAuthor ? "Bạn không thể chia sẻ lại bài viết của chính mình" : undefined}
+												onClick={() => !isAuthor && toggleRepost(post.post_id)}
 												className={`h-8 gap-1.5 text-xs font-semibold ${
-													isRepostedByMe ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground'
+													isAuthor
+														? 'opacity-40 cursor-not-allowed text-muted-foreground'
+														: isRepostedByMe
+														? 'text-emerald-500 bg-emerald-500/10'
+														: 'text-muted-foreground hover:text-foreground'
 												}`}
 											>
 												<Share2 className="w-4 h-4" />
@@ -1079,19 +1123,141 @@ export function HomeFeed() {
 
 			{/* Edit Post Modal Dialog */}
 			<Dialog open={!!editingPostId} onOpenChange={(open) => !open && setEditingPostId(null)}>
-				<DialogContent className="sm:max-w-md p-6 space-y-4 rounded-2xl border-border bg-card shadow-2xl">
+				<DialogContent className="sm:max-w-2xl p-6 space-y-4 rounded-2xl border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
 					<DialogHeader>
 						<DialogTitle className="text-lg font-bold text-foreground">Edit Post</DialogTitle>
 					</DialogHeader>
-					<div className="space-y-2">
-						<textarea
-							className="w-full h-32 p-3 bg-background rounded-xl border border-border text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-							value={editContent}
-							onChange={(e) => setEditContent(e.target.value)}
-							placeholder="Edit your post content..."
-						/>
+
+					<div className="overflow-y-auto space-y-4 px-1 py-1 flex-1">
+						{/* Main Post Content */}
+						<div className="space-y-1">
+							<label className="text-xs font-semibold text-muted-foreground">Post Content</label>
+							<textarea
+								className="w-full h-32 p-3 bg-background rounded-xl border border-border text-foreground text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all resize-none placeholder:text-muted-foreground"
+								value={editContent}
+								onChange={(e) => setEditContent(e.target.value)}
+								placeholder="Edit your post content..."
+							/>
+						</div>
+
+						{/* Edit Code Snippet Attachment if present or code-share */}
+						{(editPostType === 'code-share' || editCodeText) && (
+							<div className="rounded-xl border border-border bg-[#1e1e1e] overflow-hidden font-mono shadow-xl">
+								{/* IDE Header Bar */}
+								<div className="bg-[#252526] px-4 py-2.5 flex items-center justify-between border-b border-[#333333]">
+									<div className="flex items-center gap-3 flex-1">
+										<div className="flex items-center gap-1.5 shrink-0">
+											<span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+											<span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+											<span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+										</div>
+
+										<div className="flex items-center gap-2 bg-[#1e1e1e] px-3 py-1 rounded-lg border border-[#3c3c3c] flex-1 max-w-xs">
+											<Code2 className="w-3.5 h-3.5 text-primary shrink-0" />
+											<input
+												type="text"
+												value={editCodeFilename}
+												onChange={(e) => setEditCodeFilename(e.target.value)}
+												placeholder="solution.py"
+												className="bg-transparent text-xs text-gray-200 focus:outline-none w-full font-mono"
+												spellCheck={false}
+											/>
+										</div>
+									</div>
+
+									<select
+										value={editCodeLanguage}
+										onChange={(e) => setEditCodeLanguage(e.target.value)}
+										className="bg-[#2d2d2d] px-3 py-1 rounded-lg border border-[#444444] text-xs text-gray-200 focus:outline-none focus:border-primary cursor-pointer font-mono"
+									>
+										<option value="python">Python</option>
+										<option value="cpp">C++</option>
+										<option value="java">Java</option>
+										<option value="javascript">JavaScript</option>
+										<option value="go">Go</option>
+										<option value="rust">Rust</option>
+									</select>
+								</div>
+
+								<div className="flex bg-[#1e1e1e] relative h-[200px] overflow-hidden">
+									<div className="bg-[#1e1e1e] border-r border-[#2d2d2d] py-3 px-2 text-right text-[11px] text-gray-600 font-mono select-none w-10 shrink-0 space-y-[2px]">
+										{Array.from({ length: Math.max(1, editCodeText.split('\n').length) }).map((_, i) => (
+											<div key={i} className="leading-5">{i + 1}</div>
+										))}
+									</div>
+
+									<div className="relative flex-1 bg-[#1e1e1e] overflow-hidden h-full">
+										<pre
+											className="absolute inset-0 p-3 m-0 text-xs font-mono leading-5 overflow-hidden pointer-events-none whitespace-pre select-none text-gray-200 border-0"
+											style={{ tabSize: 4 }}
+											aria-hidden="true"
+										>
+											<code dangerouslySetInnerHTML={{
+												__html: (highlightCodeToHtml(editCodeText) || '<span class="text-gray-600">// Write or paste your algorithm code here...</span>') + '\n'
+											}} />
+										</pre>
+
+										<textarea
+											value={editCodeText}
+											onChange={(e) => setEditCodeText(e.target.value)}
+											onScroll={(e) => {
+												const backdrop = e.currentTarget.previousElementSibling as HTMLElement;
+												if (backdrop) {
+													backdrop.scrollTop = e.currentTarget.scrollTop;
+													backdrop.scrollLeft = e.currentTarget.scrollLeft;
+												}
+											}}
+											spellCheck={false}
+											className="relative z-10 w-full h-full p-3 bg-transparent text-transparent caret-white text-xs font-mono focus:outline-none resize-none leading-5 overflow-y-auto whitespace-pre border-0"
+											style={{ tabSize: 4 }}
+										/>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Edit Milestone Attachment if present */}
+						{(editPostType === 'achievement' || editAchievementText) && (
+							<div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+								<label className="text-xs font-bold text-amber-500 flex items-center gap-1.5">
+									<Trophy className="w-4 h-4 fill-amber-500" />
+									<span>Achievement Title</span>
+								</label>
+								<input
+									type="text"
+									value={editAchievementText}
+									onChange={(e) => setEditAchievementText(e.target.value)}
+									placeholder="e.g. Solved 100 Dynamic Programming Problems!"
+									className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all"
+								/>
+							</div>
+						)}
+
+						{/* Edit Tags Input */}
+						<div className="space-y-1.5">
+							<label className="text-xs font-semibold text-muted-foreground">Tags (comma separated)</label>
+							<input
+								type="text"
+								value={editTagInput}
+								onChange={(e) => {
+									setEditTagInput(e.target.value);
+									const parsed = e.target.value.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
+									setEditTags(parsed);
+								}}
+								placeholder="Discussion, Solution, Algorithm"
+								className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all"
+							/>
+							<div className="flex flex-wrap gap-1.5 pt-1">
+								{editTags.map((tag) => (
+									<span key={tag} className="text-[11px] text-primary bg-primary/10 font-mono px-2 py-0.5 rounded-md">
+										#{tag}
+									</span>
+								))}
+							</div>
+						</div>
 					</div>
-					<DialogFooter className="flex items-center justify-end gap-2 pt-2">
+
+					<DialogFooter className="flex items-center justify-between border-t border-border/60 pt-3">
 						<Button
 							type="button"
 							variant="outline"
@@ -1106,7 +1272,7 @@ export function HomeFeed() {
 							size="sm"
 							disabled={isUpdating || !editContent.trim()}
 							onClick={handleSaveEditPost}
-							className="rounded-xl h-9 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold cursor-pointer"
+							className="rounded-xl h-9 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold cursor-pointer"
 						>
 							{isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
 							<span>Save Changes</span>

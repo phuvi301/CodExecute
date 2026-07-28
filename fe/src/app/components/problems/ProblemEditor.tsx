@@ -275,6 +275,10 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 			return;
 		}
 		const currentUserId = currentUser?.user_id || '';
+		const targetDisc = discussionsList.find(d => d.post_id === postId);
+		if (targetDisc && targetDisc.author_id === currentUserId) {
+			return;
+		}
 
 		setDiscussionsList(prev =>
 			prev.map(p => {
@@ -831,9 +835,15 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 														</button>
 
 														<button
-															onClick={() => handleToggleRepostDiscussion(disc.post_id)}
-															className={`flex items-center gap-1.5 hover:text-emerald-500 transition-colors cursor-pointer ${
-																isReposted ? 'text-emerald-500 font-bold' : ''
+															disabled={isOwner}
+															title={isOwner ? "Bạn không thể chia sẻ lại bài viết của chính mình" : undefined}
+															onClick={() => !isOwner && handleToggleRepostDiscussion(disc.post_id)}
+															className={`flex items-center gap-1.5 transition-colors ${
+																isOwner
+																	? 'opacity-40 cursor-not-allowed text-muted-foreground'
+																	: isReposted
+																	? 'text-emerald-500 font-bold hover:text-emerald-500'
+																	: 'hover:text-emerald-500 cursor-pointer'
 															}`}
 														>
 															<Repeat className="w-3.5 h-3.5" />

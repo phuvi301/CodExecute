@@ -3,22 +3,62 @@ from datetime import datetime
 from boto3.dynamodb.conditions import Key
 from app.core.aws import dynamodb_resource
 from app.core.config import settings
-from app.services import storage_service
-from app.schemas.post import PostCreateSchema
+from app.services import storage_service, auth_service
+from app.schemas.post import PostCreateSchema, PostUpdateSchema
 
 posts_table = dynamodb_resource.Table(settings.DYNAMODB_POSTS_TABLE)
 
-def format_post(item: dict) -> dict:
+def format_post(item: dict, users_map: dict = None) -> dict:
+    if not item:
+        return {}
+
+    author_id = item.get("AuthorID", "")
+    author_name = item.get("AuthorName", "Developer")
     raw_avatar = item.get("AuthorAvatar", "")
+    author_title = item.get("AuthorTitle", "Developer")
+
+    if author_id:
+        user = None
+        if users_map is not None and author_id in users_map:
+            user = users_map[author_id]
+        else:
+            try:
+                user = auth_service.get_user_by_id(author_id)
+                if users_map is not None:
+                    users_map[author_id] = user
+            except Exception:
+                pass
+        if user:
+            author_name = user.get("FullName") or author_name
+            raw_avatar = user.get("AvatarUrl") or raw_avatar
+            author_title = user.get("Title") or author_title
+
     comments_raw = item.get("Comments", [])
-    
     formatted_comments = []
     for c in comments_raw:
+        cmt_user_id = c.get("user_id", "")
+        cmt_name = c.get("user_name", "Developer")
         cmt_avatar = c.get("user_avatar", "")
+
+        if cmt_user_id:
+            user = None
+            if users_map is not None and cmt_user_id in users_map:
+                user = users_map[cmt_user_id]
+            else:
+                try:
+                    user = auth_service.get_user_by_id(cmt_user_id)
+                    if users_map is not None:
+                        users_map[cmt_user_id] = user
+                except Exception:
+                    pass
+            if user:
+                cmt_name = user.get("FullName") or cmt_name
+                cmt_avatar = user.get("AvatarUrl") or cmt_avatar
+
         formatted_comments.append({
             "comment_id": c.get("comment_id", ""),
-            "user_id": c.get("user_id", ""),
-            "user_name": c.get("user_name", "Developer"),
+            "user_id": cmt_user_id,
+            "user_name": cmt_name,
             "user_avatar": storage_service.get_public_avatar_url(cmt_avatar),
             "content": c.get("content", ""),
             "created_at": c.get("created_at", "")
@@ -26,10 +66,10 @@ def format_post(item: dict) -> dict:
 
     return {
         "post_id": item.get("PostID"),
-        "author_id": item.get("AuthorID", ""),
-        "author_name": item.get("AuthorName", "Developer"),
+        "author_id": author_id,
+        "author_name": author_name,
         "author_avatar": storage_service.get_public_avatar_url(raw_avatar),
-        "author_title": item.get("AuthorTitle", "Developer"),
+        "author_title": author_title,
         "content": item.get("Content", ""),
         "type": item.get("Type", "discussion"),
         "problem_id": item.get("ProblemID"),
@@ -99,7 +139,8 @@ def get_feed_posts(limit: int = 50) -> list[dict]:
         items = response.get('Items', [])
         items.sort(key=lambda x: x.get('CreatedAt', ''), reverse=True)
 
-    return [format_post(item) for item in items]
+    users_map = {}
+    return [format_post(item, users_map=users_map) for item in items]
 
 def get_post_by_id(post_id: str) -> dict | None:
     response = posts_table.get_item(Key={'PostID': post_id})
@@ -163,13 +204,40 @@ def toggle_like_post(post_id: str, user_id: str) -> dict | None:
     updated_item = response.get('Attributes')
     return format_post(updated_item) if updated_item else None
 
-def update_post(post_id: str, new_content: str) -> dict | None:
+def update_post(post_id: str, payload: PostUpdateSchema) -> dict | None:
+    response = posts_table.get_item(Key={'PostID': post_id})
+    item = response.get('Item')
+    if not item:
+        return None
+
+    update_expr = []
+    expr_values = {}
+
+    if payload.content is not None and payload.content.strip():
+        update_expr.append("Content = :content")
+        expr_values[":content"] = payload.content.strip()
+
+    if payload.code_snippet is not None:
+        update_expr.append("CodeSnippet = :code_snippet")
+        expr_values[":code_snippet"] = payload.code_snippet.model_dump()
+
+    if payload.achievement is not None:
+        update_expr.append("Achievement = :achievement")
+        expr_values[":achievement"] = payload.achievement.strip()
+
+    if payload.tags is not None:
+        update_expr.append("Tags = :tags")
+        expr_values[":tags"] = payload.tags
+
+    if not update_expr:
+        return format_post(item)
+
+    update_expression_str = "SET " + ", ".join(update_expr)
+
     response = posts_table.update_item(
         Key={'PostID': post_id},
-        UpdateExpression="SET Content = :content",
-        ExpressionAttributeValues={
-            ':content': new_content
-        },
+        UpdateExpression=update_expression_str,
+        ExpressionAttributeValues=expr_values,
         ReturnValues="ALL_NEW"
     )
     updated_item = response.get('Attributes')
@@ -220,6 +288,9 @@ def toggle_repost_post(post_id: str, user_id: str) -> dict | None:
     if not item:
         return None
 
+    if item.get('AuthorID') == user_id:
+        raise ValueError("Bạn không thể chia sẻ lại bài viết do chính mình tạo")
+
     reposted_by = item.get('RepostedBy', [])
     if user_id in reposted_by:
         reposted_by.remove(user_id)
@@ -253,7 +324,8 @@ def get_user_posts(target_user_id: str) -> list[dict]:
             filtered_items.append(item)
             
     filtered_items.sort(key=lambda x: x.get('CreatedAt', ''), reverse=True)
-    return [format_post(item) for item in filtered_items]
+    users_map = {}
+    return [format_post(item, users_map=users_map) for item in filtered_items]
 
 def get_problem_posts(problem_id: str) -> list[dict]:
     response = posts_table.scan()
@@ -264,6 +336,7 @@ def get_problem_posts(problem_id: str) -> list[dict]:
         if str(item.get('ProblemID', '')) == str(problem_id)
     ]
     filtered_items.sort(key=lambda x: x.get('CreatedAt', ''), reverse=True)
-    return [format_post(item) for item in filtered_items]
+    users_map = {}
+    return [format_post(item, users_map=users_map) for item in filtered_items]
 
 

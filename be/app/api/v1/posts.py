@@ -37,7 +37,7 @@ async def create_post(
         raise HTTPException(status_code=400, detail="Nội dung bài viết không được để trống")
     return posts_service.create_post(user, payload)
 
-@router.patch("/{post_id}", summary="Chỉnh sửa nội dung bài viết")
+@router.patch("/{post_id}", summary="Chỉnh sửa bài viết")
 async def update_post(
     post_id: str,
     payload: PostUpdateSchema,
@@ -50,14 +50,11 @@ async def update_post(
     if existing_post.get("author_id") != user.get("UserID"):
         raise HTTPException(status_code=403, detail="Bạn không có quyền chỉnh sửa bài viết này")
     
-    if payload.content is not None:
-        clean_content = payload.content.strip()
-        if not clean_content:
-            raise HTTPException(status_code=400, detail="Nội dung bài viết không được để trống")
-        updated = posts_service.update_post(post_id, clean_content)
-        return updated
+    if payload.content is not None and not payload.content.strip():
+        raise HTTPException(status_code=400, detail="Nội dung bài viết không được để trống")
     
-    return existing_post
+    updated = posts_service.update_post(post_id, payload)
+    return updated or existing_post
 
 @router.delete("/{post_id}", summary="Xóa bài viết")
 async def delete_post(
@@ -145,9 +142,12 @@ async def toggle_repost_post(
     user: dict = Depends(get_current_user_from_token)
 ):
     user_id = user.get("UserID")
-    updated_post = posts_service.toggle_repost_post(post_id, user_id)
-    if not updated_post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    try:
+        updated_post = posts_service.toggle_repost_post(post_id, user_id)
+        if not updated_post:
+            raise HTTPException(status_code=404, detail="Post not found")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
     if user_id in updated_post.get("reposted_by", []):
         author_id = updated_post.get("author_id")
