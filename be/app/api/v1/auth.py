@@ -24,9 +24,9 @@ async def register(payload: RegisterRequest):
         "Email": payload.email,
         "PasswordHash": hashed_password,
         "FullName": payload.full_name,
-        "Title": "Developer",
-        "Address": "Ho Chi Minh, Vietnam",
-        "Bio": "Competitive Programmer & Software Developer",
+        "Title": "",
+        "Address": "",
+        "Bio": "",
         "CreatedAt": datetime.utcnow().isoformat(),
         "Role": "user"
     }
@@ -69,53 +69,8 @@ async def refresh_token(request: Request, response: Response):
     user_id = payload.get("sub")
     role = payload.get("role", "user")
 
-    # Tạo Access Token mới & gia hạn Refresh Token (Token Rotation)
+    # Tạo Access Token mới
     new_access_token = security.create_token(data={"sub": user_id, "role": role}, mode="access")
-    return {"access_token": new_access_token, "token_type": "bearer"}
-
-from app.services import auth_service, storage_service
-
-@router.get("/me")
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
-    if not credentials:
-        raise HTTPException(status_code=401, detail="Chưa đăng nhập")
-    payload = security.decode_token(credentials.credentials)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Token không hợp lệ hoặc đã hết hạn")
-    user_id = payload.get("sub")
-    user = auth_service.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="Người dùng không tồn tại")
-    raw_avatar = user.get("AvatarUrl", "")
-    title = user.get("Title")
-    if not title or title == "Full Stack Engineer":
-        title = "Developer"
-    
-    address = user.get("Address")
-    if not address or address == "San Francisco, CA":
-        address = "Ho Chi Minh, Vietnam"
-
-    return {
-        "user_id": user.get("UserID"),
-        "email": user.get("Email"),
-        "full_name": user.get("FullName", ""),
-        "avatar_url": storage_service.get_public_avatar_url(raw_avatar),
-        "title": title,
-        "address": address,
-        "bio": user.get("Bio", ""),
-        "created_at": user.get("CreatedAt", "2023-03-15T00:00:00Z"),
-        "role": user.get("Role", "user")
-    }
-    new_refresh_token = security.create_token(data={"sub": user_id, "role": role}, mode="refresh")
-
-    response.set_cookie(
-        key="refresh_token",
-        value=new_refresh_token,
-        httponly=True,
-        secure=False,
-        samesite="lax",
-        path="/"
-    )
 
     return {"access_token": new_access_token, "token_type": "bearer"}
 

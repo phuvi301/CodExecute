@@ -8,7 +8,7 @@ import {
   registerApi,
   refreshApi,
   logoutApi,
-  getMeApi,
+  getProfileApi,
   updateProfileApi,
   uploadAvatarApi,
   getAccessToken,
@@ -30,6 +30,24 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function parseUserIdFromToken(token: string): string | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const parsed = JSON.parse(jsonPayload);
+    return parsed.sub || null;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(() => getAccessToken());
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -48,8 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const authRes = await refreshApi();
         updateRuntimeToken(authRes.access_token);
 
-        const profile = await getMeApi(authRes.access_token);
-        setUser(profile);
+        const userId = parseUserIdFromToken(authRes.access_token);
+        if (userId) {
+          const profile = await getProfileApi(userId);
+          setUser(profile);
+        } else {
+          setUser(null);
+        }
       } catch {
         // Không có cookie refreshToken hợp lệ -> Chuyển về trạng thái guest
         clearAccessToken();
@@ -69,8 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await loginApi(payload);
       updateRuntimeToken(res.access_token);
 
-      const profile = await getMeApi(res.access_token);
-      setUser(profile);
+      const userId = parseUserIdFromToken(res.access_token);
+      if (userId) {
+        const profile = await getProfileApi(userId);
+        setUser(profile);
+      }
     } finally {
       setIsLoading(false);
     }

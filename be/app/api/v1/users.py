@@ -1,48 +1,108 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.user import UserUpdate
-from app.services import auth_service, storage_service
+from app.services import auth_service, storage_service, follow_service
 from app.core import security
 
 router = APIRouter()
 security_scheme = HTTPBearer(auto_error=False)
 
-def format_user(user: dict):
+def format_user_profile(user: dict, current_user_id: str = None):
+    target_user_id = user.get("UserID")
     raw_avatar = user.get("AvatarUrl", "")
-    title = user.get("Title")
-    if not title or title == "Full Stack Engineer":
-        title = "Developer"
+
+    is_self = bool(current_user_id and current_user_id == target_user_id)
     
-    address = user.get("Address")
-    if not address or address == "San Francisco, CA":
-        address = "Ho Chi Minh, Vietnam"
+    can_edit = is_self
+    can_follow = not is_self
+    
+    if is_self:
+        is_following = False
+    elif current_user_id:
+        is_following = follow_service.is_following(current_user_id, target_user_id)
+    else:
+        is_following = False
+
+    follow_counts = follow_service.get_follow_counts(target_user_id)
 
     return {
-        "user_id": user.get("UserID"),
+        "user_id": target_user_id,
         "email": user.get("Email"),
         "full_name": user.get("FullName", ""),
         "avatar_url": storage_service.get_public_avatar_url(raw_avatar),
-        "title": title,
-        "address": address,
+        "title": user.get("Title", "Unknown"),
+        "address": user.get("Address", "Unknown"),
         "bio": user.get("Bio", ""),
         "created_at": user.get("CreatedAt", "2023-03-15T00:00:00Z"),
-        "role": user.get("Role", "user")
+        "role": user.get("Role", "user"),
+        "can_edit": can_edit,
+        "can_follow": can_follow,
+        "is_following": is_following,
+        "followers_count": follow_counts["followers_count"],
+        "following_count": follow_counts["following_count"],
     }
 
-@router.get("/me")
-async def get_my_profile(credentials: HTTPAuthorizationCredentials = Depends(security_scheme)):
+@router.get("/{user_id}", summary="Lấy thông tin profile của user-id cụ thể")
+async def get_user_profile(
+    user_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
+):
+    current_user_id = None
+    if credentials and credentials.credentials:
+        payload = security.decode_token(credentials.credentials)
+        if payload:
+            current_user_id = payload.get("sub")
+
+    user = auth_service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return format_user_profile(user, current_user_id=current_user_id)
+
+@router.post("/{user_id}/follow", summary="Follow người dùng")
+async def follow_user_endpoint(
+    user_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
+):
     if not credentials:
         raise HTTPException(status_code=401, detail="Unauthorized")
     payload = security.decode_token(credentials.credentials)
     if not payload:
         raise HTTPException(status_code=401, detail="Token is invalid or expired")
-    user_id = payload.get("sub")
-    user = auth_service.get_user_by_id(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    return format_user(user)
 
-@router.put("/me")
+    current_user_id = payload.get("sub")
+    if current_user_id == user_id:
+        raise HTTPException(status_code=400, detail="Không thể follow chính bản thân mình")
+
+    target_user = auth_service.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    follow_service.follow_user(current_user_id, user_id)
+    return format_user_profile(target_user, current_user_id=current_user_id)
+
+@router.post("/{user_id}/unfollow", summary="Unfollow người dùng")
+async def unfollow_user_endpoint(
+    user_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
+):
+    if not credentials:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    payload = security.decode_token(credentials.credentials)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Token is invalid or expired")
+
+    current_user_id = payload.get("sub")
+    if current_user_id == user_id:
+        raise HTTPException(status_code=400, detail="Không thể unfollow chính bản thân mình")
+
+    target_user = auth_service.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    follow_service.unfollow_user(current_user_id, user_id)
+    return format_user_profile(target_user, current_user_id=current_user_id)
+
 @router.patch("/me")
 async def update_my_profile(
     payload: UserUpdate,
@@ -94,11 +154,10 @@ async def update_my_profile(
             raise HTTPException(status_code=400, detail="Mật khẩu hiện tại không chính xác")
 
     if not update_fields:
-        return format_user(user)
+        return format_user_profile(user, current_user_id=user_id)
 
     updated_user = auth_service.update_user(user_id, update_fields)
-    return format_user(updated_user)
-
+    return format_user_profile(updated_user, current_user_id=user_id)
 
 @router.post("/me/avatar", summary="Upload avatar cho người dùng đang đăng nhập")
 async def upload_avatar(
@@ -122,5 +181,5 @@ async def upload_avatar(
     return {
         "message": "Upload avatar thành công",
         "avatar_url": avatar_url,
-        "user": format_user(updated_user)
+        "user": format_user_profile(updated_user, current_user_id=user_id)
     }

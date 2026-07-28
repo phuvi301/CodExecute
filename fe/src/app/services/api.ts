@@ -41,6 +41,11 @@ export interface UserProfile {
   bio?: string;
   created_at?: string;
   role: string;
+  can_edit?: boolean;
+  can_follow?: boolean;
+  is_following?: boolean;
+  followers_count?: number;
+  following_count?: number;
 }
 
 // --- TỰ ĐỘNG REFRESH TOKEN VÀ GỬI REQUEST CÓ AUTHENTICATION ---
@@ -165,8 +170,8 @@ export async function registerApi(payload: RegisterPayload): Promise<{ message: 
   return data;
 }
 
-export async function getMeApi(tokenOverride?: string): Promise<UserProfile> {
-  const response = await fetchWithAuth(`${API_BASE_URL}/users/me`, {
+export async function getProfileApi(userId: string): Promise<UserProfile> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/${userId}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',
@@ -176,11 +181,46 @@ export async function getMeApi(tokenOverride?: string): Promise<UserProfile> {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.detail || 'Session expired');
+    throw new Error(data.detail || 'Không thể lấy thông tin trang cá nhân');
   }
 
   return data;
 }
+
+export async function followUserApi(userId: string): Promise<UserProfile> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/follow`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Không thể follow người dùng');
+  }
+
+  return data;
+}
+
+export async function unfollowUserApi(userId: string): Promise<UserProfile> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/unfollow`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Không thể bỏ follow người dùng');
+  }
+
+  return data;
+}
+
 
 export interface UpdateProfilePayload {
   full_name?: string;

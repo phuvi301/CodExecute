@@ -31,3 +31,19 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+class UserProfileResponse(BaseModel):
+    user_id: str
+    email: EmailStr
+    full_name: Optional[str] = ""
+    avatar_url: Optional[str] = ""
+    title: Optional[str] = ""
+    address: Optional[str] = ""
+    bio: Optional[str] = ""
+    created_at: Optional[str] = ""
+    role: Optional[str] = "user"
+    can_edit: bool = False
+    can_follow: bool = True
+    is_following: bool = False
+    followers_count: int = 0
+    following_count: int = 0

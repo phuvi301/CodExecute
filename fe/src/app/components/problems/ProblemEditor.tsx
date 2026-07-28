@@ -39,7 +39,6 @@ const EXTENSIONS: Record<string, string> = {
 	python: 'solution.py',
 	cpp: 'solution.cpp',
 	java: 'Solution.java',
-	typescript: 'solution.ts',
 };
 
 const MONACO_LANGUAGES: Record<string, string> = {
@@ -47,7 +46,6 @@ const MONACO_LANGUAGES: Record<string, string> = {
 	python: 'python',
 	cpp: 'cpp',
 	java: 'java',
-	typescript: 'typescript',
 };
 
 export function ProblemEditor({ problemId }: ProblemEditorProps) {

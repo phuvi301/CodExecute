@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     DYNAMODB_NOTIFICATIONS_TABLE: str = "Notifications"
     DYNAMODB_POSTS_TABLE: str = "Posts"
     DYNAMODB_PROBLEMS_TABLE: str = "Problems"
+    DYNAMODB_FOLLOWS_TABLE: str = "UserFollows"
     
     # Cấu hình SQS & S3
     SQS_QUEUE_URL: str = ""

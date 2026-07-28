@@ -238,6 +238,38 @@ def create_posts_table():
             print(f"Lỗi tạo bảng Posts: {e}")
 
 
+def create_follows_table():
+    try:
+        table = dynamodb.create_table(
+            TableName=settings.DYNAMODB_FOLLOWS_TABLE,
+            KeySchema=[
+                {'AttributeName': 'FollowerID', 'KeyType': 'HASH'},  # Partition Key
+                {'AttributeName': 'FollowingID', 'KeyType': 'RANGE'} # Sort Key
+            ],
+            AttributeDefinitions=[
+                {'AttributeName': 'FollowerID', 'AttributeType': 'S'},
+                {'AttributeName': 'FollowingID', 'AttributeType': 'S'}
+            ],
+            GlobalSecondaryIndexes=[
+                {
+                    'IndexName': 'Following-index',
+                    'KeySchema': [
+                        {'AttributeName': 'FollowingID', 'KeyType': 'HASH'},
+                        {'AttributeName': 'FollowerID', 'KeyType': 'RANGE'}
+                    ],
+                    'Projection': {'ProjectionType': 'ALL'}
+                }
+            ],
+            BillingMode='PAY_PER_REQUEST'
+        )
+        print("Đang tạo bảng UserFollows...")
+    except ClientError as e:
+        if e.response['Error']['Code'] == 'ResourceInUseException':
+            print("Bảng UserFollows đã tồn tại.")
+        else:
+            print(f"Lỗi tạo bảng UserFollows: {e}")
+
+
 if __name__ == '__main__':
     print("--- BẮT ĐẦU TẠO CÁC BẢNG DYNAMODB ---")
     create_users_table()
@@ -247,4 +279,5 @@ if __name__ == '__main__':
     create_solutions_table()
     create_notifications_table()
     create_posts_table()
+    create_follows_table()
     print("--- HOÀN TẤT ---")

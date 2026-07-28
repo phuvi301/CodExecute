@@ -28,7 +28,7 @@ export function Header({ currentScreen }: HeaderProps) {
 	const { theme, toggleTheme } = useTheme();
 	const { user, isAuthenticated, logout } = useAuth();
 	const navigate = useNavigate();
-	const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile/me';
+	const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile';
 
 	const { problem, language, setLanguage, runCode, submitCode, isRunning, isSubmitting } = useProblem();
 
@@ -127,7 +127,6 @@ export function Header({ currentScreen }: HeaderProps) {
 								<SelectItem value="python">Python</SelectItem>
 								<SelectItem value="cpp">C++</SelectItem>
 								<SelectItem value="java">Java</SelectItem>
-								<SelectItem value="typescript">TypeScript</SelectItem>
 							</SelectContent>
 						</Select>
 

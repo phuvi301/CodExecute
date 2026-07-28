@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
 	MapPin,
 	Mail,
@@ -17,29 +17,75 @@ import {
 	UserCheck,
 	CheckCircle2,
 	TrendingUp,
-	Flame
+	Flame,
+	Users
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { getProfileApi, followUserApi, unfollowUserApi, UserProfile as UserProfileType } from '../../services/api';
 
 export function UserProfile() {
 	const navigate = useNavigate();
-	const { user } = useAuth();
+	const { userId: urlUserId } = useParams<{ userId?: string }>();
+	const { user: currentUser } = useAuth();
 
-	const [isFollowing, setIsFollowing] = useState(false);
+	const targetUserId = urlUserId || currentUser?.user_id || '';
+
+	const [profile, setProfile] = useState<UserProfileType | null>(null);
+	const [isLoading, setIsLoading] = useState<boolean>(true);
+	const [isSubmittingFollow, setIsSubmittingFollow] = useState<boolean>(false);
 	const [copied, setCopied] = useState(false);
 
-	const displayName = user?.full_name;
-	const displayEmail = user?.email;
-	const displayTitle = user?.title;
-	const displayAddress = user?.address;
+	useEffect(() => {
+		async function loadProfile() {
+			if (!targetUserId) {
+				setIsLoading(false);
+				return;
+			}
+			setIsLoading(true);
+			try {
+				const data = await getProfileApi(targetUserId);
+				setProfile(data);
+			} catch (err) {
+				console.error("Lỗi khi tải profile:", err);
+				setProfile(null);
+			} finally {
+				setIsLoading(false);
+			}
+		}
+		loadProfile();
+	}, [targetUserId]);
+
+	const handleToggleFollow = async () => {
+		if (!profile || isSubmittingFollow || !profile.can_follow) return;
+		setIsSubmittingFollow(true);
+		try {
+			if (profile.is_following) {
+				const updated = await unfollowUserApi(profile.user_id);
+				setProfile(updated);
+			} else {
+				const updated = await followUserApi(profile.user_id);
+				setProfile(updated);
+			}
+		} catch (err) {
+			console.error("Lỗi thay đổi trạng thái follow:", err);
+		} finally {
+			setIsSubmittingFollow(false);
+		}
+	};
+
+	const displayName = profile?.full_name || currentUser?.full_name || 'User';
+	const displayEmail = profile?.email || currentUser?.email || '';
+	const displayTitle = profile?.title || 'Developer';
+	const displayAddress = profile?.address || 'Unknown';
 
 	const getInitials = (name: string) => {
+		if (!name) return 'U';
 		const parts = name.trim().split(' ');
 		if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
 		return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -76,7 +122,7 @@ export function UserProfile() {
 
 	const skills = [
 		{ name: 'Python', level: 92, category: 'Language' },
-		{ name: 'JavaScript / TypeScript', level: 88, category: 'Language' },
+		{ name: 'JavaScript', level: 88, category: 'Language' },
 		{ name: 'Data Structures', level: 85, category: 'Core' },
 		{ name: 'Algorithms & Dynamic Programming', level: 80, category: 'Core' },
 		{ name: 'C++', level: 74, category: 'Language' },
@@ -89,6 +135,22 @@ export function UserProfile() {
 		{ id: 3, type: 'problem', title: 'Solved "Median of Two Sorted Arrays"', detail: 'Binary Search partition strategy • Runtime: 44 ms', time: '2 days ago' },
 		{ id: 4, type: 'discussion', title: 'Posted solution in "Optimal Approach using Hash Map"', detail: 'Received 14 upvotes from the community', time: '3 days ago' }
 	];
+
+	if (isLoading) {
+		return (
+			<div className="max-w-7xl mx-auto px-6 py-12 flex justify-center items-center text-muted-foreground">
+				<span>Loading user profile...</span>
+			</div>
+		);
+	}
+
+	if (!profile && !isLoading) {
+		return (
+			<div className="max-w-7xl mx-auto px-6 py-12 flex justify-center items-center text-muted-foreground">
+				<span>Cannot find user profile.</span>
+			</div>
+		);
+	}
 
 	return (
 		<div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
@@ -103,7 +165,7 @@ export function UserProfile() {
 						{/* Avatar */}
 						<div className="relative shrink-0">
 							<Avatar className="w-28 h-28 sm:w-32 sm:h-32 border-4 border-background rounded-2xl shadow-xl ring-2 ring-primary/20">
-								<AvatarImage src={user?.avatar_url} alt={displayName} className="object-cover" />
+								<AvatarImage src={profile?.avatar_url} alt={displayName} className="object-cover" />
 								<AvatarFallback className="bg-gradient-to-br from-primary to-blue-600 text-primary-foreground text-3xl font-extrabold rounded-2xl">
 									{getInitials(displayName || '')}
 								</AvatarFallback>
@@ -115,9 +177,9 @@ export function UserProfile() {
 						<div className="space-y-2">
 							<div className="flex items-center gap-3 flex-wrap">
 								<h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">{displayName}</h1>
-								{user?.role && (
+								{profile?.role && (
 									<Badge className="bg-primary/10 text-primary border-primary/20 text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full">
-										{user.role}
+										{profile.role}
 									</Badge>
 								)}
 							</div>
@@ -126,9 +188,9 @@ export function UserProfile() {
 								<span>{displayTitle}</span>
 							</p>
 
-							{user?.bio && (
+							{profile?.bio && (
 								<p className="text-xs text-muted-foreground max-w-xl leading-relaxed italic">
-									"{user.bio}"
+									"{profile.bio}"
 								</p>
 							)}
 
@@ -140,6 +202,12 @@ export function UserProfile() {
 								<div className="flex items-center gap-1.5 bg-accent/50 px-3 py-1.5 rounded-xl border border-border/40">
 									<Mail className="w-3.5 h-3.5 text-primary" />
 									<span className="font-mono text-foreground">{displayEmail}</span>
+								</div>
+								<div className="flex items-center gap-2 bg-accent/50 px-3 py-1.5 rounded-xl border border-border/40 font-semibold text-foreground">
+									<Users className="w-3.5 h-3.5 text-primary" />
+									<span><strong className="text-primary">{profile?.followers_count || 0}</strong> Followers</span>
+									<span>•</span>
+									<span><strong className="text-primary">{profile?.following_count || 0}</strong> Following</span>
 								</div>
 							</div>
 						</div>
@@ -157,28 +225,35 @@ export function UserProfile() {
 							<span>{copied ? 'Link Copied' : 'Share'}</span>
 						</Button>
 
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer"
-							onClick={() => navigate('/settings')}
-						>
-							<Pencil className="w-4 h-4 text-primary" />
-							<span>Edit Profile</span>
-						</Button>
+						{/* Nếu là profile của bản thân: Hiển thị Edit Profile */}
+						{profile?.can_edit && (
+							<Button
+								variant="outline"
+								size="sm"
+								className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer"
+								onClick={() => navigate('/settings')}
+							>
+								<Pencil className="w-4 h-4 text-primary" />
+								<span>Edit Profile</span>
+							</Button>
+						)}
 
-						<Button
-							size="sm"
-							onClick={() => setIsFollowing(!isFollowing)}
-							className={`gap-2 rounded-xl h-10 px-5 text-xs font-semibold shadow-md transition-all ${
-								isFollowing
-									? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-									: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20'
-							}`}
-						>
-							{isFollowing ? <UserCheck className="w-4 h-4 text-emerald-500" /> : <UserPlus className="w-4 h-4" />}
-							<span>{isFollowing ? 'Following' : 'Follow'}</span>
-						</Button>
+						{/* Nếu là profile người khác: Hiển thị Follow / Following */}
+						{profile?.can_follow && (
+							<Button
+								size="sm"
+								onClick={handleToggleFollow}
+								disabled={isSubmittingFollow}
+								className={`gap-2 rounded-xl h-10 px-5 text-xs font-semibold shadow-md transition-all ${
+									profile.is_following
+										? 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+										: 'bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/20'
+								}`}
+							>
+								{profile.is_following ? <UserCheck className="w-4 h-4 text-emerald-500" /> : <UserPlus className="w-4 h-4" />}
+								<span>{profile.is_following ? 'Following' : 'Follow'}</span>
+							</Button>
+						)}
 					</div>
 				</div>
 

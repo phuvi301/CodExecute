@@ -46,15 +46,14 @@ import {
 	toggleLikePostApi,
 	updatePostApi,
 	deletePostApi,
-	deleteCommentApi
+	deleteCommentApi,
+	getAccessToken
 } from '../../services/api';
 
 export function HomeFeed() {
 	const navigate = useNavigate();
 	const { user, token } = useAuth();
 	const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile/me';
-
-	const getAuthToken = () => token || localStorage.getItem('codexecute_token') || localStorage.getItem('token');
 
 	const [posts, setPosts] = useState<PostItem[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
@@ -181,7 +180,7 @@ export function HomeFeed() {
 	];
 
 	const toggleLike = async (postId: string) => {
-		const authToken = getAuthToken();
+		const authToken = getAccessToken();
 		if (!authToken) {
 			navigate('/login');
 			return;
@@ -209,7 +208,7 @@ export function HomeFeed() {
 	const handleSubmitNewPost = async () => {
 		if (!postContent.trim()) return;
 
-		const authToken = getAuthToken();
+		const authToken = getAccessToken();
 		if (!authToken) {
 			navigate('/login');
 			return;
@@ -255,7 +254,7 @@ export function HomeFeed() {
 		const commentText = commentInputsMap[postId]?.trim();
 		if (!commentText) return;
 
-		const authToken = getAuthToken();
+		const authToken = getAccessToken();
 		if (!authToken) {
 			navigate('/login');
 			return;
@@ -281,7 +280,7 @@ export function HomeFeed() {
 		if (!deletingCommentTarget) return;
 		const { postId, commentId } = deletingCommentTarget;
 
-		const authToken = getAuthToken();
+		const authToken = getAccessToken();
 		if (!authToken) {
 			navigate('/login');
 			return;
@@ -306,7 +305,7 @@ export function HomeFeed() {
 	const confirmDeletePost = async () => {
 		if (!deletingPostId) return;
 
-		const authToken = getAuthToken();
+		const authToken = getAccessToken();
 		if (!authToken) {
 			navigate('/login');
 			return;
@@ -327,7 +326,7 @@ export function HomeFeed() {
 	const handleSaveEditPost = async () => {
 		if (!editingPostId || !editContent.trim()) return;
 
-		const authToken = getAuthToken();
+		const authToken = getAccessToken();
 		if (!authToken) {
 			navigate('/login');
 			return;
@@ -930,7 +929,7 @@ export function HomeFeed() {
 						</h4>
 
 						<div className="flex flex-wrap gap-1.5">
-							{['#DynamicProgramming', '#GraphTheory', '#BinarySearch', '#SystemDesign', '#TwoPointers', '#Recursion', '#Python', '#TypeScript'].map((tag) => (
+							{['#DynamicProgramming', '#GraphTheory', '#BinarySearch', '#SystemDesign', '#TwoPointers', '#Recursion', '#Python'].map((tag) => (
 								<Badge
 									key={tag}
 									variant="secondary"
@@ -1185,7 +1184,6 @@ export function HomeFeed() {
 										<option value="python">Python</option>
 										<option value="cpp">C++</option>
 										<option value="java">Java</option>
-										<option value="typescript">TypeScript</option>
 										<option value="javascript">JavaScript</option>
 										<option value="go">Go</option>
 										<option value="rust">Rust</option>
