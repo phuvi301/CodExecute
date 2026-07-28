@@ -47,6 +47,7 @@ import {
 	updatePostApi,
 	deletePostApi,
 	deleteCommentApi,
+	toggleRepostPostApi,
 	getAccessToken
 } from '../../services/api';
 
@@ -238,6 +239,43 @@ export function HomeFeed() {
 			fetchFeedPosts();
 		}
 	};
+
+	const toggleRepost = async (postId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+
+		const currentUserId = user?.user_id || '';
+
+		setPosts(prev =>
+			prev.map(p => {
+				if (p.post_id !== postId) return p;
+				const isReposted = p.reposted_by?.includes(currentUserId);
+				const newRepostedBy = isReposted
+					? (p.reposted_by || []).filter(id => id !== currentUserId)
+					: [...(p.reposted_by || []), currentUserId];
+				const newRepostsCount = isReposted ? Math.max(0, (p.reposts_count || 0) - 1) : (p.reposts_count || 0) + 1;
+				return {
+					...p,
+					reposts_count: newRepostsCount,
+					reposted_by: newRepostedBy
+				};
+			})
+		);
+
+		try {
+			const updatedPost = await toggleRepostPostApi(authToken, postId);
+			setPosts(prev =>
+				prev.map(p => (p.post_id === postId ? { ...p, reposts_count: updatedPost.reposts_count, reposted_by: updatedPost.reposted_by } : p))
+			);
+		} catch (err) {
+			console.error('Failed to toggle repost:', err);
+			fetchFeedPosts();
+		}
+	};
+
 
 	const toggleBookmark = (postId: string) => {
 		setBookmarkedMap(prev => ({ ...prev, [postId]: !prev[postId] }));
@@ -630,6 +668,7 @@ export function HomeFeed() {
 						) : (
 							filteredPosts.map((post) => {
 								const isLikedByMe = user?.user_id ? post.liked_by?.includes(user.user_id) : false;
+								const isRepostedByMe = user?.user_id ? post.reposted_by?.includes(user.user_id) : false;
 								const isBookmarked = bookmarkedMap[post.post_id];
 								const isCommentsOpen = openCommentsMap[post.post_id];
 								const commentText = commentInputsMap[post.post_id] || '';
@@ -799,10 +838,13 @@ export function HomeFeed() {
 											<Button
 												variant="ghost"
 												size="sm"
-												className="h-8 gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+												onClick={() => toggleRepost(post.post_id)}
+												className={`h-8 gap-1.5 text-xs font-semibold ${
+													isRepostedByMe ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground'
+												}`}
 											>
 												<Share2 className="w-4 h-4" />
-												<span>Share</span>
+												<span>{post.reposts_count && post.reposts_count > 0 ? `${post.reposts_count} Repost` : 'Repost'}</span>
 											</Button>
 										</div>
 

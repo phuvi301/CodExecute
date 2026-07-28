@@ -336,6 +336,8 @@ export interface PostItem {
   created_at: string;
   likes_count: number;
   liked_by?: string[];
+  reposts_count?: number;
+  reposted_by?: string[];
   comments: CommentItem[];
 }
 
@@ -456,6 +458,33 @@ export async function deleteCommentApi(token: string, postId: string, commentId:
   }
   return data;
 }
+
+export async function getUserPostsApi(userId: string): Promise<PostItem[]> {
+  const response = await fetch(`${API_BASE_URL}/users/${userId}/posts`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to fetch user posts');
+  }
+  return data;
+}
+
+export async function toggleRepostPostApi(token: string, postId: string): Promise<PostItem> {
+  const response = await fetch(`${API_BASE_URL}/posts/${postId}/repost`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to toggle repost');
+  }
+  return data;
+}
+
 
 
 // --- SUBMISSIONS & RUN CODE APIs ---

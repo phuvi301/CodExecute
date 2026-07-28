@@ -43,4 +43,6 @@ class PostResponseSchema(BaseModel):
     created_at: str
     likes_count: int = 0
     liked_by: List[str] = []
+    reposts_count: int = 0
+    reposted_by: List[str] = []
     comments: List[CommentResponseSchema] = []

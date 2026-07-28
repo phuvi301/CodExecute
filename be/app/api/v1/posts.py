@@ -121,7 +121,7 @@ async def toggle_like_post(
 
     return updated_post
 
-@router.delete("/{post_id}/comments/{comment_id}", summary="Xóa bình luận bài viết")
+@router.delete("/{post_id}/comments/{comment_id}", summary="Delete post comment")
 async def delete_comment(
     post_id: str,
     comment_id: str,
@@ -130,7 +130,31 @@ async def delete_comment(
     try:
         updated_post = posts_service.delete_comment_from_post(post_id, comment_id, user)
         if not updated_post:
-            raise HTTPException(status_code=404, detail="Bài viết hoặc bình luận không tồn tại")
+            raise HTTPException(status_code=404, detail="Post or comment not found")
         return updated_post
     except PermissionError as e:
         raise HTTPException(status_code=403, detail=str(e))
+
+@router.post("/{post_id}/repost", summary="Toggle repost or undo repost of a post")
+async def toggle_repost_post(
+    post_id: str,
+    user: dict = Depends(get_current_user_from_token)
+):
+    user_id = user.get("UserID")
+    updated_post = posts_service.toggle_repost_post(post_id, user_id)
+    if not updated_post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    if user_id in updated_post.get("reposted_by", []):
+        author_id = updated_post.get("author_id")
+        if author_id and author_id != user_id:
+            notification_service.create_notification(
+                recipient_id=author_id,
+                sender=user,
+                notif_type="REPOST",
+                content="reposted your post",
+                post_id=post_id
+            )
+
+    return updated_post
+

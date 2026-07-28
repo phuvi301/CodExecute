@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.user import UserUpdate
-from app.services import auth_service, storage_service, follow_service, notification_service
+from app.services import auth_service, storage_service, follow_service, notification_service, posts_service
 from app.core import security
 
 router = APIRouter()
@@ -156,6 +156,15 @@ async def get_user_following(
         if u:
             result.append(format_user_profile(u, current_user_id=current_user_id))
     return result
+
+@router.get("/{user_id}/posts", summary="Get user's created and reposted posts")
+async def get_user_posts_endpoint(
+    user_id: str
+):
+    target_user = auth_service.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return posts_service.get_user_posts(user_id)
 
 @router.patch("/me")
 async def update_my_profile(

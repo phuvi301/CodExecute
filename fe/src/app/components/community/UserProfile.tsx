@@ -18,7 +18,14 @@ import {
 	CheckCircle2,
 	TrendingUp,
 	Flame,
-	Users
+	Users,
+	ThumbsUp,
+	MessageCircle,
+	Repeat,
+	Send,
+	Trash2,
+	Loader2,
+	FileText
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -27,7 +34,20 @@ import { Badge } from '../ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getProfileApi, followUserApi, unfollowUserApi, UserProfile as UserProfileType } from '../../services/api';
+import {
+	getProfileApi,
+	followUserApi,
+	unfollowUserApi,
+	getUserPostsApi,
+	toggleLikePostApi,
+	toggleRepostPostApi,
+	addCommentApi,
+	deletePostApi,
+	deleteCommentApi,
+	getAccessToken,
+	PostItem,
+	UserProfile as UserProfileType
+} from '../../services/api';
 import { FollowListModal } from './FollowListModal';
 
 export function UserProfile() {
@@ -44,6 +64,209 @@ export function UserProfile() {
 
 	const [isFollowModalOpen, setIsFollowModalOpen] = useState<boolean>(false);
 	const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers');
+
+	// Posts state & functions
+	const [userPosts, setUserPosts] = useState<PostItem[]>([]);
+	const [isLoadingPosts, setIsLoadingPosts] = useState<boolean>(true);
+	const [postsFilter, setPostsFilter] = useState<'all' | 'posted' | 'reposted'>('all');
+
+	// Comments state
+	const [openCommentsMap, setOpenCommentsMap] = useState<Record<string, boolean>>({});
+	const [commentInputsMap, setCommentInputsMap] = useState<Record<string, string>>({});
+	const [commentSubmittingMap, setCommentSubmittingMap] = useState<Record<string, boolean>>({});
+
+	const fetchUserPosts = async () => {
+		if (!targetUserId) return;
+		setIsLoadingPosts(true);
+		try {
+			const data = await getUserPostsApi(targetUserId);
+			setUserPosts(data);
+		} catch (err) {
+			console.error("Failed to load user posts:", err);
+		} finally {
+			setIsLoadingPosts(false);
+		}
+	};
+
+	useEffect(() => {
+		fetchUserPosts();
+	}, [targetUserId]);
+
+	const formatTimeAgo = (dateStr?: string) => {
+		if (!dateStr) return 'Just now';
+		const date = new Date(dateStr);
+		if (isNaN(date.getTime())) return dateStr;
+
+		const now = new Date();
+		const diffMs = now.getTime() - date.getTime();
+		const diffSec = Math.floor(diffMs / 1000);
+		const diffMin = Math.floor(diffSec / 60);
+		const diffHour = Math.floor(diffMin / 60);
+		const diffDay = Math.floor(diffHour / 24);
+
+		if (diffSec < 60) return 'Just now';
+		if (diffMin < 60) return `${diffMin}m ago`;
+		if (diffHour < 24) return `${diffHour}h ago`;
+		if (diffDay < 7) return `${diffDay}d ago`;
+		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	};
+
+	const highlightCodeToHtml = (codeStr: string) => {
+		if (!codeStr) return '';
+		let escaped = codeStr
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;');
+
+		const comments: string[] = [];
+		escaped = escaped.replace(/(#.*|\/\/.*)/g, (match) => {
+			comments.push(match);
+			return `§C${comments.length - 1}§`;
+		});
+
+		const strings: string[] = [];
+		escaped = escaped.replace(/(".*?"|'.*?'|`.*?`)/g, (match) => {
+			strings.push(match);
+			return `§S${strings.length - 1}§`;
+		});
+
+		const keywords = /\b(def|class|return|if|elif|else|for|while|import|from|in|as|try|except|finally|raise|pass|lambda|const|let|var|function|async|await|public|private|static|void|int|float|double|char|bool|string|include|using|namespace|struct|interface|type)\b/g;
+		escaped = escaped.replace(keywords, '<span class="syn-kw">$1</span>');
+
+		const builtins = /\b(self|True|False|None|true|false|null|undefined|this|console|print|len|range|enumerate|zip|dict|list|set|int|str)\b/g;
+		escaped = escaped.replace(builtins, '<span class="syn-bi">$1</span>');
+
+		const numbers = /\b(\d+(\.\d+)?)\b/g;
+		escaped = escaped.replace(numbers, '<span class="syn-num">$1</span>');
+
+		const functions = /\b([a-zA-Z_]\w*)\s*\(/g;
+		escaped = escaped.replace(functions, '<span class="syn-fn">$1</span>(');
+
+		escaped = escaped.replace(/§S(\d+)§/g, (_, idx) => {
+			return `<span class="syn-str">${strings[parseInt(idx)]}</span>`;
+		});
+
+		escaped = escaped.replace(/§C(\d+)§/g, (_, idx) => {
+			return `<span class="syn-com">${comments[parseInt(idx)]}</span>`;
+		});
+
+		return escaped;
+	};
+
+	const handleToggleLike = async (postId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+
+		const currentUserId = currentUser?.user_id || '';
+
+		setUserPosts(prev =>
+			prev.map(p => {
+				if (p.post_id !== postId) return p;
+				const isLiked = p.liked_by?.includes(currentUserId);
+				const newLikedBy = isLiked
+					? (p.liked_by || []).filter(id => id !== currentUserId)
+					: [...(p.liked_by || []), currentUserId];
+				const newLikesCount = isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1;
+				return { ...p, likes_count: newLikesCount, liked_by: newLikedBy };
+			})
+		);
+
+		try {
+			const updatedPost = await toggleLikePostApi(authToken, postId);
+			setUserPosts(prev =>
+				prev.map(p => (p.post_id === postId ? { ...p, likes_count: updatedPost.likes_count, liked_by: updatedPost.liked_by } : p))
+			);
+		} catch (err) {
+			console.error('Failed to toggle like:', err);
+			fetchUserPosts();
+		}
+	};
+
+	const handleToggleRepost = async (postId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+
+		const currentUserId = currentUser?.user_id || '';
+
+		setUserPosts(prev =>
+			prev.map(p => {
+				if (p.post_id !== postId) return p;
+				const isReposted = p.reposted_by?.includes(currentUserId);
+				const newRepostedBy = isReposted
+					? (p.reposted_by || []).filter(id => id !== currentUserId)
+					: [...(p.reposted_by || []), currentUserId];
+				const newRepostsCount = isReposted ? Math.max(0, (p.reposts_count || 0) - 1) : (p.reposts_count || 0) + 1;
+				return { ...p, reposts_count: newRepostsCount, reposted_by: newRepostedBy };
+			})
+		);
+
+		try {
+			const updatedPost = await toggleRepostPostApi(authToken, postId);
+			setUserPosts(prev =>
+				prev.map(p => (p.post_id === postId ? { ...p, reposts_count: updatedPost.reposts_count, reposted_by: updatedPost.reposted_by } : p))
+			);
+		} catch (err) {
+			console.error('Failed to toggle repost:', err);
+			fetchUserPosts();
+		}
+	};
+
+	const toggleCommentsSection = (postId: string) => {
+		setOpenCommentsMap(prev => ({ ...prev, [postId]: !prev[postId] }));
+	};
+
+	const handleAddComment = async (postId: string) => {
+		const text = (commentInputsMap[postId] || '').trim();
+		if (!text) return;
+
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+
+		setCommentSubmittingMap(prev => ({ ...prev, [postId]: true }));
+
+		try {
+			const updatedPost = await addCommentApi(authToken, postId, text);
+			setUserPosts(prev => prev.map(p => (p.post_id === postId ? updatedPost : p)));
+			setCommentInputsMap(prev => ({ ...prev, [postId]: '' }));
+		} catch (err) {
+			console.error('Failed to add comment:', err);
+		} finally {
+			setCommentSubmittingMap(prev => ({ ...prev, [postId]: false }));
+		}
+	};
+
+	const handleDeleteComment = async (postId: string, commentId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) return;
+
+		try {
+			const updatedPost = await deleteCommentApi(authToken, postId, commentId);
+			setUserPosts(prev => prev.map(p => (p.post_id === postId ? updatedPost : p)));
+		} catch (err) {
+			console.error('Failed to delete comment:', err);
+		}
+	};
+
+	const handleDeletePost = async (postId: string) => {
+		const authToken = getAccessToken();
+		if (!authToken) return;
+
+		try {
+			await deletePostApi(authToken, postId);
+			setUserPosts(prev => prev.filter(p => p.post_id !== postId));
+		} catch (err) {
+			console.error('Failed to delete post:', err);
+		}
+	};
 
 	const refreshProfile = async () => {
 		if (!targetUserId) return;
@@ -87,7 +310,7 @@ export function UserProfile() {
 				setProfile(updated);
 			}
 		} catch (err) {
-			console.error("Lỗi thay đổi trạng thái follow:", err);
+			console.error("Failed to toggle follow status:", err);
 		} finally {
 			setIsSubmittingFollow(false);
 		}
@@ -349,10 +572,19 @@ export function UserProfile() {
 				</div>
 			</Card>
 
-			{/* Main Profile Tabs: Problems, Achievements, Skills, Activity */}
-			<Tabs defaultValue="problems" className="space-y-6">
-				<div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl p-1.5">
+			{/* Main Profile Tabs: Posts, Problems, Achievements, Skills, Activity */}
+			<Tabs defaultValue="posts" className="space-y-6">
+				<div className="bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl p-1.5 overflow-x-auto">
 					<TabsList className="bg-transparent w-full justify-start gap-2">
+						<TabsTrigger value="posts" className="rounded-xl text-xs font-semibold px-5 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all flex items-center gap-2">
+							<FileText className="w-4 h-4" />
+							<span>Posts & Reposts</span>
+							{userPosts.length > 0 && (
+								<Badge className="bg-accent text-accent-foreground text-[10px] px-2 py-0.5 rounded-full font-bold">
+									{userPosts.length}
+								</Badge>
+							)}
+						</TabsTrigger>
 						<TabsTrigger value="problems" className="rounded-xl text-xs font-semibold px-5 py-2.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all">
 							Problems & Submissions
 						</TabsTrigger>
@@ -367,6 +599,295 @@ export function UserProfile() {
 						</TabsTrigger>
 					</TabsList>
 				</div>
+
+				{/* TAB: Posts & Reposts */}
+				<TabsContent value="posts" className="space-y-6">
+					{/* Sub-filter tabs */}
+					<div className="flex items-center gap-2 border-b border-border/60 pb-3 overflow-x-auto">
+						<button
+							onClick={() => setPostsFilter('all')}
+							className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-all ${
+								postsFilter === 'all'
+									? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+									: 'bg-card/60 border border-border/60 text-muted-foreground hover:text-foreground'
+							}`}
+						>
+							All ({userPosts.length})
+						</button>
+						<button
+							onClick={() => setPostsFilter('posted')}
+							className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-all ${
+								postsFilter === 'posted'
+									? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+									: 'bg-card/60 border border-border/60 text-muted-foreground hover:text-foreground'
+							}`}
+						>
+							Posts ({userPosts.filter(p => p.author_id === targetUserId).length})
+						</button>
+						<button
+							onClick={() => setPostsFilter('reposted')}
+							className={`px-4 py-1.5 rounded-xl text-xs font-medium transition-all ${
+								postsFilter === 'reposted'
+									? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+									: 'bg-card/60 border border-border/60 text-muted-foreground hover:text-foreground'
+							}`}
+						>
+							Reposts ({userPosts.filter(p => p.author_id !== targetUserId).length})
+						</button>
+					</div>
+
+					{/* Posts list */}
+					{isLoadingPosts ? (
+						<Card className="p-8 text-center bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl">
+							<Loader2 className="w-6 h-6 animate-spin mx-auto text-primary mb-2" />
+							<p className="text-xs text-muted-foreground">Loading posts...</p>
+						</Card>
+					) : userPosts.filter(p => {
+						if (postsFilter === 'posted') return p.author_id === targetUserId;
+						if (postsFilter === 'reposted') return p.author_id !== targetUserId;
+						return true;
+					}).length === 0 ? (
+						<Card className="p-8 text-center bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl">
+							<FileText className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+							<p className="text-sm font-semibold text-foreground">No posts yet</p>
+							<p className="text-xs text-muted-foreground mt-1">
+								{postsFilter === 'posted'
+									? "This user hasn't posted anything yet."
+									: postsFilter === 'reposted'
+									? "This user hasn't reposted anything yet."
+									: 'No posts or repost activity yet.'}
+							</p>
+						</Card>
+					) : (
+						<div className="space-y-4">
+							{userPosts
+								.filter(p => {
+									if (postsFilter === 'posted') return p.author_id === targetUserId;
+									if (postsFilter === 'reposted') return p.author_id !== targetUserId;
+									return true;
+								})
+								.map((post) => {
+									const isRepostedByTarget = post.author_id !== targetUserId;
+									const isLikedByMe = currentUser?.user_id ? post.liked_by?.includes(currentUser.user_id) : false;
+									const isRepostedByMe = currentUser?.user_id ? post.reposted_by?.includes(currentUser.user_id) : false;
+									const isCommentsOpen = openCommentsMap[post.post_id];
+									const commentText = commentInputsMap[post.post_id] || '';
+									const isSubmittingCmt = commentSubmittingMap[post.post_id];
+									const canDeletePost = currentUser?.user_id && (post.author_id === currentUser.user_id || currentUser.role === 'admin');
+
+									return (
+										<Card key={post.post_id} className="p-6 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm space-y-4">
+											{/* Repost Header Indicator if applicable */}
+											{isRepostedByTarget && (
+												<div className="flex items-center gap-2 text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-3.5 py-1.5 rounded-xl border border-emerald-500/20">
+													<Repeat className="w-3.5 h-3.5" />
+													<span>{displayName} reposted this post</span>
+												</div>
+											)}
+
+											{/* Author Header */}
+											<div className="flex items-start justify-between">
+												<div className="flex items-center gap-3">
+													<Avatar className="w-10 h-10 border border-border cursor-pointer" onClick={() => navigate(`/profile/${post.author_id}`)}>
+														<AvatarImage src={post.author_avatar} alt={post.author_name} />
+														<AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+															{post.author_name ? post.author_name.substring(0, 2).toUpperCase() : 'U'}
+														</AvatarFallback>
+													</Avatar>
+													<div>
+														<h4 className="text-foreground font-bold text-sm hover:text-primary cursor-pointer transition-colors" onClick={() => navigate(`/profile/${post.author_id}`)}>
+															{post.author_name}
+														</h4>
+														<p className="text-muted-foreground text-xs">
+															{post.author_title || 'Developer'} • <span className="font-mono text-[11px]">{formatTimeAgo(post.created_at)}</span>
+														</p>
+													</div>
+												</div>
+
+												{canDeletePost && (
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl"
+														onClick={() => handleDeletePost(post.post_id)}
+														title="Delete Post"
+													>
+														<Trash2 className="w-4 h-4" />
+													</Button>
+												)}
+											</div>
+
+											{/* Content */}
+											<p className="text-foreground text-sm leading-relaxed whitespace-pre-line">{post.content}</p>
+
+											{/* Code Snippet */}
+											{post.code_snippet && post.code_snippet.code && (
+												<div className="rounded-xl overflow-hidden border border-border/80 bg-slate-950 font-mono text-xs shadow-inner">
+													<div className="bg-slate-900/90 px-4 py-2 flex items-center justify-between border-b border-slate-800">
+														<div className="flex items-center gap-2">
+															<span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+															<span className="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+															<span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+															<span className="text-slate-300 font-semibold ml-2 text-[11px]">{post.code_snippet.filename || 'solution.py'}</span>
+														</div>
+														<div className="flex items-center gap-3 text-[11px] text-slate-400">
+															{post.code_snippet.runtime && <span>Runtime: <strong className="text-emerald-400">{post.code_snippet.runtime}</strong></span>}
+															{post.code_snippet.beats && <span>Beats: <strong className="text-blue-400">{post.code_snippet.beats}</strong></span>}
+														</div>
+													</div>
+													<pre className="p-4 text-slate-100 overflow-x-auto leading-relaxed" dangerouslySetInnerHTML={{ __html: highlightCodeToHtml(post.code_snippet.code) }} />
+												</div>
+											)}
+
+											{/* Achievement */}
+											{post.achievement && (
+												<div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center gap-3">
+													<div className="w-9 h-9 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-md shrink-0">
+														<Trophy className="w-4 h-4 fill-slate-950" />
+													</div>
+													<div>
+														<Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-semibold mb-0.5">
+															Achievement Unlocked
+														</Badge>
+														<p className="text-foreground font-bold text-xs">{post.achievement}</p>
+													</div>
+												</div>
+											)}
+
+											{/* Tags */}
+											{post.tags && post.tags.length > 0 && (
+												<div className="flex flex-wrap gap-1.5">
+													{post.tags.map((tag) => (
+														<span key={tag} className="text-xs text-primary font-mono bg-primary/10 px-2.5 py-0.5 rounded-md">
+															#{tag}
+														</span>
+													))}
+												</div>
+											)}
+
+											{/* Action buttons */}
+											<div className="flex items-center justify-between pt-3 border-t border-border/60">
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => handleToggleLike(post.post_id)}
+													className={`h-8 gap-1.5 text-xs font-semibold ${
+														isLikedByMe ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:text-foreground'
+													}`}
+												>
+													<ThumbsUp className={`w-4 h-4 ${isLikedByMe ? 'fill-primary' : ''}`} />
+													<span>{post.likes_count}</span>
+												</Button>
+
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => toggleCommentsSection(post.post_id)}
+													className={`h-8 gap-1.5 text-xs font-medium ${
+														isCommentsOpen ? 'text-primary bg-primary/10 font-semibold' : 'text-muted-foreground hover:text-foreground'
+													}`}
+												>
+													<MessageCircle className="w-4 h-4" />
+													<span>{post.comments?.length || 0} Comments</span>
+												</Button>
+
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={() => handleToggleRepost(post.post_id)}
+													className={`h-8 gap-1.5 text-xs font-semibold ${
+														isRepostedByMe ? 'text-emerald-500 bg-emerald-500/10' : 'text-muted-foreground hover:text-foreground'
+													}`}
+												>
+													<Repeat className="w-4 h-4" />
+													<span>{post.reposts_count && post.reposts_count > 0 ? `${post.reposts_count} Repost` : 'Repost'}</span>
+												</Button>
+											</div>
+
+											{/* Comments section */}
+											{isCommentsOpen && (
+												<div className="pt-3 border-t border-border/60 space-y-3">
+													<div className="flex items-center gap-2">
+														<Avatar className="w-7 h-7">
+															<AvatarImage src={currentUser?.avatar_url} />
+															<AvatarFallback className="bg-primary text-primary-foreground font-bold text-[10px]">
+																{currentUser?.full_name ? currentUser.full_name.substring(0, 2).toUpperCase() : 'U'}
+															</AvatarFallback>
+														</Avatar>
+														<input
+															type="text"
+															placeholder="Write a comment..."
+															value={commentText}
+															onChange={(e) => setCommentInputsMap(prev => ({ ...prev, [post.post_id]: e.target.value }))}
+															onKeyDown={(e) => {
+																if (e.key === 'Enter' && !e.shiftKey) {
+																	e.preventDefault();
+																	handleAddComment(post.post_id);
+																}
+															}}
+															disabled={isSubmittingCmt}
+															className="flex-1 px-3 py-1.5 bg-background rounded-xl border border-border text-foreground placeholder:text-muted-foreground text-xs focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+														/>
+														<Button
+															size="sm"
+															disabled={!commentText.trim() || isSubmittingCmt}
+															onClick={() => handleAddComment(post.post_id)}
+															className="h-7 px-2.5 rounded-xl text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1 font-semibold"
+														>
+															{isSubmittingCmt ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+															<span>Send</span>
+														</Button>
+													</div>
+
+													{post.comments && post.comments.length > 0 && (
+														<div className="space-y-2 pt-1">
+															{post.comments.map((cmt) => {
+																const isCommentAuthor = currentUser?.user_id && cmt.user_id === currentUser.user_id;
+																const canDeleteCmt = isCommentAuthor || (currentUser?.user_id && post.author_id === currentUser.user_id) || currentUser?.role === 'admin';
+
+																return (
+																	<div key={cmt.comment_id} className="flex items-start gap-2 group">
+																		<Avatar className="w-7 h-7 shrink-0 cursor-pointer mt-0.5 border border-border/60" onClick={() => navigate(`/profile/${cmt.user_id}`)}>
+																			<AvatarImage src={cmt.user_avatar} />
+																			<AvatarFallback className="bg-primary/10 text-primary font-bold text-[10px]">
+																				{cmt.user_name ? cmt.user_name.substring(0, 2).toUpperCase() : 'U'}
+																			</AvatarFallback>
+																		</Avatar>
+																		<div className="flex items-center gap-1.5 flex-1">
+																			<div className="bg-muted/40 rounded-xl px-3 py-1.5 border border-border/50 flex-1">
+																				<div className="flex items-center justify-between gap-2">
+																					<span className="text-xs font-bold text-foreground cursor-pointer hover:text-primary" onClick={() => navigate(`/profile/${cmt.user_id}`)}>
+																						{cmt.user_name}
+																					</span>
+																					<span className="text-[10px] text-muted-foreground font-mono">{formatTimeAgo(cmt.created_at)}</span>
+																				</div>
+																				<p className="text-xs text-foreground/90 leading-relaxed mt-0.5">{cmt.content}</p>
+																			</div>
+
+																			{canDeleteCmt && (
+																				<button
+																					type="button"
+																					className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg shrink-0"
+																					onClick={() => handleDeleteComment(post.post_id, cmt.comment_id)}
+																					title="Delete comment"
+																				>
+																					<Trash2 className="w-3.5 h-3.5" />
+																				</button>
+																			)}
+																		</div>
+																	</div>
+																);
+															})}
+														</div>
+													)}
+												</div>
+											)}
+										</Card>
+									);
+								})}
+						</div>
+					)}
+				</TabsContent>
 
 				{/* TAB 1: Problems & Submissions */}
 				<TabsContent value="problems" className="space-y-6">

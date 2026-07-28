@@ -38,6 +38,8 @@ def format_post(item: dict) -> dict:
         "created_at": item.get("CreatedAt", ""),
         "likes_count": int(item.get("Likes", 0)),
         "liked_by": item.get("LikedBy", []),
+        "reposts_count": int(item.get("Reposts", 0)),
+        "reposted_by": item.get("RepostedBy", []),
         "comments": formatted_comments
     }
 
@@ -62,6 +64,8 @@ def create_post(user: dict, payload: PostCreateSchema) -> dict:
         "Tags": payload.tags or [],
         "Likes": 0,
         "LikedBy": [],
+        "Reposts": 0,
+        "RepostedBy": [],
         "Comments": []
     }
     
@@ -191,7 +195,7 @@ def delete_comment_from_post(post_id: str, comment_id: str, requesting_user: dic
 
     # Permission check: comment author, post author, or admin
     if user_id != comment_author_id and user_id != post_author_id and user_role != 'admin':
-        raise PermissionError("Bạn không có quyền xóa bình luận này")
+        raise PermissionError("You do not have permission to delete this comment")
 
     updated_comments = [c for c in comments if c.get('comment_id') != comment_id]
 
@@ -206,3 +210,45 @@ def delete_comment_from_post(post_id: str, comment_id: str, requesting_user: dic
     
     updated_item = res.get('Attributes')
     return format_post(updated_item) if updated_item else None
+
+def toggle_repost_post(post_id: str, user_id: str) -> dict | None:
+    response = posts_table.get_item(Key={'PostID': post_id})
+    item = response.get('Item')
+    if not item:
+        return None
+
+    reposted_by = item.get('RepostedBy', [])
+    if user_id in reposted_by:
+        reposted_by.remove(user_id)
+    else:
+        reposted_by.append(user_id)
+
+    reposts_count = len(reposted_by)
+
+    response = posts_table.update_item(
+        Key={'PostID': post_id},
+        UpdateExpression="SET RepostedBy = :reposted_by, Reposts = :reposts_count",
+        ExpressionAttributeValues={
+            ':reposted_by': reposted_by,
+            ':reposts_count': reposts_count
+        },
+        ReturnValues="ALL_NEW"
+    )
+    
+    updated_item = response.get('Attributes')
+    return format_post(updated_item) if updated_item else None
+
+def get_user_posts(target_user_id: str) -> list[dict]:
+    response = posts_table.scan()
+    items = response.get('Items', [])
+    
+    filtered_items = []
+    for item in items:
+        author_id = item.get('AuthorID', '')
+        reposted_by = item.get('RepostedBy', [])
+        if author_id == target_user_id or target_user_id in reposted_by:
+            filtered_items.append(item)
+            
+    filtered_items.sort(key=lambda x: x.get('CreatedAt', ''), reverse=True)
+    return [format_post(item) for item in filtered_items]
+
