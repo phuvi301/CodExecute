@@ -508,3 +508,25 @@ export async function getSubmissionResultApi(submissionId: string, _token?: stri
 
   return data;
 }
+
+export async function getMySubmissionsApi(problemId?: string): Promise<SubmissionResponseData[]> {
+  const url = problemId
+    ? `${API_BASE_URL}/submissions/me?problem_id=${encodeURIComponent(problemId)}`
+    : `${API_BASE_URL}/submissions/me`;
+
+  const response = await fetchWithAuth(url, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi khi lấy danh sách bài nộp');
+  }
+
+  return data;
+}
+

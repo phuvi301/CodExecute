@@ -1,5 +1,13 @@
 import boto3
 from app.core.config import settings
+from botocore.config import Config
+
+# Cấu hình Timeout ngắn cho Boto3 (3s) để tránh bị treo vĩnh viễn khi SQS/AWS không phản hồi
+boto_config = Config(
+    connect_timeout=3.0,
+    read_timeout=3.0,
+    retries={"max_attempts": 2}
+)
 
 def _get_boto3_kwargs() -> dict:
     """Tạo dictionary cấu hình kết nối AWS linh hoạt"""
@@ -15,14 +23,14 @@ def _get_boto3_kwargs() -> dict:
     return kwargs
 
 # --- 1. DynamoDB ---
-dynamodb_resource = boto3.resource('dynamodb', **_get_boto3_kwargs())
-dynamodb_client = boto3.client('dynamodb', **_get_boto3_kwargs())
+dynamodb_resource = boto3.resource('dynamodb', config=boto_config, **_get_boto3_kwargs())
+dynamodb_client = boto3.client('dynamodb', config=boto_config, **_get_boto3_kwargs())
 
 # --- 2. Amazon S3 (Lưu trữ file Testcase, Avatar...) ---
-s3_client = boto3.client('s3', **_get_boto3_kwargs())
+s3_client = boto3.client('s3', config=boto_config, **_get_boto3_kwargs())
 
 # --- 3. Amazon SQS (Hàng đợi bài chấm) ---
-sqs_client = boto3.client('sqs', **_get_boto3_kwargs())
+sqs_client = boto3.client('sqs', config=boto_config, **_get_boto3_kwargs())
 
 
 def get_dynamodb_table(table_name: str):

@@ -185,11 +185,36 @@ export function HomeFeed() {
 			navigate('/login');
 			return;
 		}
+
+		const currentUserId = user?.user_id || '';
+
+		// 1. Optimistic Update UI ngay lập tức
+		setPosts(prev =>
+			prev.map(p => {
+				if (p.post_id !== postId) return p;
+				const isLiked = p.liked_by?.includes(currentUserId);
+				const newLikedBy = isLiked
+					? (p.liked_by || []).filter(id => id !== currentUserId)
+					: [...(p.liked_by || []), currentUserId];
+				const newLikesCount = isLiked ? Math.max(0, p.likes_count - 1) : p.likes_count + 1;
+				return {
+					...p,
+					likes_count: newLikesCount,
+					liked_by: newLikedBy
+				};
+			})
+		);
+
+		// 2. Gọi API ngầm và chỉ patch các trường lượt thích
 		try {
 			const updatedPost = await toggleLikePostApi(authToken, postId);
-			setPosts(prev => prev.map(p => (p.post_id === postId ? updatedPost : p)));
+			setPosts(prev =>
+				prev.map(p => (p.post_id === postId ? { ...p, likes_count: updatedPost.likes_count, liked_by: updatedPost.liked_by } : p))
+			);
 		} catch (err) {
 			console.error('Failed to toggle like:', err);
+			// Revert state nếu API lỗi bằng cách tải lại danh sách bài viết
+			fetchFeedPosts();
 		}
 	};
 
@@ -263,7 +288,7 @@ export function HomeFeed() {
 		try {
 			setCommentSubmittingMap(prev => ({ ...prev, [postId]: true }));
 			const updatedPost = await addCommentApi(authToken, postId, commentText);
-			setPosts(prev => prev.map(p => (p.post_id === postId ? updatedPost : p)));
+			setPosts(prev => prev.map(p => (p.post_id === postId ? { ...p, comments: updatedPost.comments } : p)));
 			setCommentInputsMap(prev => ({ ...prev, [postId]: '' }));
 		} catch (err: any) {
 			alert(err.message || 'Failed to add comment');
@@ -289,7 +314,7 @@ export function HomeFeed() {
 		try {
 			setIsDeleting(true);
 			const updatedPost = await deleteCommentApi(authToken, postId, commentId);
-			setPosts(prev => prev.map(p => (p.post_id === postId ? updatedPost : p)));
+			setPosts(prev => prev.map(p => (p.post_id === postId ? { ...p, comments: updatedPost.comments } : p)));
 			setDeletingCommentTarget(null);
 		} catch (err: any) {
 			alert(err.message || 'Không thể xóa bình luận');

@@ -166,10 +166,13 @@ def fetch_s3_text_file(s3_key: str) -> str:
 
 def get_testcases_with_content(problem_id: str) -> List[Dict[str, str]]:
     """
-    Lấy danh sách testcase của bài toán từ DynamoDB,
-    sau đó tải nội dung input và output từ S3 (với fallback preview nếu không có S3 file).
+    Lấy danh sách vị trí testcase của bài toán từ DynamoDB TestCases table,
+    sau đó các Lambda Worker tải nội dung input và output tương ứng từ S3 bucket để chạy chấm bài.
     """
     testcases = []
+    items = []
+    
+    # 1. Lấy vị trí các testcase từ DynamoDB database
     try:
         response = testcases_table.scan(
             FilterExpression="ProblemID = :pid",
@@ -180,27 +183,47 @@ def get_testcases_with_content(problem_id: str) -> List[Dict[str, str]]:
         logger.warning(f"Lỗi quét bảng TestCases cho problem {problem_id}: {e}")
         items = []
 
-    for item in items:
-        s3_in = item.get("S3InputKey") or item.get("s3_input_key") or ""
-        s3_out = item.get("S3OutputKey") or item.get("s3_output_key") or ""
+    def tc_sort_key(item):
+        tc_id = str(item.get("TestCaseID", "0"))
+        return int(tc_id) if tc_id.isdigit() else tc_id
 
-        inp = ""
-        out = ""
+    if items:
+        items.sort(key=tc_sort_key)
+        for item in items:
+            s3_in = item.get("S3InputKey") or item.get("s3_input_key") or f"{problem_id}/input/{item.get('TestCaseID')}.txt"
+            s3_out = item.get("S3OutputKey") or item.get("s3_output_key") or f"{problem_id}/output/{item.get('TestCaseID')}.txt"
 
-        if s3_in:
             inp = fetch_s3_text_file(s3_in)
-        if not inp:
-            inp = item.get("InputPreview") or item.get("Input") or item.get("input") or ""
+            if not inp:
+                inp = item.get("InputPreview") or item.get("Input") or item.get("input") or ""
 
-        if s3_out:
             out = fetch_s3_text_file(s3_out)
-        if not out:
-            out = item.get("OutputPreview") or item.get("Output") or item.get("output") or ""
+            if not out:
+                out = item.get("OutputPreview") or item.get("Output") or item.get("output") or ""
 
-        testcases.append({
-            "testcase_id": item.get("TestCaseID", item.get("testcase_id", "tc")),
-            "input": inp,
-            "output": out
-        })
+            testcases.append({
+                "testcase_id": str(item.get("TestCaseID", "tc")),
+                "input": inp,
+                "output": out
+            })
+    else:
+        # Fallback nếu DB chưa có record: thử load trực tiếp 60 testcases từ S3 theo pattern /{problem_id}/input/1.txt ...
+        logger.info(f"Không tìm thấy record testcases trong DB cho {problem_id}, thử nạp trực tiếp từ S3...")
+        for i in range(1, 61):
+            s3_in = f"{problem_id}/input/{i}.txt"
+            s3_out = f"{problem_id}/output/{i}.txt"
+            
+            inp = fetch_s3_text_file(s3_in)
+            out = fetch_s3_text_file(s3_out)
+            
+            if inp or out:
+                testcases.append({
+                    "testcase_id": str(i),
+                    "input": inp,
+                    "output": out
+                })
+            else:
+                if i > 5:
+                    break
 
     return testcases

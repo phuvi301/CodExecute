@@ -15,7 +15,7 @@ def process_single_submission(submission_id: str, problem_id: str, language: str
     3. Xóa file code tạm trong /tmp
     4. Lưu kết quả vào DynamoDB database
     """
-    logger.info(f"🚀 [Worker] Starting execution for submission {submission_id} (Problem: {problem_id}, Lang: {language})")
+    logger.info(f"⚡[Worker] Starting execution for submission {submission_id} (Problem: {problem_id}, Lang: {language})")
 
     # 1. Lấy giới hạn thời gian/bộ nhớ và danh sách testcases từ S3
     problem = submissions_service.get_problem_by_id(problem_id)
@@ -51,7 +51,7 @@ def process_single_submission(submission_id: str, problem_id: str, language: str
     return updated_item
 
 
-def lambda_handler(event, context):
+def handler(event, context):
     """
     AWS Lambda Handler được trigger tự động bởi Amazon SQS Event
     """

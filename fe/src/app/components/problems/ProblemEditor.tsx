@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Editor, { OnMount } from '@monaco-editor/react';
 import {
 	Play,
@@ -17,7 +17,11 @@ import {
 	Settings2,
 	ChevronRight,
 	FileCode,
-	Sparkles
+	Sparkles,
+	History,
+	RotateCcw,
+	ChevronDown,
+	ChevronUp
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -29,6 +33,7 @@ import { useIsMobile } from '../ui/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { useProblem } from '../../context/ProblemContext';
 import { useTheme } from '../shared/ThemeProvider';
+import { getMySubmissionsApi, SubmissionResponseData } from '../../services/api';
 
 interface ProblemEditorProps {
 	problemId: string | null;
@@ -53,6 +58,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 	const { theme } = useTheme();
 	const isMobile = useIsMobile();
 	const {
+		currentProblemId,
 		problem,
 		language,
 		code,
@@ -75,11 +81,34 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 	const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
 	const [fontSize, setFontSize] = useState<number>(14);
 
+	// State cho Submissions Tab
+	const [submissionsList, setSubmissionsList] = useState<SubmissionResponseData[]>([]);
+	const [isLoadingSubmissions, setIsLoadingSubmissions] = useState<boolean>(false);
+	const [expandedSubmissionId, setExpandedSubmissionId] = useState<string | null>(null);
+
+	const targetProblemId = problemId || currentProblemId || 'two-sum';
+
 	useEffect(() => {
 		if (problemId) {
 			setCurrentProblemId(problemId);
 		}
 	}, [problemId, setCurrentProblemId]);
+
+	const fetchSubmissions = useCallback(async () => {
+		setIsLoadingSubmissions(true);
+		try {
+			const list = await getMySubmissionsApi(targetProblemId);
+			setSubmissionsList(list);
+		} catch (err) {
+			console.error('Failed to fetch submissions:', err);
+		} finally {
+			setIsLoadingSubmissions(false);
+		}
+	}, [targetProblemId]);
+
+	useEffect(() => {
+		fetchSubmissions();
+	}, [fetchSubmissions, submissionResult]);
 
 	const filename = EXTENSIONS[language] || 'solution.js';
 	const monacoLang = MONACO_LANGUAGES[language] || 'javascript';
@@ -92,10 +121,22 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 			});
 		});
 
-		// Add keyboard shortcut: Ctrl+Enter to Run, Ctrl+Shift+Enter to Submit
+		// Add keyboard shortcut: Ctrl+Enter to Run
 		editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Enter, () => {
 			runCode();
 		});
+	};
+
+	const formatTimeAgo = (dateStr?: string) => {
+		if (!dateStr) return 'Just now';
+		const date = new Date(dateStr);
+		if (isNaN(date.getTime())) return dateStr;
+		const now = new Date();
+		const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+		if (diffInSeconds < 60) return 'Just now';
+		if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+		if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+		return `${Math.floor(diffInSeconds / 86400)}d ago`;
 	};
 
 	return (
@@ -105,7 +146,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 				direction={isMobile ? 'vertical' : 'horizontal'}
 				className="flex-1 overflow-hidden"
 			>
-				{/* LEFT PANE: Problem Description, Examples, Submissions, Discussions */}
+				{/* LEFT PANE: Problem Description, Examples, Submissions, Solutions, Discussions */}
 				<ResizablePanel
 					defaultSize={isMobile ? 40 : 45}
 					minSize={20}
@@ -114,14 +155,18 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 				>
 					<div className="p-4 sm:p-6 flex-1">
 						<Tabs defaultValue="description" className="w-full">
-							<TabsList className="mb-6 bg-muted/60 p-1 rounded-xl">
-								<TabsTrigger value="description" className="rounded-lg text-xs font-semibold px-4 py-1.5">
+							<TabsList className="mb-6 bg-muted/60 p-1 rounded-xl flex-wrap h-auto gap-1">
+								<TabsTrigger value="description" className="rounded-lg text-xs font-semibold px-3.5 py-1.5">
 									Description
 								</TabsTrigger>
-								<TabsTrigger value="solutions" className="rounded-lg text-xs font-semibold px-4 py-1.5">
+								<TabsTrigger value="submissions" className="rounded-lg text-xs font-semibold px-3.5 py-1.5 flex items-center gap-1.5">
+									<History className="w-3.5 h-3.5" />
+									<span>Submissions</span>
+								</TabsTrigger>
+								<TabsTrigger value="solutions" className="rounded-lg text-xs font-semibold px-3.5 py-1.5">
 									Solutions
 								</TabsTrigger>
-								<TabsTrigger value="discussions" className="rounded-lg text-xs font-semibold px-4 py-1.5">
+								<TabsTrigger value="discussions" className="rounded-lg text-xs font-semibold px-3.5 py-1.5">
 									Discussions
 								</TabsTrigger>
 							</TabsList>
@@ -224,6 +269,124 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 										<span>89</span>
 									</Button>
 								</div>
+							</TabsContent>
+
+							{/* TAB SUBMISSIONS: Hiển thị các bài nộp của user đối với bài toán này */}
+							<TabsContent value="submissions" className="space-y-4">
+								<div className="flex items-center justify-between sticky top-0 bg-card/90 backdrop-blur-sm z-10 py-1">
+									<h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+										<History className="w-4 h-4 text-primary" />
+										<span>My Submissions ({submissionsList.length})</span>
+									</h3>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={fetchSubmissions}
+										disabled={isLoadingSubmissions}
+										className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+									>
+										<RotateCcw className={`w-3.5 h-3.5 ${isLoadingSubmissions ? 'animate-spin' : ''}`} />
+										<span>Refresh</span>
+									</Button>
+								</div>
+
+								{isLoadingSubmissions ? (
+									<div className="p-8 text-center text-xs text-muted-foreground font-mono flex items-center justify-center gap-2">
+										<RotateCcw className="w-4 h-4 animate-spin text-primary" />
+										<span>Loading submission history...</span>
+									</div>
+								) : submissionsList.length === 0 ? (
+									<div className="p-8 rounded-xl bg-muted/20 border border-border/60 text-center space-y-2">
+										<History className="w-8 h-8 mx-auto text-muted-foreground/60" />
+										<p className="text-sm font-semibold text-foreground">No Submissions Yet</p>
+										<p className="text-xs text-muted-foreground">Submit your solution to see your evaluation history here.</p>
+									</div>
+								) : (
+									<div className="space-y-3 max-h-[calc(100vh-230px)] overflow-y-auto pr-2 custom-scrollbar">
+
+										{submissionsList.map((sub) => {
+											const isExpanded = expandedSubmissionId === sub.submission_id;
+											const isAccepted = sub.status === 'Accepted';
+											const isPending = sub.status === 'Pending';
+
+											return (
+												<Card
+													key={sub.submission_id}
+													className={`p-4 border transition-all rounded-xl cursor-pointer ${
+														isAccepted
+															? 'border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/60'
+															: isPending
+															? 'border-blue-500/30 bg-blue-500/5 hover:border-blue-500/60'
+															: 'border-rose-500/30 bg-rose-500/5 hover:border-rose-500/60'
+													}`}
+													onClick={() => setExpandedSubmissionId(isExpanded ? null : sub.submission_id)}
+												>
+													<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+														<div className="flex items-center gap-3">
+															<Badge
+																variant="outline"
+																className={`text-xs px-2.5 py-0.5 font-semibold gap-1.5 shrink-0 ${
+																	isAccepted
+																		? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+																		: isPending
+																		? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
+																		: 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+																}`}
+															>
+																{isAccepted ? (
+																	<CheckCircle className="w-3.5 h-3.5" />
+																) : isPending ? (
+																	<Clock className="w-3.5 h-3.5 animate-spin" />
+																) : (
+																	<XCircle className="w-3.5 h-3.5" />
+																)}
+																<span>{sub.status}</span>
+															</Badge>
+
+															<span className="text-xs font-mono uppercase font-semibold text-primary/90 bg-primary/10 px-2 py-0.5 rounded shrink-0">
+																{sub.language}
+															</span>
+														</div>
+
+														<div className="flex items-center gap-3 text-xs font-mono text-muted-foreground shrink-0 flex-wrap">
+															<div className="flex items-center gap-1">
+																<Clock className="w-3.5 h-3.5 text-muted-foreground/70" />
+																<span>{sub.execution_time}s</span>
+															</div>
+															<span>•</span>
+															<span>{sub.passed_testcases}/{sub.total_testcases} passed</span>
+															<span>•</span>
+															<span className="text-muted-foreground/60">{formatTimeAgo(sub.submitted_at)}</span>
+															{isExpanded ? <ChevronUp className="w-4 h-4 text-primary" /> : <ChevronDown className="w-4 h-4" />}
+														</div>
+													</div>
+
+													{/* Details & Submitted Code Viewer */}
+													{isExpanded && (
+														<div className="mt-4 pt-3 border-t border-border/60 space-y-3" onClick={(e) => e.stopPropagation()}>
+															{sub.error_message && (
+																<div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-300 font-mono text-xs whitespace-pre-wrap">
+																	<p className="font-bold text-rose-400 mb-1">Output / Error Log:</p>
+																	{sub.error_message}
+																</div>
+															)}
+
+															<div className="space-y-1">
+																<p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+																	<Code2 className="w-3.5 h-3.5 text-primary" />
+																	<span>Submitted Code:</span>
+																</p>
+																<pre className="p-3 bg-[#1e1e1e] text-gray-200 rounded-lg border border-gray-800 font-mono text-xs overflow-x-auto max-h-60 leading-relaxed">
+																	{sub.code}
+																</pre>
+															</div>
+														</div>
+													)}
+												</Card>
+											);
+										})}
+									</div>
+								)}
 							</TabsContent>
 
 							<TabsContent value="solutions">
