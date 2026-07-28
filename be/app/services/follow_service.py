@@ -161,3 +161,29 @@ def _update_user_counter(user_id: str, field: str, delta: int):
         )
     except Exception as e:
         print(f"Error updating user counter {field} for {user_id}: {e}")
+
+def get_followers(user_id: str, limit: int = 50) -> list:
+    try:
+        res = follows_table.query(
+            IndexName='Following-index',
+            KeyConditionExpression='FollowingID = :uid',
+            ExpressionAttributeValues={':uid': user_id},
+            Limit=limit
+        )
+        return res.get('Items', [])
+    except Exception as e:
+        print(f"Error querying followers for {user_id}: {e}")
+        return []
+
+def get_following(user_id: str, limit: int = 50) -> list:
+    try:
+        res = follows_table.query(
+            KeyConditionExpression='FollowerID = :uid',
+            ExpressionAttributeValues={':uid': user_id},
+            Limit=limit
+        )
+        return res.get('Items', [])
+    except Exception as e:
+        print(f"Error querying following for {user_id}: {e}")
+        return []
+

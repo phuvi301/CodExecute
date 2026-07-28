@@ -1,4 +1,4 @@
-import { Bell, Search, Code2, Moon, Sun, LogOut, User, Settings, ArrowLeft, Play, Send, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, Search, Code2, Moon, Sun, LogOut, User, Settings, ArrowLeft, Play, Send, ChevronLeft, ChevronRight, Rss } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -17,6 +17,7 @@ import {
 import { useTheme } from '../shared/ThemeProvider';
 import { useAuth } from '../../context/AuthContext';
 import { useProblem, PROBLEMS_LIST } from '../../context/ProblemContext';
+import { NotificationDropdown } from './NotificationDropdown';
 import type { Screen } from '../../routes/navigation';
 
 interface HeaderProps {
@@ -165,10 +166,7 @@ export function Header({ currentScreen }: HeaderProps) {
 
 						{isAuthenticated ? (
 							<>
-								<Button variant="ghost" size="icon" className="h-8 w-8 relative text-muted-foreground">
-									<Bell className="w-4 h-4" />
-									<span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full"></span>
-								</Button>
+								<NotificationDropdown buttonSizeClassName="h-8 w-8" />
 
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>
@@ -270,7 +268,7 @@ export function Header({ currentScreen }: HeaderProps) {
 
 					<nav className="flex items-center gap-6">
 						<NavLink to="/feed" className={({ isActive }) => navItemClass(isActive || currentScreen === 'home-feed')}>
-							<Bell className="w-5 h-5" />
+							<Rss className="w-5 h-5" />
 							<span>Feed</span>
 						</NavLink>
 						<NavLink to="/problems" className={({ isActive }) => navItemClass(isActive || currentScreen === 'problem-list')}>
@@ -302,10 +300,7 @@ export function Header({ currentScreen }: HeaderProps) {
 
 						{isAuthenticated ? (
 							<>
-								<Button variant="ghost" size="icon" className="relative">
-									<Bell className="w-5 h-5 text-muted-foreground" />
-									<span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
-								</Button>
+								<NotificationDropdown buttonSizeClassName="h-10 w-10" />
 
 								<DropdownMenu>
 									<DropdownMenuTrigger asChild>

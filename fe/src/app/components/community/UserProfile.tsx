@@ -28,6 +28,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getProfileApi, followUserApi, unfollowUserApi, UserProfile as UserProfileType } from '../../services/api';
+import { FollowListModal } from './FollowListModal';
 
 export function UserProfile() {
 	const navigate = useNavigate();
@@ -41,6 +42,19 @@ export function UserProfile() {
 	const [isSubmittingFollow, setIsSubmittingFollow] = useState<boolean>(false);
 	const [copied, setCopied] = useState(false);
 
+	const [isFollowModalOpen, setIsFollowModalOpen] = useState<boolean>(false);
+	const [followModalTab, setFollowModalTab] = useState<'followers' | 'following'>('followers');
+
+	const refreshProfile = async () => {
+		if (!targetUserId) return;
+		try {
+			const data = await getProfileApi(targetUserId);
+			setProfile(data);
+		} catch (err) {
+			console.error("Failed to refresh profile:", err);
+		}
+	};
+
 	useEffect(() => {
 		async function loadProfile() {
 			if (!targetUserId) {
@@ -52,7 +66,7 @@ export function UserProfile() {
 				const data = await getProfileApi(targetUserId);
 				setProfile(data);
 			} catch (err) {
-				console.error("Lỗi khi tải profile:", err);
+				console.error("Failed to load profile:", err);
 				setProfile(null);
 			} finally {
 				setIsLoading(false);
@@ -205,9 +219,27 @@ export function UserProfile() {
 								</div>
 								<div className="flex items-center gap-2 bg-accent/50 px-3 py-1.5 rounded-xl border border-border/40 font-semibold text-foreground">
 									<Users className="w-3.5 h-3.5 text-primary" />
-									<span><strong className="text-primary">{profile?.followers_count || 0}</strong> Followers</span>
+									<button
+										type="button"
+										onClick={() => {
+											setFollowModalTab('followers');
+											setIsFollowModalOpen(true);
+										}}
+										className="hover:text-primary transition-colors cursor-pointer focus:outline-none"
+									>
+										<strong className="text-primary">{profile?.followers_count || 0}</strong> Followers
+									</button>
 									<span>•</span>
-									<span><strong className="text-primary">{profile?.following_count || 0}</strong> Following</span>
+									<button
+										type="button"
+										onClick={() => {
+											setFollowModalTab('following');
+											setIsFollowModalOpen(true);
+										}}
+										className="hover:text-primary transition-colors cursor-pointer focus:outline-none"
+									>
+										<strong className="text-primary">{profile?.following_count || 0}</strong> Following
+									</button>
 								</div>
 							</div>
 						</div>
@@ -501,6 +533,18 @@ export function UserProfile() {
 					</Card>
 				</TabsContent>
 			</Tabs>
+
+			{/* Follow / Following List Popup Modal */}
+			<FollowListModal
+				isOpen={isFollowModalOpen}
+				onClose={() => setIsFollowModalOpen(false)}
+				userId={targetUserId}
+				initialTab={followModalTab}
+				userName={displayName}
+				followersCount={profile?.followers_count}
+				followingCount={profile?.following_count}
+				onFollowChange={refreshProfile}
+			/>
 		</div>
 	);
 }

@@ -221,6 +221,39 @@ export async function unfollowUserApi(userId: string): Promise<UserProfile> {
   return data;
 }
 
+export async function getFollowersApi(userId: string): Promise<UserProfile[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/followers`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Không thể lấy danh sách người theo dõi');
+  }
+
+  return data;
+}
+
+export async function getFollowingApi(userId: string): Promise<UserProfile[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/${userId}/following`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Không thể lấy danh sách đang theo dõi');
+  }
+
+  return data;
+}
 
 export interface UpdateProfilePayload {
   full_name?: string;
@@ -529,4 +562,65 @@ export async function getMySubmissionsApi(problemId?: string): Promise<Submissio
 
   return data;
 }
+
+// --- NOTIFICATION APIS ---
+
+export interface NotificationItem {
+  notification_id: string;
+  user_id: string;
+  sender_id: string;
+  sender_name: string;
+  sender_avatar?: string;
+  type: 'LIKE' | 'COMMENT' | 'FOLLOW';
+  post_id?: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface NotificationResponse {
+  notifications: NotificationItem[];
+  unread_count: number;
+}
+
+export async function getNotificationsApi(limit: number = 30): Promise<NotificationResponse> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/notifications?limit=${limit}`, {
+    method: 'GET',
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to fetch notifications');
+  }
+
+  return data;
+}
+
+export async function markNotificationReadApi(createdAt: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/notifications/read`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ created_at: createdAt }),
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.detail || 'Failed to mark notification as read');
+  }
+}
+
+export async function markAllNotificationsReadApi(): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/notifications/read-all`, {
+    method: 'PATCH',
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.detail || 'Failed to mark all notifications as read');
+  }
+}
+
 

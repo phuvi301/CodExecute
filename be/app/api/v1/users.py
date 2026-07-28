@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.user import UserUpdate
-from app.services import auth_service, storage_service, follow_service
+from app.services import auth_service, storage_service, follow_service, notification_service
 from app.core import security
 
 router = APIRouter()
@@ -79,6 +79,16 @@ async def follow_user_endpoint(
         raise HTTPException(status_code=404, detail="User not found")
 
     follow_service.follow_user(current_user_id, user_id)
+
+    sender_user = auth_service.get_user_by_id(current_user_id)
+    if sender_user and current_user_id != user_id:
+        notification_service.create_notification(
+            recipient_id=user_id,
+            sender=sender_user,
+            notif_type="FOLLOW",
+            content="started following you"
+        )
+
     return format_user_profile(target_user, current_user_id=current_user_id)
 
 @router.post("/{user_id}/unfollow", summary="Unfollow người dùng")
@@ -102,6 +112,50 @@ async def unfollow_user_endpoint(
 
     follow_service.unfollow_user(current_user_id, user_id)
     return format_user_profile(target_user, current_user_id=current_user_id)
+
+@router.get("/{user_id}/followers", summary="Lấy danh sách người theo dõi của user")
+async def get_user_followers(
+    user_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
+):
+    current_user_id = None
+    if credentials and credentials.credentials:
+        payload = security.decode_token(credentials.credentials)
+        if payload:
+            current_user_id = payload.get("sub")
+
+    follower_items = follow_service.get_followers(user_id)
+    result = []
+    for item in follower_items:
+        f_id = item.get("FollowerID")
+        if not f_id:
+            continue
+        u = auth_service.get_user_by_id(f_id)
+        if u:
+            result.append(format_user_profile(u, current_user_id=current_user_id))
+    return result
+
+@router.get("/{user_id}/following", summary="Lấy danh sách người mà user đang theo dõi")
+async def get_user_following(
+    user_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security_scheme)
+):
+    current_user_id = None
+    if credentials and credentials.credentials:
+        payload = security.decode_token(credentials.credentials)
+        if payload:
+            current_user_id = payload.get("sub")
+
+    following_items = follow_service.get_following(user_id)
+    result = []
+    for item in following_items:
+        fg_id = item.get("FollowingID")
+        if not fg_id:
+            continue
+        u = auth_service.get_user_by_id(fg_id)
+        if u:
+            result.append(format_user_profile(u, current_user_id=current_user_id))
+    return result
 
 @router.patch("/me")
 async def update_my_profile(
