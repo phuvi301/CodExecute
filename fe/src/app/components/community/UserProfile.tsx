@@ -519,8 +519,9 @@ export function UserProfile() {
 
 	const displayName = profile?.full_name || currentUser?.full_name || 'User';
 	const displayEmail = profile?.email || currentUser?.email || '';
-	const displayTitle = profile?.title || 'Developer';
+	const displayTitle = profile?.title || 'Unknown';
 	const displayAddress = profile?.address || 'Unknown';
+
 
 	const getInitials = (name: string) => {
 		if (!name) return 'U';

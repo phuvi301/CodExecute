@@ -31,8 +31,8 @@ def format_user_profile(user: dict, current_user_id: str = None):
         "email": user.get("Email"),
         "full_name": user.get("FullName", ""),
         "avatar_url": storage_service.get_public_avatar_url(raw_avatar),
-        "title": user.get("Title", "Unknown"),
-        "address": user.get("Address", "Unknown"),
+        "title": user.get("Title") if user.get("Title") else "Unknown",
+        "address": user.get("Address") if user.get("Address") else "Unknown",
         "bio": user.get("Bio", ""),
         "created_at": user.get("CreatedAt", "2023-03-15T00:00:00Z"),
         "role": user.get("Role", "user"),
@@ -57,8 +57,9 @@ async def admin_get_all_users(
             "full_name": u.get("FullName", ""),
             "avatar_url": storage_service.get_public_avatar_url(u.get("AvatarUrl", "")),
             "role": u.get("Role", "user"),
-            "title": u.get("Title", ""),
-            "address": u.get("Address", ""),
+            "title": u.get("Title") if u.get("Title") else "Unknown",
+            "address": u.get("Address") if u.get("Address") else "Unknown",
+
             "bio": u.get("Bio", ""),
             "created_at": u.get("CreatedAt", "")
         })

@@ -234,7 +234,8 @@ export function FollowListModal({
 											)}
 										</div>
 										<p className="text-[11px] text-muted-foreground truncate">
-											{u.title || 'Developer'}
+											{u.title || 'Unknown'}
+
 										</p>
 									</div>
 								</div>

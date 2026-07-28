@@ -24,7 +24,8 @@ def format_user_for_search(user: dict, current_user_id: Optional[str] = None) ->
         "email": user.get("Email", ""),
         "full_name": user.get("FullName", ""),
         "avatar_url": storage_service.get_public_avatar_url(raw_avatar),
-        "title": user.get("Title", "Developer"),
+        "title": user.get("Title") if user.get("Title") else "Unknown",
+
         "bio": user.get("Bio", ""),
         "role": user.get("Role", "user"),
         "is_self": is_self,

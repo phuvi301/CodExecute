@@ -97,8 +97,9 @@ export function EditProfilePage() {
     if (user) {
       setFullName(user.full_name || '');
       setAvatarUrl(user.avatar_url || '');
-      setTitle(user.title || 'Developer');
-      setAddress(user.address || 'Ho Chi Minh, Vietnam');
+      setTitle(user.title || 'Unknown');
+      setAddress(user.address || 'Unknown');
+
       setBio(user.bio || '');
     }
   }, [user]);

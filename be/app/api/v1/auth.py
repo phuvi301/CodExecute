@@ -59,8 +59,9 @@ async def register(payload: RegisterRequest):
         "Email": payload.email,
         "PasswordHash": hashed_password,
         "FullName": payload.full_name,
-        "Title": "",
-        "Address": "",
+        "Title": "Unknown",
+        "Address": "Unknown",
+
         "Bio": "",
         "CreatedAt": datetime.utcnow().isoformat(),
         "Role": "user",
