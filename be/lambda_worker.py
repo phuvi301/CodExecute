@@ -11,11 +11,11 @@ def process_single_submission(submission_id: str, problem_id: str, language: str
     """
     Xử lý chấm bài toán:
     1. Lấy thông tin bài toán & testcases (input/output tải từ S3)
-    2. Tạo file code tạm trong /tmp và thực thi
-    3. Xóa file code tạm trong /tmp
+    2. Chuyển giao việc thực thi code sang AWS ECS Task container (hoặc runner local)
+    3. Nhận kết quả chấm bài từ runner
     4. Lưu kết quả vào DynamoDB database
     """
-    logger.info(f"⚡[Worker] Starting execution for submission {submission_id} (Problem: {problem_id}, Lang: {language})")
+    logger.info(f"[Worker] Starting execution for submission {submission_id} (Problem: {problem_id}, Lang: {language})")
 
     # 1. Lấy giới hạn thời gian/bộ nhớ và danh sách testcases từ S3
     problem = submissions_service.get_problem_by_id(problem_id)
@@ -25,7 +25,7 @@ def process_single_submission(submission_id: str, problem_id: str, language: str
     testcases = submissions_service.get_testcases_with_content(problem_id)
     logger.info(f"Loaded {len(testcases)} testcases for problem {problem_id}")
 
-    # 2 & 3. Thực thi code trong /tmp và dọn dẹp file tạm
+    # 2 & 3. Thực thi code qua ECS Task / Runner
     result = runner.execute_submission(
         submission_id=submission_id,
         language=language,
@@ -35,7 +35,7 @@ def process_single_submission(submission_id: str, problem_id: str, language: str
         memory_limit=memory_limit
     )
 
-    logger.info(f"🏁 [Worker] Execution finished for submission {submission_id}. Result: {result['status']}")
+    logger.info(f"[Worker] Execution finished for submission {submission_id}. Result: {result['status']}")
 
     # 4. Lưu kết quả thực thi vào database (DynamoDB)
     updated_item = submissions_service.update_submission_result(

@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 giờ
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # 7 ngày
 
+    # Cấu hình AWS ECS Task Execution
+    EXECUTION_MODE: str = "ecs" # "ecs" hoặc "tmp" (local / mô phỏng)
+    ECS_CLUSTER_NAME: str = "codeexecute-cluster"
+    ECS_TASK_DEFINITION: str = "codeexecute-runner-task"
+    ECS_CONTAINER_NAME: str = "codeexecute-runner"
+    ECS_SUBNET_IDS: str = "" # Danh sách subnet IDs phân tách bởi dấu phẩy, vd: "subnet-1,subnet-2"
+    ECS_SECURITY_GROUP_IDS: str = "" # Danh sách security group IDs phân tách bởi dấu phẩy
+    ECS_LOG_GROUP_NAME: str = "/ecs/codeexecute-runner"
+
     # Tự động nạp các biến từ file .env nếu có
     model_config = SettingsConfigDict(
         env_file=".env", 
