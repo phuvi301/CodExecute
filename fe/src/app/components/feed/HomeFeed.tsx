@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { PostRichTextEditor } from './PostRichTextEditor';
+import { FormattedPostContent } from './FormattedPostContent';
 import {
 	ThumbsUp,
 	MessageCircle,
@@ -81,6 +83,7 @@ export function HomeFeed() {
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [postType, setPostType] = useState<'discussion' | 'code-share' | 'achievement'>('discussion');
 	const [postContent, setPostContent] = useState('');
+	const createTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const [tagInput, setTagInput] = useState('Discussion, CodExecute');
 	const [tags, setTags] = useState<string[]>(['Discussion', 'CodExecute']);
 
@@ -346,8 +349,14 @@ export function HomeFeed() {
 		setOpenCommentsMap(prev => ({ ...prev, [postId]: !prev[postId] }));
 	};
 
+	const isPostContentEmpty = (content: string) => {
+		if (!content) return true;
+		const text = content.replace(/<[^>]*>/g, '').trim();
+		return text.length === 0;
+	};
+
 	const handleSubmitNewPost = async () => {
-		if (!postContent.trim()) return;
+		if (isPostContentEmpty(postContent)) return;
 
 		const authToken = getAccessToken();
 		if (!authToken) {
@@ -476,7 +485,7 @@ export function HomeFeed() {
 	};
 
 	const handleSaveEditPost = async () => {
-		if (!editingPostId || !editContent.trim()) return;
+		if (!editingPostId || isPostContentEmpty(editContent)) return;
 
 		const authToken = getAccessToken();
 		if (!authToken) {
@@ -851,9 +860,7 @@ export function HomeFeed() {
 										)}
 
 										{/* Post Body Content */}
-										<p className="text-foreground text-sm leading-relaxed mb-4 whitespace-pre-line">
-											{post.content}
-										</p>
+										<FormattedPostContent content={post.content} className="mb-4" />
 
 										{/* Code Block Attachment (for Code Shares or Discussions with attached code) */}
 										{post.code_snippet && (
@@ -1055,70 +1062,6 @@ export function HomeFeed() {
 
 				{/* RIGHT SIDEBAR: Top Solvers & Trending Topics (No Courses!) */}
 				<div className="col-span-12 lg:col-span-3 space-y-5">
-					
-					{/* Top Solvers Leaderboard Widget */}
-					<Card className="p-5 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm space-y-4">
-						<div className="flex items-center justify-between">
-							<h4 className="text-sm font-bold text-foreground flex items-center gap-2">
-								<Trophy className="w-4 h-4 text-amber-500" />
-								<span>Top Solvers</span>
-							</h4>
-							<span className="text-[11px] text-muted-foreground font-mono">This Week</span>
-						</div>
-
-						<div className="space-y-3">
-							{topSolvers.map((solver) => {
-								const isFollowing = followingMap[solver.id];
-								return (
-									<div key={solver.id} className="flex items-center justify-between gap-2 p-2 rounded-xl hover:bg-muted/30 transition-colors">
-										<div className="flex items-center gap-2.5 overflow-hidden">
-											<div className="relative shrink-0">
-												<Avatar className="w-8 h-8 border border-border">
-													<AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-														{solver.avatar}
-													</AvatarFallback>
-												</Avatar>
-												<span className={`absolute -top-1 -left-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white ${
-													solver.rank === 1 ? 'bg-amber-500' : solver.rank === 2 ? 'bg-slate-400' : 'bg-amber-700'
-												}`}>
-													{solver.rank}
-												</span>
-											</div>
-
-											<div className="truncate">
-												<p className="text-xs font-semibold text-foreground truncate hover:text-primary cursor-pointer">
-													{solver.name}
-												</p>
-												<p className="text-[11px] text-muted-foreground font-mono">
-													{solver.solved} solved
-												</p>
-											</div>
-										</div>
-
-										<Button
-											variant={isFollowing ? 'secondary' : 'outline'}
-											size="sm"
-											onClick={() => toggleFollow(solver.id)}
-											className="h-7 px-2.5 text-[11px] rounded-lg shrink-0 gap-1 font-medium cursor-pointer"
-										>
-											{isFollowing ? (
-												<>
-													<UserCheck className="w-3 h-3 text-emerald-500" />
-													<span>Following</span>
-												</>
-											) : (
-												<>
-													<UserPlus className="w-3 h-3" />
-													<span>Follow</span>
-												</>
-											)}
-										</Button>
-									</div>
-								);
-							})}
-						</div>
-					</Card>
-
 					{/* Trending Coding Topics Widget */}
 					<TrendingTopics
 						posts={posts}
@@ -1157,13 +1100,11 @@ export function HomeFeed() {
 					</DialogHeader>
 
 					<div className="overflow-y-auto space-y-4 px-1 py-1 flex-1">
-						{/* Main Post Content */}
+						{/* Main Post Content Live WYSIWYG Editor */}
 						<div className="space-y-1">
-							<label className="text-xs font-semibold text-muted-foreground">Post Content</label>
-							<textarea
-								className="w-full h-32 p-3 bg-background rounded-xl border border-border text-foreground text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all resize-none placeholder:text-muted-foreground"
+							<PostRichTextEditor
 								value={editContent}
-								onChange={(e) => setEditContent(e.target.value)}
+								onChange={setEditContent}
 								placeholder="Edit your post content..."
 							/>
 						</div>
@@ -1298,7 +1239,7 @@ export function HomeFeed() {
 						<Button
 							type="button"
 							size="sm"
-							disabled={isUpdating || !editContent.trim()}
+							disabled={isUpdating || isPostContentEmpty(editContent)}
 							onClick={handleSaveEditPost}
 							className="rounded-xl h-9 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold cursor-pointer"
 						>
@@ -1445,15 +1386,12 @@ export function HomeFeed() {
 							</div>
 						</div>
 
-						{/* Main Post Content Textarea */}
-						<div>
-							<textarea
-								className="w-full h-32 p-3 bg-background rounded-xl border border-border text-foreground text-sm focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all resize-none placeholder:text-muted-foreground"
-								value={postContent}
-								onChange={(e) => setPostContent(e.target.value)}
-								placeholder="Share code snippet, ask an algorithm question, or post a coding milestone..."
-							/>
-						</div>
+						{/* Main Post Live Rich Text WYSIWYG Editor */}
+						<PostRichTextEditor
+							value={postContent}
+							onChange={setPostContent}
+							placeholder="Share code snippet, ask an algorithm question, or post a coding milestone..."
+						/>
 
 						{/* Code Snippet Attachment Form (IDE Style) */}
 						{postType === 'code-share' && (
@@ -1623,7 +1561,7 @@ export function HomeFeed() {
 						<Button
 							type="button"
 							size="sm"
-							disabled={isPosting || !postContent.trim()}
+							disabled={isPosting || isPostContentEmpty(postContent)}
 							onClick={handleSubmitNewPost}
 							className="rounded-xl h-9 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold cursor-pointer"
 						>

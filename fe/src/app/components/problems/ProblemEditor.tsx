@@ -38,6 +38,8 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '../ui/resi
 import { useIsMobile } from '../ui/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { useProblem } from '../../context/ProblemContext';
+import { PostRichTextEditor } from '../feed/PostRichTextEditor';
+import { FormattedPostContent } from '../feed/FormattedPostContent';
 import { useTheme } from '../shared/ThemeProvider';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -200,8 +202,14 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 		return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 	};
 
+	const isPostContentEmpty = (content: string) => {
+		if (!content) return true;
+		const text = content.replace(/<[^>]*>/g, '').trim();
+		return text.length === 0;
+	};
+
 	const handleCreateDiscussionPost = async () => {
-		if (!newDiscussionContent.trim()) return;
+		if (isPostContentEmpty(newDiscussionContent)) return;
 
 		const authToken = getAccessToken();
 		if (!authToken) {
@@ -686,10 +694,9 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 											<span className="text-xs font-bold text-foreground">Post a new discussion for this problem</span>
 										</div>
 
-										<textarea
-											className="w-full h-28 p-3 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all resize-none placeholder:text-muted-foreground"
+										<PostRichTextEditor
 											value={newDiscussionContent}
-											onChange={(e) => setNewDiscussionContent(e.target.value)}
+											onChange={setNewDiscussionContent}
 											placeholder="Ask a question, share an optimal solution idea, or start a discussion..."
 										/>
 
@@ -718,7 +725,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 												<Button
 													type="button"
 													size="sm"
-													disabled={isPostingDiscussion || !newDiscussionContent.trim()}
+													disabled={isPostingDiscussion || isPostContentEmpty(newDiscussionContent)}
 													onClick={handleCreateDiscussionPost}
 													className="h-8 rounded-xl px-4 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold"
 												>
@@ -782,7 +789,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 													</div>
 
 													{/* Content */}
-													<p className="text-xs text-foreground leading-relaxed whitespace-pre-wrap">{disc.content}</p>
+													<FormattedPostContent content={disc.content} className="text-xs" />
 
 													{/* Attached Code Snippet if present */}
 													{disc.code_snippet && (

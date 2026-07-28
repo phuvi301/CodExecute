@@ -25,7 +25,8 @@ import {
 	Send,
 	Trash2,
 	Loader2,
-	FileText
+	FileText,
+	MoreVertical
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -35,6 +36,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { PROBLEMS_LIST } from '../../context/ProblemContext';
+import { PostRichTextEditor } from '../feed/PostRichTextEditor';
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger
+} from '../ui/dropdown-menu';
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+	DialogFooter
+} from '../ui/dialog';
 import {
 	getProfileApi,
 	followUserApi,
@@ -43,6 +58,8 @@ import {
 	toggleLikePostApi,
 	toggleRepostPostApi,
 	addCommentApi,
+	createPostApi,
+	updatePostApi,
 	deletePostApi,
 	deleteCommentApi,
 	getAccessToken,
@@ -50,6 +67,17 @@ import {
 	UserProfile as UserProfileType
 } from '../../services/api';
 import { FollowListModal } from './FollowListModal';
+import { FormattedPostContent } from '../feed/FormattedPostContent';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from '../ui/alert-dialog';
 
 export function UserProfile() {
 	const navigate = useNavigate();
@@ -70,6 +98,32 @@ export function UserProfile() {
 	const [userPosts, setUserPosts] = useState<PostItem[]>([]);
 	const [isLoadingPosts, setIsLoadingPosts] = useState<boolean>(true);
 	const [postsFilter, setPostsFilter] = useState<'all' | 'posted' | 'reposted'>('all');
+	const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+	const [isDeletingPost, setIsDeletingPost] = useState<boolean>(false);
+
+	// Edit post states
+	const [editingPostId, setEditingPostId] = useState<string | null>(null);
+	const [editContent, setEditContent] = useState('');
+	const [editPostType, setEditPostType] = useState<'discussion' | 'code-share' | 'achievement'>('discussion');
+	const [editCodeFilename, setEditCodeFilename] = useState('solution.py');
+	const [editCodeLanguage, setEditCodeLanguage] = useState('python');
+	const [editCodeText, setEditCodeText] = useState('');
+	const [editAchievementText, setEditAchievementText] = useState('');
+	const [editTagInput, setEditTagInput] = useState('');
+	const [editTags, setEditTags] = useState<string[]>([]);
+	const [isUpdatingPost, setIsUpdatingPost] = useState<boolean>(false);
+
+	// Create Post states
+	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+	const [postType, setPostType] = useState<'discussion' | 'code-share' | 'achievement'>('discussion');
+	const [postContent, setPostContent] = useState('');
+	const [codeFilename, setCodeFilename] = useState('solution.py');
+	const [codeLanguage, setCodeLanguage] = useState('python');
+	const [codeText, setCodeText] = useState('');
+	const [achievementText, setAchievementText] = useState('');
+	const [tagInput, setTagInput] = useState('');
+	const [tags, setTags] = useState<string[]>(['Discussion', 'CodExecute']);
+	const [isPosting, setIsPosting] = useState(false);
 
 	// Comments state
 	const [openCommentsMap, setOpenCommentsMap] = useState<Record<string, boolean>>({});
@@ -267,15 +321,151 @@ export function UserProfile() {
 		}
 	};
 
-	const handleDeletePost = async (postId: string) => {
+	const handlePromptDeletePost = (postId: string) => {
+		setDeletingPostId(postId);
+	};
+
+	const handleConfirmDeletePost = async () => {
+		if (!deletingPostId) return;
 		const authToken = getAccessToken();
 		if (!authToken) return;
 
+		setIsDeletingPost(true);
 		try {
-			await deletePostApi(authToken, postId);
-			setUserPosts(prev => prev.filter(p => p.post_id !== postId));
+			await deletePostApi(authToken, deletingPostId);
+			setUserPosts(prev => prev.filter(p => p.post_id !== deletingPostId));
+			setDeletingPostId(null);
 		} catch (err) {
 			console.error('Failed to delete post:', err);
+		} finally {
+			setIsDeletingPost(false);
+		}
+	};
+
+	const isPostContentEmpty = (contentStr: string) => {
+		if (!contentStr) return true;
+		const stripped = contentStr.replace(/<[^>]*>/g, '').trim();
+		return stripped.length === 0;
+	};
+
+	const handleOpenEditModal = (post: PostItem) => {
+		setEditingPostId(post.post_id);
+		setEditContent(post.content);
+		setEditPostType(post.type || 'discussion');
+		setEditCodeFilename(post.code_snippet?.filename || 'solution.py');
+		setEditCodeLanguage(post.code_snippet?.language || 'python');
+		setEditCodeText(post.code_snippet?.code || '');
+		setEditAchievementText(post.achievement || '');
+		const existingTags = post.tags || [];
+		setEditTagInput(existingTags.join(', '));
+		setEditTags(existingTags);
+	};
+
+	const handleSaveEditPost = async () => {
+		if (!editingPostId || isPostContentEmpty(editContent)) return;
+
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+
+		try {
+			setIsUpdatingPost(true);
+			const parsedTags = editTagInput.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
+			const payload: any = {
+				content: editContent.trim(),
+				tags: parsedTags,
+			};
+
+			if (editCodeText.trim()) {
+				payload.code_snippet = {
+					filename: editCodeFilename || 'solution.py',
+					language: editCodeLanguage || 'python',
+					code: editCodeText.trim(),
+				};
+			}
+
+			if (editAchievementText.trim()) {
+				payload.achievement = editAchievementText.trim();
+			}
+
+			const updatedPost = await updatePostApi(authToken, editingPostId, payload);
+			setUserPosts(prev => prev.map(p => (p.post_id === editingPostId ? updatedPost : p)));
+			setEditingPostId(null);
+		} catch (err: any) {
+			console.error('Failed to update post:', err);
+		} finally {
+			setIsUpdatingPost(false);
+		}
+	};
+
+	const getDefaultTagsForType = (type: 'discussion' | 'code-share' | 'achievement') => {
+		switch (type) {
+			case 'code-share':
+				return { input: 'Solution, CodeShare', list: ['Solution', 'CodeShare'] };
+			case 'achievement':
+				return { input: 'Achievement, Milestone', list: ['Achievement', 'Milestone'] };
+			default:
+				return { input: 'Discussion, CodExecute', list: ['Discussion', 'CodExecute'] };
+		}
+	};
+
+	const handleOpenCreateModal = (type: 'discussion' | 'code-share' | 'achievement') => {
+		setPostType(type);
+		const defaultTags = getDefaultTagsForType(type);
+		setTagInput(defaultTags.input);
+		setTags(defaultTags.list);
+		setIsCreateModalOpen(true);
+	};
+
+	const handleSwitchPostType = (type: 'discussion' | 'code-share' | 'achievement') => {
+		setPostType(type);
+		const defaultTags = getDefaultTagsForType(type);
+		setTagInput(defaultTags.input);
+		setTags(defaultTags.list);
+	};
+
+	const handleSubmitNewPost = async () => {
+		if (isPostContentEmpty(postContent)) return;
+
+		const authToken = getAccessToken();
+		if (!authToken) {
+			navigate('/login');
+			return;
+		}
+
+		try {
+			setIsPosting(true);
+			const payload: any = {
+				content: postContent.trim(),
+				type: postType,
+				tags: tags.length > 0 ? tags : ['CodExecute']
+			};
+
+			if (postType === 'code-share' && codeText.trim()) {
+				payload.code_snippet = {
+					filename: codeFilename || 'solution.py',
+					language: codeLanguage || 'python',
+					code: codeText.trim(),
+				};
+			}
+
+			if (postType === 'achievement' && achievementText.trim()) {
+				payload.achievement = achievementText.trim();
+			}
+
+			const newPost = await createPostApi(authToken, payload);
+			setUserPosts(prev => [newPost, ...prev]);
+
+			setPostContent('');
+			setCodeText('');
+			setAchievementText('');
+			setIsCreateModalOpen(false);
+		} catch (err: any) {
+			console.error('Failed to create post:', err);
+		} finally {
+			setIsPosting(false);
 		}
 	};
 
@@ -613,6 +803,57 @@ export function UserProfile() {
 
 				{/* TAB: Posts & Reposts */}
 				<TabsContent value="posts" className="space-y-6">
+					{/* Create Post Trigger Box (Only when viewing own profile) */}
+					{profile?.can_edit && (
+						<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm space-y-3">
+							<div
+								className="flex items-center gap-3 cursor-pointer group"
+								onClick={() => handleOpenCreateModal('discussion')}
+							>
+								<Avatar className="w-9 h-9 border border-border">
+									<AvatarImage src={profile?.avatar_url || currentUser?.avatar_url} />
+									<AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">
+										{getInitials(displayName)}
+									</AvatarFallback>
+								</Avatar>
+								<div className="flex-1 px-4 py-2.5 bg-background rounded-xl border border-border text-muted-foreground text-sm group-hover:border-primary/50 transition-colors">
+									Share code snippet, ask an algorithm question...
+								</div>
+							</div>
+
+							<div className="flex items-center justify-between pt-2 border-t border-border/60">
+								<div className="flex items-center gap-2">
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-primary cursor-pointer"
+										onClick={() => handleOpenCreateModal('code-share')}
+									>
+										<Code2 className="w-4 h-4 text-primary" />
+										<span>Code Snippet</span>
+									</Button>
+									<Button
+										variant="ghost"
+										size="sm"
+										className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-amber-500 cursor-pointer"
+										onClick={() => handleOpenCreateModal('achievement')}
+									>
+										<Trophy className="w-4 h-4 text-amber-500" />
+										<span>Milestone</span>
+									</Button>
+								</div>
+
+								<Button
+									size="sm"
+									onClick={() => handleOpenCreateModal('discussion')}
+									className="h-8 rounded-xl px-4 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-sm cursor-pointer"
+								>
+									<Send className="w-3.5 h-3.5" />
+									<span>Post</span>
+								</Button>
+							</div>
+						</Card>
+					)}
 					{/* Sub-filter tabs */}
 					<div className="flex items-center gap-2 border-b border-border/60 pb-3 overflow-x-auto">
 						<button
@@ -717,15 +958,35 @@ export function UserProfile() {
 												</div>
 
 												{canDeletePost && (
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-8 w-8 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl"
-														onClick={() => handleDeletePost(post.post_id)}
-														title="Delete Post"
-													>
-														<Trash2 className="w-4 h-4" />
-													</Button>
+													<DropdownMenu>
+														<DropdownMenuTrigger asChild>
+															<button
+																type="button"
+																className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer rounded-xl transition-colors focus:outline-none"
+															>
+																<MoreVertical className="w-4 h-4" />
+															</button>
+														</DropdownMenuTrigger>
+														<DropdownMenuContent align="end" sideOffset={6} className="w-40 p-1.5 rounded-xl border-border bg-card shadow-2xl z-50 space-y-0.5">
+															{isAuthor && (
+																<DropdownMenuItem
+																	className="cursor-pointer gap-2.5 p-2 rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors"
+																	onClick={() => handleOpenEditModal(post)}
+																>
+																	<Pencil className="w-3.5 h-3.5 text-primary" />
+																	<span>Edit Post</span>
+																</DropdownMenuItem>
+															)}
+															<DropdownMenuItem
+																variant="destructive"
+																className="cursor-pointer gap-2.5 p-2 rounded-lg text-xs font-medium text-destructive focus:bg-destructive/10 dark:focus:bg-destructive/20 transition-colors"
+																onClick={() => handlePromptDeletePost(post.post_id)}
+															>
+																<Trash2 className="w-3.5 h-3.5 text-destructive" />
+																<span>Delete Post</span>
+															</DropdownMenuItem>
+														</DropdownMenuContent>
+													</DropdownMenu>
 												)}
 											</div>
 
@@ -748,7 +1009,7 @@ export function UserProfile() {
 											)}
 
 											{/* Content */}
-											<p className="text-foreground text-sm leading-relaxed whitespace-pre-line">{post.content}</p>
+											<FormattedPostContent content={post.content} className="mb-2" />
 
 											{/* Code Snippet */}
 											{post.code_snippet && post.code_snippet.code && (
@@ -825,7 +1086,7 @@ export function UserProfile() {
 													variant="ghost"
 													size="sm"
 													disabled={isAuthor}
-													title={isAuthor ? "Bạn không thể chia sẻ lại bài viết của chính mình" : undefined}
+													title={isAuthor ? "You cannot repost your own post" : undefined}
 													onClick={() => !isAuthor && handleToggleRepost(post.post_id)}
 													className={`h-8 gap-1.5 text-xs font-semibold ${
 														isAuthor
@@ -1102,6 +1363,427 @@ export function UserProfile() {
 				followingCount={profile?.following_count}
 				onFollowChange={refreshProfile}
 			/>
+
+			{/* Delete Post Confirmation Popup Modal */}
+			<AlertDialog open={Boolean(deletingPostId)} onOpenChange={(open) => !open && setDeletingPostId(null)}>
+				<AlertDialogContent className="bg-card border border-border/80 sm:max-w-md rounded-2xl shadow-xl">
+					<AlertDialogHeader>
+						<AlertDialogTitle className="text-foreground font-bold text-lg flex items-center gap-2">
+							<Trash2 className="w-5 h-5 text-rose-500" />
+							<span>Confirm Delete Post</span>
+						</AlertDialogTitle>
+						<AlertDialogDescription className="text-muted-foreground text-xs leading-relaxed pt-1">
+							Are you sure you want to delete this post? This action cannot be undone and the post will be permanently removed from your profile and community feed.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter className="gap-2 sm:gap-2 border-t border-border/60 pt-3 mt-2 flex-row justify-end">
+						<AlertDialogCancel
+							disabled={isDeletingPost}
+							className="rounded-xl text-xs font-semibold hover:bg-accent border-border cursor-pointer m-0"
+						>
+							Cancel
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								handleConfirmDeletePost();
+							}}
+							disabled={isDeletingPost}
+							className="rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white gap-1.5 shadow-md shadow-rose-600/20 cursor-pointer m-0"
+						>
+							{isDeletingPost ? (
+								<>
+									<Loader2 className="w-3.5 h-3.5 animate-spin" />
+									<span>Deleting...</span>
+								</>
+							) : (
+								<>
+									<Trash2 className="w-3.5 h-3.5" />
+									<span>Delete Post</span>
+								</>
+							)}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* Edit Post Modal Dialog */}
+			<Dialog open={!!editingPostId} onOpenChange={(open) => !open && setEditingPostId(null)}>
+				<DialogContent className="sm:max-w-2xl p-6 space-y-4 rounded-2xl border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+					<DialogHeader>
+						<DialogTitle className="text-lg font-bold text-foreground">Edit Post</DialogTitle>
+					</DialogHeader>
+
+					<div className="overflow-y-auto space-y-4 px-1 py-1 flex-1">
+						{/* Main Post Content Live WYSIWYG Editor */}
+						<div className="space-y-1">
+							<PostRichTextEditor
+								value={editContent}
+								onChange={setEditContent}
+								placeholder="Edit your post content..."
+							/>
+						</div>
+
+						{/* Edit Code Snippet Attachment if present or code-share */}
+						{(editPostType === 'code-share' || editCodeText) && (
+							<div className="rounded-xl border border-border bg-[#1e1e1e] overflow-hidden font-mono shadow-xl">
+								{/* IDE Header Bar */}
+								<div className="bg-[#252526] px-4 py-2.5 flex items-center justify-between border-b border-[#333333]">
+									<div className="flex items-center gap-3 flex-1">
+										<div className="flex items-center gap-1.5 shrink-0">
+											<span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+											<span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+											<span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+										</div>
+
+										<div className="flex items-center gap-2 bg-[#1e1e1e] px-3 py-1 rounded-lg border border-[#3c3c3c] flex-1 max-w-xs">
+											<Code2 className="w-3.5 h-3.5 text-primary shrink-0" />
+											<input
+												type="text"
+												value={editCodeFilename}
+												onChange={(e) => setEditCodeFilename(e.target.value)}
+												placeholder="solution.py"
+												className="bg-transparent text-xs text-gray-200 focus:outline-none w-full font-mono"
+												spellCheck={false}
+											/>
+										</div>
+									</div>
+
+									<select
+										value={editCodeLanguage}
+										onChange={(e) => setEditCodeLanguage(e.target.value)}
+										className="bg-[#2d2d2d] px-3 py-1 rounded-lg border border-[#444444] text-xs text-gray-200 focus:outline-none focus:border-primary cursor-pointer font-mono"
+									>
+										<option value="python">Python</option>
+										<option value="cpp">C++</option>
+										<option value="java">Java</option>
+										<option value="javascript">JavaScript</option>
+										<option value="go">Go</option>
+										<option value="rust">Rust</option>
+									</select>
+								</div>
+
+								<div className="flex bg-[#1e1e1e] relative h-[200px] overflow-hidden">
+									<div className="bg-[#1e1e1e] border-r border-[#2d2d2d] py-3 px-2 text-right text-[11px] text-gray-600 font-mono select-none w-10 shrink-0 space-y-[2px]">
+										{Array.from({ length: Math.max(1, editCodeText.split('\n').length) }).map((_, i) => (
+											<div key={i} className="leading-5">{i + 1}</div>
+										))}
+									</div>
+
+									<div className="relative flex-1 bg-[#1e1e1e] overflow-hidden h-full">
+										<pre
+											className="absolute inset-0 p-3 m-0 text-xs font-mono leading-5 overflow-hidden pointer-events-none whitespace-pre select-none text-gray-200 border-0"
+											style={{ tabSize: 4 }}
+											aria-hidden="true"
+										>
+											<code dangerouslySetInnerHTML={{
+												__html: (highlightCodeToHtml(editCodeText) || '<span class="text-gray-600">// Write or paste your algorithm code here...</span>') + '\n'
+											}} />
+										</pre>
+
+										<textarea
+											value={editCodeText}
+											onChange={(e) => setEditCodeText(e.target.value)}
+											onScroll={(e) => {
+												const backdrop = e.currentTarget.previousElementSibling as HTMLElement;
+												if (backdrop) {
+													backdrop.scrollTop = e.currentTarget.scrollTop;
+													backdrop.scrollLeft = e.currentTarget.scrollLeft;
+												}
+											}}
+											spellCheck={false}
+											className="relative z-10 w-full h-full p-3 bg-transparent text-transparent caret-white text-xs font-mono focus:outline-none resize-none leading-5 overflow-y-auto whitespace-pre border-0"
+											style={{ tabSize: 4 }}
+										/>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Edit Milestone Attachment if present */}
+						{(editPostType === 'achievement' || editAchievementText) && (
+							<div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+								<label className="text-xs font-bold text-amber-500 flex items-center gap-1.5">
+									<Trophy className="w-4 h-4 fill-amber-500" />
+									<span>Achievement Title</span>
+								</label>
+								<input
+									type="text"
+									value={editAchievementText}
+									onChange={(e) => setEditAchievementText(e.target.value)}
+									placeholder="e.g. Solved 100 Dynamic Programming Problems!"
+									className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all"
+								/>
+							</div>
+						)}
+
+						{/* Edit Tags Input */}
+						<div className="space-y-1.5">
+							<label className="text-xs font-semibold text-muted-foreground">Tags (comma separated)</label>
+							<input
+								type="text"
+								value={editTagInput}
+								onChange={(e) => {
+									setEditTagInput(e.target.value);
+									const parsed = e.target.value.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
+									setEditTags(parsed);
+								}}
+								placeholder="Discussion, Solution, Algorithm"
+								className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all"
+							/>
+							<div className="flex flex-wrap gap-1.5 pt-1">
+								{editTags.map((tag) => (
+									<span key={tag} className="text-[11px] text-primary bg-primary/10 font-mono px-2 py-0.5 rounded-md">
+										#{tag}
+									</span>
+								))}
+							</div>
+						</div>
+					</div>
+
+					<DialogFooter className="flex items-center justify-between border-t border-border/60 pt-3">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="rounded-xl h-9 text-xs cursor-pointer"
+							onClick={() => setEditingPostId(null)}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							disabled={isUpdatingPost || isPostContentEmpty(editContent)}
+							onClick={handleSaveEditPost}
+							className="rounded-xl h-9 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold cursor-pointer"
+						>
+							{isUpdatingPost ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+							<span>Save Changes</span>
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Create Post Popup Modal */}
+			<Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+				<DialogContent className="sm:max-w-2xl p-6 space-y-4 rounded-2xl border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+					<DialogHeader>
+						<DialogTitle className="text-lg font-bold text-foreground">Create Post</DialogTitle>
+					</DialogHeader>
+
+					<div className="overflow-y-auto space-y-4 px-1 py-1 flex-1">
+						{/* Author info & Post Type Selectors */}
+						<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+							<div className="flex items-center gap-3 shrink-0">
+								<Avatar className="w-10 h-10 border border-border">
+									<AvatarImage src={profile?.avatar_url || currentUser?.avatar_url} />
+									<AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">
+										{getInitials(displayName)}
+									</AvatarFallback>
+								</Avatar>
+								<div>
+									<h4 className="text-sm font-bold text-foreground">{displayName}</h4>
+									<p className="text-[11px] text-muted-foreground">{displayTitle}</p>
+								</div>
+							</div>
+
+							{/* Type Selector Tabs */}
+							<div className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border/50 shrink-0 overflow-x-auto self-start sm:self-auto">
+								<button
+									type="button"
+									onClick={() => handleSwitchPostType('discussion')}
+									className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+										postType === 'discussion'
+											? 'bg-primary text-primary-foreground shadow-xs'
+											: 'text-muted-foreground hover:text-foreground'
+									}`}
+								>
+									Discussion
+								</button>
+
+								<button
+									type="button"
+									onClick={() => handleSwitchPostType('code-share')}
+									className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+										postType === 'code-share'
+											? 'bg-primary text-primary-foreground shadow-xs'
+											: 'text-muted-foreground hover:text-foreground'
+									}`}
+								>
+									<Code2 className="w-3.5 h-3.5" />
+									<span>Code</span>
+								</button>
+
+								<button
+									type="button"
+									onClick={() => handleSwitchPostType('achievement')}
+									className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+										postType === 'achievement'
+											? 'bg-primary text-primary-foreground shadow-xs'
+											: 'text-muted-foreground hover:text-foreground'
+									}`}
+								>
+									<Trophy className="w-3.5 h-3.5" />
+									<span>Milestone</span>
+								</button>
+							</div>
+						</div>
+
+						{/* Main Post Live Rich Text WYSIWYG Editor */}
+						<PostRichTextEditor
+							value={postContent}
+							onChange={setPostContent}
+							placeholder="Share code snippet, ask an algorithm question, or post a coding milestone..."
+						/>
+
+						{/* Code Snippet Attachment Form (IDE Style) */}
+						{postType === 'code-share' && (
+							<div className="rounded-xl border border-border bg-[#1e1e1e] overflow-hidden font-mono shadow-xl">
+								{/* IDE Header Bar */}
+								<div className="bg-[#252526] px-4 py-2.5 flex items-center justify-between border-b border-[#333333]">
+									<div className="flex items-center gap-3 flex-1">
+										<div className="flex items-center gap-1.5 shrink-0">
+											<span className="w-2.5 h-2.5 rounded-full bg-rose-500/80"></span>
+											<span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+											<span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+										</div>
+
+										<div className="flex items-center gap-2 bg-[#1e1e1e] px-3 py-1 rounded-lg border border-[#3c3c3c] flex-1 max-w-xs">
+											<Code2 className="w-3.5 h-3.5 text-primary shrink-0" />
+											<input
+												type="text"
+												value={codeFilename}
+												onChange={(e) => setCodeFilename(e.target.value)}
+												placeholder="solution.py"
+												className="bg-transparent text-xs text-gray-200 focus:outline-none w-full font-mono"
+												spellCheck={false}
+											/>
+										</div>
+									</div>
+
+									<select
+										value={codeLanguage}
+										onChange={(e) => setCodeLanguage(e.target.value)}
+										className="bg-[#2d2d2d] px-3 py-1 rounded-lg border border-[#444444] text-xs text-gray-200 focus:outline-none focus:border-primary cursor-pointer font-mono"
+									>
+										<option value="python">Python</option>
+										<option value="cpp">C++</option>
+										<option value="java">Java</option>
+										<option value="javascript">JavaScript</option>
+										<option value="go">Go</option>
+										<option value="rust">Rust</option>
+									</select>
+								</div>
+
+								<div className="flex bg-[#1e1e1e] relative h-[200px] overflow-hidden">
+									<div className="bg-[#1e1e1e] border-r border-[#2d2d2d] py-3 px-2 text-right text-[11px] text-gray-600 font-mono select-none w-10 shrink-0 space-y-[2px]">
+										{Array.from({ length: Math.max(1, codeText.split('\n').length) }).map((_, i) => (
+											<div key={i} className="leading-5">{i + 1}</div>
+										))}
+									</div>
+
+									<div className="relative flex-1 bg-[#1e1e1e] overflow-hidden h-full">
+										<pre
+											className="absolute inset-0 p-3 m-0 text-xs font-mono leading-5 overflow-hidden pointer-events-none whitespace-pre select-none text-gray-200 border-0"
+											style={{ tabSize: 4 }}
+											aria-hidden="true"
+										>
+											<code dangerouslySetInnerHTML={{
+												__html: (highlightCodeToHtml(codeText) || '<span class="text-gray-600">// Write or paste your algorithm code here...</span>') + '\n'
+											}} />
+										</pre>
+
+										<textarea
+											value={codeText}
+											onChange={(e) => setCodeText(e.target.value)}
+											onScroll={(e) => {
+												const backdrop = e.currentTarget.previousElementSibling as HTMLElement;
+												if (backdrop) {
+													backdrop.scrollTop = e.currentTarget.scrollTop;
+													backdrop.scrollLeft = e.currentTarget.scrollLeft;
+												}
+											}}
+											spellCheck={false}
+											className="relative z-10 w-full h-full p-3 bg-transparent text-transparent caret-white text-xs font-mono focus:outline-none resize-none leading-5 overflow-y-auto whitespace-pre border-0"
+											style={{ tabSize: 4 }}
+										/>
+									</div>
+								</div>
+							</div>
+						)}
+
+						{/* Milestone Attachment Form */}
+						{postType === 'achievement' && (
+							<div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
+								<label className="text-xs font-bold text-amber-500 flex items-center gap-1.5">
+									<Trophy className="w-4 h-4 fill-amber-500" />
+									<span>Achievement Title</span>
+								</label>
+								<input
+									type="text"
+									value={achievementText}
+									onChange={(e) => setAchievementText(e.target.value)}
+									placeholder="e.g. Solved 100 Dynamic Programming Problems!"
+									className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all"
+								/>
+							</div>
+						)}
+
+						{/* Tags Input */}
+						<div className="space-y-1.5">
+							<label className="text-xs font-semibold text-muted-foreground">Tags (comma separated)</label>
+							<input
+								type="text"
+								value={tagInput}
+								onChange={(e) => {
+									setTagInput(e.target.value);
+									const parsed = e.target.value.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
+									const fallback = postType === 'code-share' ? ['Solution', 'CodeShare'] : postType === 'achievement' ? ['Achievement', 'Milestone'] : ['Discussion', 'CodExecute'];
+									setTags(parsed.length > 0 ? parsed : fallback);
+								}}
+								placeholder={
+									postType === 'code-share'
+										? 'Solution, CodeShare, Python'
+										: postType === 'achievement'
+										? 'Achievement, Milestone, Streak'
+										: 'Discussion, Algorithm, Question'
+								}
+								className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/40 transition-all"
+							/>
+							<div className="flex flex-wrap gap-1.5 pt-1">
+								{tags.map((tag) => (
+									<span key={tag} className="text-[11px] text-primary bg-primary/10 font-mono px-2 py-0.5 rounded-md">
+										#{tag}
+									</span>
+								))}
+							</div>
+						</div>
+					</div>
+
+					<DialogFooter className="flex items-center justify-between border-t border-border/60 pt-3">
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="rounded-xl h-9 text-xs cursor-pointer"
+							onClick={() => setIsCreateModalOpen(false)}
+						>
+							Cancel
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							disabled={isPosting || isPostContentEmpty(postContent)}
+							onClick={handleSubmitNewPost}
+							className="rounded-xl h-9 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-sm cursor-pointer"
+						>
+							{isPosting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+							<span>{isPosting ? 'Posting...' : 'Publish Post'}</span>
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
