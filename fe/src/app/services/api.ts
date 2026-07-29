@@ -911,6 +911,31 @@ export async function adminGetProblemDetailApi(problemId: string): Promise<any> 
   return data;
 }
 
+export async function getProblemsApi(): Promise<any[]> {
+  const response = await fetch(`${API_BASE_URL}/problems`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to fetch problems list');
+  }
+  return data;
+}
+
+export async function getProblemDetailApi(problemId: string): Promise<any> {
+  const response = await fetch(`${API_BASE_URL}/problems/${encodeURIComponent(problemId)}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to fetch problem details');
+  }
+  return data;
+}
+
+
 
 
 

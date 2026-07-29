@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
-import { runCodeApi, submitCodeApi, getSubmissionResultApi, RunCodeResponse, SubmissionResponseData } from '../services/api';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { runCodeApi, submitCodeApi, getSubmissionResultApi, getProblemDetailApi, RunCodeResponse, SubmissionResponseData } from '../services/api';
 
 export interface Problem {
 	id: string;
@@ -180,7 +180,60 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 	const [submissionResult, setSubmissionResult] = useState<SubmissionResponseData | null>(null);
 	const [activeTab, setActiveTab] = useState<string>('testcase');
 
-	const problem = PROBLEMS_LIST.find((p) => p.id === currentProblemId) || PROBLEMS_LIST[0];
+	const [fetchedProblem, setFetchedProblem] = useState<Problem | null>(null);
+
+	useEffect(() => {
+		let isMounted = true;
+		if (!currentProblemId) return;
+
+		getProblemDetailApi(currentProblemId)
+			.then((data) => {
+				if (!isMounted || !data) return;
+				const rawDiff = data.Difficulty || data.difficulty || 'Easy';
+				const formattedDiff = (rawDiff.charAt(0).toUpperCase() + rawDiff.slice(1).toLowerCase()) as 'Easy' | 'Medium' | 'Hard';
+
+				let exList = data.Examples || data.examples || [];
+				if ((!exList || exList.length === 0) && data.testcases) {
+					exList = data.testcases
+						.filter((tc: any) => tc.is_sample || tc.IsSample)
+						.map((tc: any) => ({
+							input: tc.input || tc.Input || '',
+							output: tc.output || tc.Output || '',
+							explanation: tc.explanation || tc.Explanation || ''
+						}));
+				}
+
+				let constraintArr: string[] = [];
+				if (typeof data.Constraints === 'string') {
+					constraintArr = data.Constraints.split('\n').filter(Boolean);
+				} else if (typeof data.constraints === 'string') {
+					constraintArr = data.constraints.split('\n').filter(Boolean);
+				} else if (Array.isArray(data.constraints)) {
+					constraintArr = data.constraints;
+				}
+
+				setFetchedProblem({
+					id: data.ProblemID || data.problem_id || currentProblemId,
+					title: data.Title || data.title || 'Untitled Problem',
+					difficulty: formattedDiff,
+					acceptance: data.AcceptanceRate ? `${data.AcceptanceRate}%` : (data.acceptance || '0%'),
+					submissions: data.submissions ? String(data.submissions) : '0',
+					description: data.Description || data.description || '',
+					examples: exList,
+					constraints: constraintArr,
+				});
+			})
+			.catch((err) => {
+				console.error('Failed to fetch problem detail from API:', err);
+			});
+
+		return () => {
+			isMounted = false;
+		};
+	}, [currentProblemId]);
+
+	const localFallback = PROBLEMS_LIST.find((p) => p.id === currentProblemId) || PROBLEMS_LIST[0];
+	const problem = fetchedProblem || localFallback;
 
 	const setLanguage = (lang: string) => {
 		setLanguageState(lang);

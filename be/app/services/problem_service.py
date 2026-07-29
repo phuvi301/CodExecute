@@ -68,19 +68,17 @@ SAMPLE_TESTCASES: Dict[str, List[Dict[str, Any]]] = {
 
 
 def get_all_problems() -> List[Dict[str, Any]]:
-    """Lấy danh sách các bài toán từ DynamoDB hoặc trả về danh sách mẫu"""
+    """Lấy danh sách các bài toán thực tế từ DynamoDB"""
     try:
         response = problems_table.scan()
-        items = response.get("Items", [])
-        if items:
-            return items
+        return response.get("Items", [])
     except Exception as e:
         logger.warning(f"Lỗi scan DynamoDB Problems: {e}")
-    return SAMPLE_PROBLEMS
+        return []
 
 
-def get_problem_details(problem_id: str) -> Dict[str, Any]:
-    """Lấy chi tiết một bài toán theo ID"""
+def get_problem_details(problem_id: str) -> Optional[Dict[str, Any]]:
+    """Lấy chi tiết một bài toán theo ID từ DynamoDB"""
     try:
         response = problems_table.get_item(Key={"ProblemID": problem_id})
         item = response.get("Item")
@@ -89,12 +87,7 @@ def get_problem_details(problem_id: str) -> Dict[str, Any]:
     except Exception as e:
         logger.warning(f"Không thể lấy problem {problem_id} từ DynamoDB: {e}")
 
-    # Fallback bài toán mẫu
-    for p in SAMPLE_PROBLEMS:
-        if p["ProblemID"] == problem_id or problem_id in ["1", "two-sum"]:
-            return p
-
-    return SAMPLE_PROBLEMS[0]
+    return None
 
 
 def get_sample_testcases_for_run(problem_id: str) -> List[Dict[str, str]]:

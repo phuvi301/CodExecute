@@ -137,6 +137,12 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 	}, [targetProblemId]);
 
 	useEffect(() => {
+		if (problemId && problemId !== currentProblemId) {
+			setCurrentProblemId(problemId);
+		}
+	}, [problemId, currentProblemId, setCurrentProblemId]);
+
+	useEffect(() => {
 		fetchDiscussions();
 	}, [fetchDiscussions]);
 
