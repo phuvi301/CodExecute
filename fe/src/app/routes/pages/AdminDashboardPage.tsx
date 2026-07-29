@@ -34,7 +34,7 @@ export function AdminDashboardPage() {
   return (
     <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
       {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-primary/10 via-purple-500/10 to-indigo-500/10 border border-primary/20 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-primary/10 via-blue-500/10 to-sky-500/10 border border-primary/20 shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Badge variant="default" className="bg-primary/20 text-primary border-primary/30 uppercase tracking-wider text-[11px] font-bold px-2.5 py-0.5">
@@ -79,7 +79,7 @@ export function AdminDashboardPage() {
         <Card className="bg-card border-border hover:border-primary/40 transition-colors shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-semibold text-muted-foreground">Total Users</CardTitle>
-            <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Users className="w-5 h-5" />
             </div>
           </CardHeader>
@@ -154,7 +154,7 @@ export function AdminDashboardPage() {
           <div>
             <CardHeader className="border-b border-border/50 pb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                <div className="p-3 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
@@ -178,7 +178,7 @@ export function AdminDashboardPage() {
           </div>
 
           <div className="p-6 pt-0">
-            <Button onClick={() => navigate('/admin/users')} variant="default" className="w-full gap-2 bg-purple-600 hover:bg-purple-700 text-white">
+            <Button onClick={() => navigate('/admin/users')} variant="default" className="w-full gap-2 bg-blue-600 hover:bg-blue-700 text-white">
               Manage Users List
               <ArrowRight className="w-4 h-4" />
             </Button>

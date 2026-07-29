@@ -237,10 +237,10 @@ export function Header({ currentScreen }: HeaderProps) {
 											</DropdownMenuItem>
 											{user?.role === 'admin' && (
 												<DropdownMenuItem
-													className="cursor-pointer gap-3 p-2 rounded-xl font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 transition-colors"
+													className="cursor-pointer gap-3 p-2 rounded-xl font-medium text-foreground hover:bg-accent transition-colors"
 													onClick={() => navigate('/admin')}
 												>
-													<ShieldCheck className="h-4 w-4 text-purple-500" />
+													<ShieldCheck className="h-4 w-4 text-muted-foreground" />
 													<span>Admin Portal</span>
 												</DropdownMenuItem>
 											)}
@@ -301,8 +301,8 @@ export function Header({ currentScreen }: HeaderProps) {
 						</NavLink>
 						{user?.role === 'admin' && (
 							<NavLink to="/admin" className={({ isActive }) => navItemClass(isActive || currentScreen.startsWith('admin'))}>
-								<ShieldCheck className="w-5 h-5 text-purple-500" />
-								<span className="font-semibold text-purple-600 dark:text-purple-400">Admin</span>
+								<ShieldCheck className="w-5 h-5" />
+								<span>Admin</span>
 							</NavLink>
 						)}
 					</nav>
@@ -312,7 +312,7 @@ export function Header({ currentScreen }: HeaderProps) {
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
 							<Input
 								type="text"
-								placeholder="Search problems or users..."
+								placeholder="Search"
 								value={headerSearchQuery}
 								onChange={(e) => setHeaderSearchQuery(e.target.value)}
 								className="pl-10 bg-input-background border-border text-foreground placeholder:text-muted-foreground focus:ring-1 focus:ring-primary"
@@ -388,10 +388,10 @@ export function Header({ currentScreen }: HeaderProps) {
 											</DropdownMenuItem>
 											{user?.role === 'admin' && (
 												<DropdownMenuItem
-													className="cursor-pointer gap-3 p-2.5 rounded-xl font-semibold text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 transition-colors"
+													className="cursor-pointer gap-3 p-2.5 rounded-xl font-medium text-foreground hover:bg-accent transition-colors"
 													onClick={() => navigate('/admin')}
 												>
-													<ShieldCheck className="h-4 w-4 text-purple-500" />
+													<ShieldCheck className="h-4 w-4 text-muted-foreground" />
 													<span>Admin Portal</span>
 												</DropdownMenuItem>
 											)}

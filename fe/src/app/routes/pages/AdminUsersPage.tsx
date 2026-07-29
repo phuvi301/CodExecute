@@ -69,7 +69,7 @@ export function AdminUsersPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              <Users className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+              <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               User & Role Management
             </h1>
             <p className="text-xs text-muted-foreground">List of all system accounts, update user profiles, and manage role permissions.</p>
@@ -115,7 +115,7 @@ export function AdminUsersPage() {
       <Card className="bg-card border-border overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center p-12 gap-3 text-muted-foreground">
-            <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             <p className="text-sm font-medium">Loading user accounts...</p>
           </div>
         ) : filteredUsers.length === 0 ? (
@@ -160,7 +160,7 @@ export function AdminUsersPage() {
                     <TableCell className="font-medium text-xs text-foreground">{u.email}</TableCell>
                     <TableCell>
                       {isAdmin ? (
-                        <Badge variant="default" className="bg-purple-600 text-white font-semibold text-[11px] px-2.5 py-0.5 gap-1">
+                        <Badge variant="default" className="bg-blue-600 text-white font-semibold text-[11px] px-2.5 py-0.5 gap-1">
                           <Shield className="w-3 h-3 fill-current" />
                           ADMIN
                         </Badge>
@@ -182,7 +182,7 @@ export function AdminUsersPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => handleOpenEdit(u)}
-                        className="h-8 px-2.5 gap-1.5 text-xs hover:bg-purple-500/10 hover:text-purple-600 border-border"
+                        className="h-8 px-2.5 gap-1.5 text-xs hover:bg-blue-500/10 hover:text-blue-600 border-border"
                       >
                         <Edit className="w-3.5 h-3.5" />
                         <span>Edit</span>

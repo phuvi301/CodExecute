@@ -127,7 +127,7 @@ export function AdminUserEditModal({ user, isOpen, onClose, onSuccess }: AdminUs
                     <span className="font-medium text-foreground">User</span> - Standard User
                   </SelectItem>
                   <SelectItem value="admin">
-                    <span className="font-semibold text-purple-600 dark:text-purple-400">Admin</span> - System Administrator
+                    <span className="font-semibold text-blue-600 dark:text-blue-400">Admin</span> - System Administrator
                   </SelectItem>
                 </SelectContent>
               </Select>
