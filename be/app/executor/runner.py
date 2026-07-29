@@ -20,6 +20,28 @@ def get_temp_dir() -> str:
     return base_tmp
 
 
+def normalize_language(lang: str) -> str:
+    """Standardize language key to python, cpp, java, javascript"""
+    l = (lang or "").lower().strip()
+    if l in ["cpp", "c++", "c"]:
+        return "cpp"
+    if l in ["javascript", "js", "node"]:
+        return "javascript"
+    if l in ["java"]:
+        return "java"
+    if l in ["python", "python3", "py"]:
+        return "python"
+    return l
+
+
+def get_driver_code_for_lang(driver_dict: Any, language: str) -> str:
+    """Retrieve driver code matching normalized language key"""
+    if not isinstance(driver_dict, dict):
+        return ""
+    lang_key = normalize_language(language)
+    return driver_dict.get(lang_key) or driver_dict.get(language.lower()) or driver_dict.get(language) or ""
+
+
 def execute_submission_local(
     submission_id: str,
     language: str,
@@ -31,45 +53,70 @@ def execute_submission_local(
     """
     Thực thi bài nộp trực tiếp trên máy chủ / container cục bộ qua subprocess trong /tmp.
     """
+    import re
     tmp_base = get_temp_dir()
     work_dir = os.path.join(tmp_base, f"sub_{submission_id}")
     os.makedirs(work_dir, exist_ok=True)
 
-    lang_lower = language.lower()
+    lang_key = normalize_language(language)
     code_file_path = ""
     binary_path = ""
     compile_cmd = []
     run_cmd = []
 
     # 1. Xác định file path & câu lệnh theo ngôn ngữ
-    if lang_lower in ["python", "python3", "py"]:
+    if lang_key == "python":
         code_file_path = os.path.join(work_dir, "solution.py")
         run_cmd = [sys.executable, code_file_path]
 
-    elif lang_lower in ["cpp", "c++", "c"]:
+    elif lang_key == "cpp":
         code_file_path = os.path.join(work_dir, "solution.cpp")
         binary_path = os.path.join(work_dir, "solution.exe" if os.name == "nt" else "solution")
-        compile_cmd = ["g++", "-O2", code_file_path, "-o", binary_path]
+        
+        # Prioritize standard system PATH compiler (used on Linux / Docker Production)
+        compiler = shutil.which("g++") or shutil.which("clang++") or shutil.which("gcc")
+
+        # Fallback to Windows custom MinGW / w64devkit paths if on Windows
+        if not compiler and os.name == "nt":
+            custom_gpp_paths = [
+                r"C:\Users\ASUS\w64devkit\w64devkit\bin\g++.exe",
+                r"C:\Users\ASUS\w64devkit\bin\g++.exe",
+                r"C:\w64devkit\bin\g++.exe",
+                r"C:\msys64\ucrt64\bin\g++.exe",
+                r"C:\msys64\mingw64\bin\g++.exe",
+                r"C:\MinGW\bin\g++.exe",
+            ]
+            compiler = next((p for p in custom_gpp_paths if os.path.exists(p)), None)
+
+        if not compiler:
+            compiler = "g++"
+
+        compile_cmd = [compiler, "-O2", code_file_path, "-o", binary_path]
         run_cmd = [binary_path]
 
-    elif lang_lower in ["java"]:
+    elif lang_key == "java":
+        # Chuẩn hóa: Thay 'public class Solution' thành 'class Solution' để javac Main.java không báo lỗi file name mismatch
+        code = re.sub(r'public\s+class\s+(?!Main\b)', 'class ', code)
         code_file_path = os.path.join(work_dir, "Main.java")
-        compile_cmd = ["javac", code_file_path]
-        run_cmd = ["java", "-cp", work_dir, "Main"]
+        
+        javac_bin = shutil.which("javac") or "javac"
+        java_bin = shutil.which("java") or "java"
+        compile_cmd = [javac_bin, code_file_path]
+        run_cmd = [java_bin, "-cp", work_dir, "Main"]
 
-    elif lang_lower in ["javascript", "js", "node"]:
+    elif lang_key == "javascript":
         code_file_path = os.path.join(work_dir, "solution.js")
-        run_cmd = ["node", code_file_path]
+        node_bin = shutil.which("node") or "node"
+        run_cmd = [node_bin, code_file_path]
 
     else:
-        # Mặc định Python nếu không khớp
         code_file_path = os.path.join(work_dir, "solution.py")
         run_cmd = [sys.executable, code_file_path]
 
     total_testcases = len(testcases)
     passed_testcases = 0
     max_execution_time = 0.0
-    memory_used = 15.0  # Ước lượng bộ nhớ MB cơ bản
+    memory_used = 15.0
 
     try:
         # 2. Ghi nội dung code vào file tạm
@@ -80,27 +127,65 @@ def execute_submission_local(
 
         # 3. Biên dịch đối với các ngôn ngữ biên dịch (C++, Java)
         if compile_cmd:
+            compile_env = os.environ.copy()
+            target_compiler = compile_cmd[0]
+            if target_compiler and os.path.isabs(target_compiler):
+                compiler_dir = os.path.dirname(target_compiler)
+                compile_env["PATH"] = compiler_dir + os.pathsep + compile_env.get("PATH", "")
+
             try:
                 compile_proc = subprocess.run(
                     compile_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
                     timeout=15.0,
-                    text=True
+                    text=True,
+                    env=compile_env
                 )
                 if compile_proc.returncode != 0:
+                    err_text = compile_proc.stderr.strip() or compile_proc.stdout.strip()
                     return {
                         "status": "Compilation Error",
                         "execution_time": 0.0,
                         "memory_used": 0.0,
                         "passed_testcases": 0,
                         "total_testcases": total_testcases,
-                        "error_message": f"Compilation Error:\n{compile_proc.stderr.strip()}"
+                        "error_message": f"Compilation Error:\n{err_text}"
                     }
-            except FileNotFoundError:
-                logger.warning(f"Compiler '{compile_cmd[0]}' not found on host. Running mock execution.")
+                
+                # Verify that binary executable was actually produced
+                if binary_path and not os.path.exists(binary_path):
+                    return {
+                        "status": "Compilation Error",
+                        "execution_time": 0.0,
+                        "memory_used": 0.0,
+                        "passed_testcases": 0,
+                        "total_testcases": total_testcases,
+                        "error_message": f"Compilation Error: File thực thi '{os.path.basename(binary_path)}' không được tạo sau khi biên dịch."
+                    }
 
-        # If no testcase, default to Passed
+            except FileNotFoundError:
+                compiler_name = compile_cmd[0]
+                logger.warning(f"Compiler '{compiler_name}' not found on host system.")
+                return {
+                    "status": "Compilation Error",
+                    "execution_time": 0.0,
+                    "memory_used": 0.0,
+                    "passed_testcases": 0,
+                    "total_testcases": total_testcases,
+                    "error_message": f"Compilation Error: Trình biên dịch '{compiler_name}' chưa được cài đặt hoặc không tìm thấy trong PATH hệ thống."
+                }
+            except subprocess.TimeoutExpired:
+                return {
+                    "status": "Compilation Error",
+                    "execution_time": 0.0,
+                    "memory_used": 0.0,
+                    "passed_testcases": 0,
+                    "total_testcases": total_testcases,
+                    "error_message": "Compilation Error: Quá thời gian biên dịch (15 giây)."
+                }
+
+        # If no testcases, default to Accepted
         if total_testcases == 0:
             return {
                 "status": "Accepted",
@@ -133,13 +218,14 @@ def execute_submission_local(
                 max_execution_time = max(max_execution_time, elapsed_time)
 
                 if proc.returncode != 0:
+                    err_msg = stderr_data.strip() or stdout_data.strip() or f"Mã thoát chương trình: {proc.returncode}"
                     return {
                         "status": "Runtime Error",
                         "execution_time": round(max_execution_time, 3),
                         "memory_used": memory_used,
                         "passed_testcases": passed_testcases,
                         "total_testcases": total_testcases,
-                        "error_message": f"Runtime Error on testcase {idx+1}:\n{stderr_data.strip()}"
+                        "error_message": f"Runtime Error on testcase {idx+1}:\n{err_msg}"
                     }
 
                 # Compare output
@@ -162,6 +248,16 @@ def execute_submission_local(
                         "error_message": f"Wrong Answer on testcase {idx+1}.\nInput:\n{display_input}\n\nActual Output:\n{display_actual}\n\nExpected Output:\n{display_expected}"
                     }
 
+            except FileNotFoundError:
+                runner_prog = run_cmd[0] if run_cmd else "executable"
+                return {
+                    "status": "Runtime Error",
+                    "execution_time": 0.0,
+                    "memory_used": 0.0,
+                    "passed_testcases": passed_testcases,
+                    "total_testcases": total_testcases,
+                    "error_message": f"Runtime Error: Không tìm thấy trình thực thi '{runner_prog}' trong PATH hệ thống."
+                }
             except subprocess.TimeoutExpired:
                 proc.kill()
                 return {

@@ -1,0 +1,32 @@
+# Dockerfile cho AWS ECS Runner Container (Chạy cách ly bài nộp C++, Java, JS, Python)
+FROM ubuntu:22.04
+
+# Tránh prompt tương tác khi apt-get install
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Cài đặt các ngôn ngữ lập trình & công cụ cần thiết: Python, Node.js, Java (JDK), GCC/G++
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    g++ \
+    default-jdk \
+    nodejs \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy các thư viện Python cần thiết
+COPY requirements.txt .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+# Copy mã nguồn backend vào container
+COPY app ./app
+COPY lambda_worker.py .
+
+# Biến môi trường mặc định
+ENV PYTHONPATH=/app
+ENV EXECUTION_MODE=tmp
+
+# Entrypoint mặc định gọi runner.py khi ECS Task khởi chạy
+CMD ["python3", "-m", "app.executor.runner"]

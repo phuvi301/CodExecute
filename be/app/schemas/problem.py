@@ -29,6 +29,7 @@ class ProblemBase(BaseModel):
     time_complexity: Optional[str] = Field(default="", description="Ví dụ: O(N log N)")
     space_complexity: Optional[str] = Field(default="", description="Ví dụ: O(N)")
     init_code: Optional[Dict[str, str]] = Field(default=None, description="Mã khởi tạo mẫu cho các ngôn ngữ (python, javascript, cpp, java)")
+    driver_code: Optional[Dict[str, str]] = Field(default=None, description="Mã driver ẩn để thực thi code trong runner")
 
 class ProblemCreate(ProblemBase):
     problem_id: Optional[str] = Field(default=None, description="Tùy chọn Custom ID (VD: two-sum) hoặc tự sinh UUID")

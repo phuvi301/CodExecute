@@ -6,6 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.submission import SubmissionCreate, SubmissionResponse, SubmissionStatus
 from app.services import submissions_service, sqs_service, problem_service
 from app.core import security
+from app.core.config import settings
 from app.executor import runner
 from lambda_worker import process_single_submission
 
@@ -58,11 +59,18 @@ async def run_sample_code(
 
     run_sub_id = f"run_{uuid.uuid4().hex[:8]}"
 
+    code_to_run = payload.code
+    if problem:
+        driver_dict = problem.get("DriverCode") or problem.get("driver_code")
+        drv = runner.get_driver_code_for_lang(driver_dict, language_str)
+        if drv and drv not in code_to_run:
+            code_to_run = code_to_run + "\n\n" + drv
+
     # 2. Thực thi trực tiếp qua executor runner
     result = runner.execute_submission(
         submission_id=run_sub_id,
         language=language_str,
-        code=payload.code,
+        code=code_to_run,
         testcases=sample_testcases,
         time_limit=time_limit,
         memory_limit=memory_limit
@@ -96,6 +104,14 @@ async def create_submission(
     submission_id = str(uuid.uuid4())
     language_str = payload.language.value if hasattr(payload.language, "value") else str(payload.language)
 
+    code_to_submit = payload.code
+    problem = problem_service.get_problem_details(payload.problem_id)
+    if problem:
+        driver_dict = problem.get("DriverCode") or problem.get("driver_code")
+        drv = runner.get_driver_code_for_lang(driver_dict, language_str)
+        if drv and drv not in code_to_submit:
+            code_to_submit = code_to_submit + "\n\n" + drv
+
     # 1. Tạo pending submission trong DynamoDB (code content lưu trực tiếp vào DB)
     item = submissions_service.create_pending_submission(
         submission_id=submission_id,
@@ -105,23 +121,25 @@ async def create_submission(
         code=payload.code
     )
 
-    # 2. Đẩy payload bài nộp vào SQS Queue
-    message_id = sqs_service.push_submission_to_queue(
-        submission_id=submission_id,
-        user_id=user_id,
-        problem_id=payload.problem_id,
-        language=language_str,
-        code=payload.code
-    )
+    # 2. Đẩy payload bài nộp vào SQS Queue (chỉ đẩy SQS nếu cấu hình EXECUTION_MODE == "ecs" hoặc ENVIRONMENT == "production")
+    message_id = None
+    if getattr(settings, "EXECUTION_MODE", "tmp").lower() == "ecs" or getattr(settings, "ENVIRONMENT", "development").lower() == "production":
+        message_id = sqs_service.push_submission_to_queue(
+            submission_id=submission_id,
+            user_id=user_id,
+            problem_id=payload.problem_id,
+            language=language_str,
+            code=code_to_submit
+        )
 
-    # Nếu môi trường local chưa cấu hình SQS, tự động chạy qua BackgroundTasks để chấm bài
+    # Nếu đang ở local (EXECUTION_MODE == "tmp"), tự động dùng local BackgroundTasks để chấm bài trên máy
     if not message_id:
         background_tasks.add_task(
             process_single_submission,
             submission_id=submission_id,
             problem_id=payload.problem_id,
             language=language_str,
-            code=payload.code
+            code=code_to_submit
         )
 
     # 3. Trả về thông tin pending submission cho Frontend

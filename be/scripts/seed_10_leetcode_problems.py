@@ -79,66 +79,84 @@ Only one valid answer exists.""",
             {"input": "3 3\n6", "output": "0 1", "explanation": "nums[0] + nums[1] == 6, we return 0 1."}
         ],
         "InitCode": {
-            "python": """import sys
+            "python": """from typing import List
 
-def solve():
-    lines = sys.stdin.read().strip().splitlines()
-    if len(lines) < 2:
-        return
-    nums = list(map(int, lines[0].split()))
-    target = int(lines[1])
-    
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
-            "javascript": """const fs = require('fs');
-
-function solve() {
-    const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
-    if (lines.length < 2) return;
-    const nums = lines[0].trim().split(/\\s+/).map(Number);
-    const target = parseInt(lines[1]);
-    
+class Solution:
+    def twoSum(self, nums: List[int], target: int) -> List[int]:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {number[]} nums
+ * @param {number} target
+ * @return {number[]}
+ */
+function twoSum(nums, target) {
     // TODO: Write your solution here
 
-}
-
-solve();""",
-            "cpp": """#include <iostream>
-#include <vector>
-#include <unordered_map>
+}""",
+            "cpp": """#include <vector>
 using namespace std;
 
+class Solution {
+public:
+    vector<int> twoSum(vector<int>& nums, int target) {
+        // TODO: Write your solution here
+        return {};
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public int[] twoSum(int[] nums, int target) {
+        // TODO: Write your solution here
+        return new int[]{};
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
+    lines = sys.stdin.read().strip().splitlines()
+    if len(lines) >= 2:
+        nums = list(map(int, lines[0].split()))
+        target = int(lines[1])
+        res = Solution().twoSum(nums, target)
+        if res:
+            print(f"{res[0]} {res[1]}")""",
+            "javascript": """const fs = require('fs');
+const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
+if (lines.length >= 2) {
+    const nums = lines[0].trim().split(/\\s+/).map(Number);
+    const target = parseInt(lines[1]);
+    const res = twoSum(nums, target);
+    if (res) console.log(`${res[0]} ${res[1]}`);
+}""",
+            "cpp": """#include <iostream>
 int main() {
     vector<int> nums;
     int val;
-    while (cin >> val) {
-        nums.push_back(val);
-    }
+    while (cin >> val) nums.push_back(val);
     if (nums.size() < 2) return 0;
     int target = nums.back();
     nums.pop_back();
 
-    // TODO: Write your solution here
-
+    Solution sol;
+    vector<int> res = sol.twoSum(nums, target);
+    if (res.size() >= 2) cout << res[0] << " " << res[1] << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        ArrayList<Integer> nums = new ArrayList<>();
-        while (sc.hasNextInt()) {
-            nums.add(sc.nextInt());
-        }
-        if (nums.size() < 2) return;
-        int target = nums.remove(nums.size() - 1);
+        ArrayList<Integer> list = new ArrayList<>();
+        while (sc.hasNextInt()) list.add(sc.nextInt());
+        if (list.size() < 2) return;
+        int target = list.remove(list.size() - 1);
+        int[] nums = list.stream().mapToInt(i -> i).toArray();
 
-        // TODO: Write your solution here
-
+        Solution sol = new Solution();
+        int[] res = sol.twoSum(nums, target);
+        if (res.length >= 2) System.out.println(res[0] + " " + res[1]);
     }
 }"""
         }
@@ -174,65 +192,97 @@ It is guaranteed that the list represents a number that does not have leading ze
             {"input": "9 9 9 9 9 9 9\n9 9 9 9", "output": "8 9 9 9 0 0 0 1", "explanation": ""}
         ],
         "InitCode": {
-            "python": """import sys
+            "python": """from typing import List
 
-def solve():
-    lines = sys.stdin.read().strip().splitlines()
-    if not lines:
-        return
-    l1 = list(map(int, lines[0].split())) if lines[0].strip() else []
-    l2 = list(map(int, lines[1].split())) if len(lines) > 1 and lines[1].strip() else []
-
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
-            "javascript": """const fs = require('fs');
-
-function solve() {
-    const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
-    if (!lines || lines.length === 0) return;
-    const l1 = lines[0].trim() ? lines[0].trim().split(/\\s+/).map(Number) : [];
-    const l2 = lines.length > 1 && lines[1].trim() ? lines[1].trim().split(/\\s+/).map(Number) : [];
-
+class Solution:
+    def addTwoNumbers(self, l1: List[int], l2: List[int]) -> List[int]:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {number[]} l1
+ * @param {number[]} l2
+ * @return {number[]}
+ */
+function addTwoNumbers(l1, l2) {
     // TODO: Write your solution here
 
-}
-
-solve();""",
-            "cpp": """#include <iostream>
-#include <vector>
-#include <string>
-#include <sstream>
+}""",
+            "cpp": """#include <vector>
 using namespace std;
 
+class Solution {
+public:
+    vector<int> addTwoNumbers(vector<int>& l1, vector<int>& l2) {
+        // TODO: Write your solution here
+        return {};
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public List<Integer> addTwoNumbers(List<Integer> l1, List<Integer> l2) {
+        // TODO: Write your solution here
+        return new ArrayList<>();
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
+    lines = sys.stdin.read().strip().splitlines()
+    l1 = list(map(int, lines[0].split())) if len(lines) > 0 and lines[0].strip() else []
+    l2 = list(map(int, lines[1].split())) if len(lines) > 1 and lines[1].strip() else []
+    res = Solution().addTwoNumbers(l1, l2)
+    if res is not None:
+        print(" ".join(map(str, res)))""",
+            "javascript": """const fs = require('fs');
+const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
+const l1 = lines.length > 0 && lines[0].trim() ? lines[0].trim().split(/\\s+/).map(Number) : [];
+const l2 = lines.length > 1 && lines[1].trim() ? lines[1].trim().split(/\\s+/).map(Number) : [];
+const res = addTwoNumbers(l1, l2);
+if (res) console.log(res.join(" "));""",
+            "cpp": """#include <iostream>
+#include <string>
+#include <sstream>
 int main() {
     string line1, line2;
     if (!getline(cin, line1)) return 0;
     getline(cin, line2);
-
     vector<int> l1, l2;
     stringstream ss1(line1), ss2(line2);
     int x;
     while (ss1 >> x) l1.push_back(x);
     while (ss2 >> x) l2.push_back(x);
 
-    // TODO: Write your solution here
-
+    Solution sol;
+    vector<int> res = sol.addTwoNumbers(l1, l2);
+    for (int i = 0; i < res.size(); i++) {
+        cout << res[i] << (i == res.size() - 1 ? "" : " ");
+    }
+    cout << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        if (!sc.hasNextLine()) return;
-        String line1 = sc.nextLine();
+        String line1 = sc.hasNextLine() ? sc.nextLine() : "";
         String line2 = sc.hasNextLine() ? sc.nextLine() : "";
+        List<Integer> l1 = parse(line1), l2 = parse(line2);
 
-        // TODO: Write your solution here
+        Solution sol = new Solution();
+        List<Integer> res = sol.addTwoNumbers(l1, l2);
+        for (int i = 0; i < res.size(); i++) {
+            System.out.print(res.get(i) + (i == res.size() - 1 ? "" : " "));
+        }
+        System.out.println();
+    }
 
+    private static List<Integer> parse(String line) {
+        List<Integer> list = new ArrayList<>();
+        if (line == null || line.trim().isEmpty()) return list;
+        Scanner sc = new Scanner(line);
+        while (sc.hasNextInt()) list.add(sc.nextInt());
+        return list;
     }
 }"""
         }
@@ -264,49 +314,61 @@ s consists of English letters, digits, symbols and spaces.""",
             {"input": "pwwkew", "output": "3", "explanation": "The answer is \"wke\", with the length of 3."}
         ],
         "InitCode": {
-            "python": """import sys
-
-def solve():
-    s = sys.stdin.read().rstrip('\\r\\n')
-    
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
-            "javascript": """const fs = require('fs');
-
-function solve() {
-    const s = fs.readFileSync(0, 'utf-8').replace(/[\\r\\n]+$/, '');
-    
+            "python": """class Solution:
+    def lengthOfLongestSubstring(self, s: str) -> int:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {string} s
+ * @return {number}
+ */
+function lengthOfLongestSubstring(s) {
     // TODO: Write your solution here
 
-}
-
-solve();""",
-            "cpp": """#include <iostream>
-#include <string>
-#include <vector>
-#include <algorithm>
+}""",
+            "cpp": """#include <string>
 using namespace std;
 
+class Solution {
+public:
+    int lengthOfLongestSubstring(string s) {
+        // TODO: Write your solution here
+        return 0;
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public int lengthOfLongestSubstring(String s) {
+        // TODO: Write your solution here
+        return 0;
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
+    s = sys.stdin.read().rstrip('\\r\\n')
+    res = Solution().lengthOfLongestSubstring(s)
+    if res is not None:
+        print(res)""",
+            "javascript": """const fs = require('fs');
+const s = fs.readFileSync(0, 'utf-8').replace(/[\\r\\n]+$/, '');
+console.log(lengthOfLongestSubstring(s));""",
+            "cpp": """#include <iostream>
 int main() {
     string s;
     getline(cin, s);
-    
-    // TODO: Write your solution here
-
+    Solution sol;
+    cout << sol.lengthOfLongestSubstring(s) << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         String s = sc.hasNextLine() ? sc.nextLine() : "";
-        
-        // TODO: Write your solution here
-
+        Solution sol = new Solution();
+        System.out.println(sol.lengthOfLongestSubstring(s));
     }
 }"""
         }
@@ -344,37 +406,59 @@ nums2.length == n
             {"input": "1 2\n3 4", "output": "2.50000", "explanation": "Merged array = [1,2,3,4] and median is (2 + 3) / 2 = 2.5."}
         ],
         "InitCode": {
-            "python": """import sys
+            "python": """from typing import List
 
-def solve():
+class Solution:
+    def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {number[]} nums1
+ * @param {number[]} nums2
+ * @return {number}
+ */
+function findMedianSortedArrays(nums1, nums2) {
+    // TODO: Write your solution here
+
+}""",
+            "cpp": """#include <vector>
+using namespace std;
+
+class Solution {
+public:
+    double findMedianSortedArrays(vector<int>& nums1, vector<int>& nums2) {
+        // TODO: Write your solution here
+        return 0.0;
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public double findMedianSortedArrays(int[] nums1, int[] nums2) {
+        // TODO: Write your solution here
+        return 0.0;
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
     lines = sys.stdin.read().strip().splitlines()
     nums1 = list(map(int, lines[0].split())) if len(lines) > 0 and lines[0].strip() else []
     nums2 = list(map(int, lines[1].split())) if len(lines) > 1 and lines[1].strip() else []
-
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
+    res = Solution().findMedianSortedArrays(nums1, nums2)
+    if res is not None:
+        print(f"{res:.5f}")""",
             "javascript": """const fs = require('fs');
-
-function solve() {
-    const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
-    const nums1 = lines.length > 0 && lines[0].trim() ? lines[0].trim().split(/\\s+/).map(Number) : [];
-    const nums2 = lines.length > 1 && lines[1].trim() ? lines[1].trim().split(/\\s+/).map(Number) : [];
-
-    // TODO: Write your solution here
-
-}
-
-solve();""",
+const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
+const nums1 = lines.length > 0 && lines[0].trim() ? lines[0].trim().split(/\\s+/).map(Number) : [];
+const nums2 = lines.length > 1 && lines[1].trim() ? lines[1].trim().split(/\\s+/).map(Number) : [];
+const res = findMedianSortedArrays(nums1, nums2);
+if (res !== undefined) console.log(res.toFixed(5));""",
             "cpp": """#include <iostream>
-#include <vector>
 #include <string>
 #include <sstream>
 #include <iomanip>
-using namespace std;
-
 int main() {
     string line1, line2;
     getline(cin, line1);
@@ -386,20 +470,28 @@ int main() {
     while (ss1 >> x) nums1.push_back(x);
     while (ss2 >> x) nums2.push_back(x);
 
-    // TODO: Write your solution here
-
+    Solution sol;
+    cout << fixed << setprecision(5) << sol.findMedianSortedArrays(nums1, nums2) << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         String line1 = sc.hasNextLine() ? sc.nextLine() : "";
         String line2 = sc.hasNextLine() ? sc.nextLine() : "";
+        int[] nums1 = parse(line1);
+        int[] nums2 = parse(line2);
 
-        // TODO: Write your solution here
+        Solution sol = new Solution();
+        System.out.printf(Locale.US, "%.5f\\n", sol.findMedianSortedArrays(nums1, nums2));
+    }
 
+    private static int[] parse(String line) {
+        if (line == null || line.trim().isEmpty()) return new int[0];
+        Scanner sc = new Scanner(line);
+        List<Integer> list = new ArrayList<>();
+        while (sc.hasNextInt()) list.add(sc.nextInt());
+        return list.stream().mapToInt(i -> i).toArray();
     }
 }"""
         }
@@ -430,48 +522,62 @@ s consists of only digits and English letters.""",
             {"input": "cbbd", "output": "bb", "explanation": ""}
         ],
         "InitCode": {
-            "python": """import sys
-
-def solve():
-    s = sys.stdin.read().strip()
-    
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
-            "javascript": """const fs = require('fs');
-
-function solve() {
-    const s = fs.readFileSync(0, 'utf-8').trim();
-    
+            "python": """class Solution:
+    def longestPalindrome(self, s: str) -> str:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {string} s
+ * @return {string}
+ */
+function longestPalindrome(s) {
     // TODO: Write your solution here
 
-}
-
-solve();""",
-            "cpp": """#include <iostream>
-#include <string>
+}""",
+            "cpp": """#include <string>
 using namespace std;
 
+class Solution {
+public:
+    string longestPalindrome(string s) {
+        # TODO: Write your solution here
+        return "";
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public String longestPalindrome(String s) {
+        // TODO: Write your solution here
+        return "";
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
+    s = sys.stdin.read().strip()
+    res = Solution().longestPalindrome(s)
+    if res is not None:
+        print(res)""",
+            "javascript": """const fs = require('fs');
+const s = fs.readFileSync(0, 'utf-8').trim();
+console.log(longestPalindrome(s));""",
+            "cpp": """#include <iostream>
 int main() {
     string s;
     if (!(cin >> s)) return 0;
-    
-    // TODO: Write your solution here
-
+    Solution sol;
+    cout << sol.longestPalindrome(s) << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         if (!sc.hasNext()) return;
         String s = sc.next();
-        
-        // TODO: Write your solution here
-
+        Solution sol = new Solution();
+        System.out.println(sol.longestPalindrome(s));
     }
 }"""
         }
@@ -507,50 +613,67 @@ Return the maximum amount of water a container can store.
             {"input": "1 1", "output": "1", "explanation": ""}
         ],
         "InitCode": {
-            "python": """import sys
+            "python": """from typing import List
 
-def solve():
-    height = list(map(int, sys.stdin.read().split()))
-    
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
-            "javascript": """const fs = require('fs');
-
-function solve() {
-    const height = fs.readFileSync(0, 'utf-8').trim().split(/\\s+/).map(Number);
-    
+class Solution:
+    def maxArea(self, height: List[int]) -> int:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {number[]} height
+ * @return {number}
+ */
+function maxArea(height) {
     // TODO: Write your solution here
 
-}
-
-solve();""",
-            "cpp": """#include <iostream>
-#include <vector>
-#include <algorithm>
+}""",
+            "cpp": """#include <vector>
 using namespace std;
 
+class Solution {
+public:
+    int maxArea(vector<int>& height) {
+        // TODO: Write your solution here
+        return 0;
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public int maxArea(int[] height) {
+        // TODO: Write your solution here
+        return 0;
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
+    height = list(map(int, sys.stdin.read().split()))
+    res = Solution().maxArea(height)
+    if res is not None:
+        print(res)""",
+            "javascript": """const fs = require('fs');
+const height = fs.readFileSync(0, 'utf-8').trim().split(/\\s+/).map(Number);
+console.log(maxArea(height));""",
+            "cpp": """#include <iostream>
 int main() {
     vector<int> height;
     int h;
     while (cin >> h) height.push_back(h);
-
-    // TODO: Write your solution here
-
+    Solution sol;
+    cout << sol.maxArea(height) << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        List<Integer> height = new ArrayList<>();
-        while (sc.hasNextInt()) height.add(sc.nextInt());
+        List<Integer> list = new ArrayList<>();
+        while (sc.hasNextInt()) list.add(sc.nextInt());
+        int[] height = list.stream().mapToInt(i -> i).toArray();
 
-        // TODO: Write your solution here
-
+        Solution sol = new Solution();
+        System.out.println(sol.maxArea(height));
     }
 }"""
         }
@@ -585,50 +708,85 @@ Notice that the solution set must not contain duplicate triplets.
             {"input": "0 0 0", "output": "0 0 0", "explanation": "The only possible triplet sums up to 0."}
         ],
         "InitCode": {
-            "python": """import sys
+            "python": """from typing import List
 
-def solve():
-    nums = list(map(int, sys.stdin.read().split()))
-    
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
-            "javascript": """const fs = require('fs');
-
-function solve() {
-    const nums = fs.readFileSync(0, 'utf-8').trim().split(/\\s+/).map(Number);
-    
+class Solution:
+    def threeSum(self, nums: List[int]) -> List[List[int]]:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {number[]} nums
+ * @return {number[][]}
+ */
+function threeSum(nums) {
     // TODO: Write your solution here
 
-}
-
-solve();""",
-            "cpp": """#include <iostream>
-#include <vector>
-#include <algorithm>
+}""",
+            "cpp": """#include <vector>
 using namespace std;
 
+class Solution {
+public:
+    vector<vector<int>> threeSum(vector<int>& nums) {
+        // TODO: Write your solution here
+        return {};
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public List<List<Integer>> threeSum(int[] nums) {
+        // TODO: Write your solution here
+        return new ArrayList<>();
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
+    nums = list(map(int, sys.stdin.read().split()))
+    res = Solution().threeSum(nums)
+    if not res:
+        print("EMPTY")
+    else:
+        for triplet in res:
+            print(" ".join(map(str, triplet)))""",
+            "javascript": """const fs = require('fs');
+const nums = fs.readFileSync(0, 'utf-8').trim().split(/\\s+/).map(Number);
+const res = threeSum(nums);
+if (!res || res.length === 0) console.log("EMPTY");
+else res.forEach(triplet => console.log(triplet.join(" ")));""",
+            "cpp": """#include <iostream>
 int main() {
     vector<int> nums;
     int x;
     while (cin >> x) nums.push_back(x);
 
-    // TODO: Write your solution here
-
+    Solution sol;
+    vector<vector<int>> res = sol.threeSum(nums);
+    if (res.empty()) cout << "EMPTY" << endl;
+    else {
+        for (auto& t : res) {
+            cout << t[0] << " " << t[1] << " " << t[2] << endl;
+        }
+    }
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        List<Integer> nums = new ArrayList<>();
-        while (sc.hasNextInt()) nums.add(sc.nextInt());
+        List<Integer> list = new ArrayList<>();
+        while (sc.hasNextInt()) list.add(sc.nextInt());
+        int[] nums = list.stream().mapToInt(i -> i).toArray();
 
-        // TODO: Write your solution here
-
+        Solution sol = new Solution();
+        List<List<Integer>> res = sol.threeSum(nums);
+        if (res == null || res.isEmpty()) System.out.println("EMPTY");
+        else {
+            for (List<Integer> t : res) {
+                System.out.println(t.get(0) + " " + t.get(1) + " " + t.get(2));
+            }
+        }
     }
 }"""
         }
@@ -665,49 +823,63 @@ s consists of parentheses only '()[]{}'.""",
             {"input": "(]", "output": "false", "explanation": ""}
         ],
         "InitCode": {
-            "python": """import sys
-
-def solve():
-    s = sys.stdin.read().strip()
-    
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
-            "javascript": """const fs = require('fs');
-
-function solve() {
-    const s = fs.readFileSync(0, 'utf-8').trim();
-    
+            "python": """class Solution:
+    def isValid(self, s: str) -> bool:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {string} s
+ * @return {boolean}
+ */
+function isValid(s) {
     // TODO: Write your solution here
 
-}
-
-solve();""",
-            "cpp": """#include <iostream>
-#include <string>
-#include <stack>
+}""",
+            "cpp": """#include <string>
 using namespace std;
 
+class Solution {
+public:
+    bool isValid(string s) {
+        // TODO: Write your solution here
+        return false;
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public boolean isValid(String s) {
+        // TODO: Write your solution here
+        return false;
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
+    s = sys.stdin.read().strip()
+    res = Solution().isValid(s)
+    if res is not None:
+        print("true" if res else "false")""",
+            "javascript": """const fs = require('fs');
+const s = fs.readFileSync(0, 'utf-8').trim();
+const res = isValid(s);
+console.log(res ? "true" : "false");""",
+            "cpp": """#include <iostream>
 int main() {
     string s;
     if (!(cin >> s)) return 0;
-    
-    // TODO: Write your solution here
-
+    Solution sol;
+    cout << (sol.isValid(s) ? "true" : "false") << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         if (!sc.hasNext()) return;
         String s = sc.next();
-        
-        // TODO: Write your solution here
-
+        Solution sol = new Solution();
+        System.out.println(sol.isValid(s) ? "true" : "false");
     }
 }"""
         }
@@ -745,61 +917,97 @@ Both list1 and list2 are sorted in non-decreasing order.""",
             {"input": "\n0", "output": "0", "explanation": ""}
         ],
         "InitCode": {
-            "python": """import sys
+            "python": """from typing import List
 
-def solve():
+class Solution:
+    def mergeTwoLists(self, list1: List[int], list2: List[int]) -> List[int]:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {number[]} list1
+ * @param {number[]} list2
+ * @return {number[]}
+ */
+function mergeTwoLists(list1, list2) {
+    // TODO: Write your solution here
+
+}""",
+            "cpp": """#include <vector>
+using namespace std;
+
+class Solution {
+public:
+    vector<int> mergeTwoLists(vector<int>& list1, vector<int>& list2) {
+        // TODO: Write your solution here
+        return {};
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public List<Integer> mergeTwoLists(List<Integer> list1, List<Integer> list2) {
+        // TODO: Write your solution here
+        return new ArrayList<>();
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
     lines = sys.stdin.read().strip().splitlines()
     l1 = list(map(int, lines[0].split())) if len(lines) > 0 and lines[0].strip() else []
     l2 = list(map(int, lines[1].split())) if len(lines) > 1 and lines[1].strip() else []
-
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
+    res = Solution().mergeTwoLists(l1, l2)
+    if res is not None:
+        print(" ".join(map(str, res)))""",
             "javascript": """const fs = require('fs');
-
-function solve() {
-    const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
-    const l1 = lines.length > 0 && lines[0].trim() ? lines[0].trim().split(/\\s+/).map(Number) : [];
-    const l2 = lines.length > 1 && lines[1].trim() ? lines[1].trim().split(/\\s+/).map(Number) : [];
-
-    // TODO: Write your solution here
-
-}
-
-solve();""",
+const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
+const l1 = lines.length > 0 && lines[0].trim() ? lines[0].trim().split(/\\s+/).map(Number) : [];
+const l2 = lines.length > 1 && lines[1].trim() ? lines[1].trim().split(/\\s+/).map(Number) : [];
+const res = mergeTwoLists(l1, l2);
+if (res) console.log(res.join(" "));""",
             "cpp": """#include <iostream>
-#include <vector>
 #include <string>
 #include <sstream>
-using namespace std;
-
 int main() {
     string line1, line2;
     getline(cin, line1);
     getline(cin, line2);
-
     vector<int> l1, l2;
     int x;
     stringstream ss1(line1), ss2(line2);
     while (ss1 >> x) l1.push_back(x);
     while (ss2 >> x) l2.push_back(x);
 
-    // TODO: Write your solution here
-
+    Solution sol;
+    vector<int> res = sol.mergeTwoLists(l1, l2);
+    for (int i = 0; i < res.size(); i++) {
+        cout << res[i] << (i == res.size() - 1 ? "" : " ");
+    }
+    cout << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         String line1 = sc.hasNextLine() ? sc.nextLine() : "";
         String line2 = sc.hasNextLine() ? sc.nextLine() : "";
+        List<Integer> l1 = parse(line1), l2 = parse(line2);
 
-        // TODO: Write your solution here
+        Solution sol = new Solution();
+        List<Integer> res = sol.mergeTwoLists(l1, l2);
+        for (int i = 0; i < res.size(); i++) {
+            System.out.print(res.get(i) + (i == res.size() - 1 ? "" : " "));
+        }
+        System.out.println();
+    }
 
+    private static List<Integer> parse(String line) {
+        List<Integer> list = new ArrayList<>();
+        if (line == null || line.trim().isEmpty()) return list;
+        Scanner sc = new Scanner(line);
+        while (sc.hasNextInt()) list.add(sc.nextInt());
+        return list;
     }
 }"""
         }
@@ -834,49 +1042,67 @@ Return the maximum profit you can achieve from this transaction. If you cannot a
             {"input": "7 6 4 3 1", "output": "0", "explanation": "In this case, no transactions are done and max profit = 0."}
         ],
         "InitCode": {
-            "python": """import sys
+            "python": """from typing import List
 
-def solve():
-    prices = list(map(int, sys.stdin.read().split()))
-    
-    # TODO: Write your solution here
-    pass
-
-if __name__ == "__main__":
-    solve()""",
-            "javascript": """const fs = require('fs');
-
-function solve() {
-    const prices = fs.readFileSync(0, 'utf-8').trim().split(/\\s+/).map(Number);
-    
+class Solution:
+    def maxProfit(self, prices: List[int]) -> int:
+        # TODO: Write your solution here
+        pass""",
+            "javascript": """/**
+ * @param {number[]} prices
+ * @return {number}
+ */
+function maxProfit(prices) {
     // TODO: Write your solution here
 
-}
-
-solve();""",
-            "cpp": """#include <iostream>
-#include <vector>
+}""",
+            "cpp": """#include <vector>
 using namespace std;
 
+class Solution {
+public:
+    int maxProfit(vector<int>& prices) {
+        // TODO: Write your solution here
+        return 0;
+    }
+};""",
+            "java": """import java.util.*;
+
+class Solution {
+    public int maxProfit(int[] prices) {
+        // TODO: Write your solution here
+        return 0;
+    }
+}"""
+        },
+        "DriverCode": {
+            "python": """import sys
+if __name__ == "__main__":
+    prices = list(map(int, sys.stdin.read().split()))
+    res = Solution().maxProfit(prices)
+    if res is not None:
+        print(res)""",
+            "javascript": """const fs = require('fs');
+const prices = fs.readFileSync(0, 'utf-8').trim().split(/\\s+/).map(Number);
+console.log(maxProfit(prices));""",
+            "cpp": """#include <iostream>
 int main() {
     vector<int> prices;
     int p;
     while (cin >> p) prices.push_back(p);
-
-    // TODO: Write your solution here
-
+    Solution sol;
+    cout << sol.maxProfit(prices) << endl;
     return 0;
 }""",
-            "java": """import java.util.*;
-
-public class Main {
+            "java": """public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        List<Integer> prices = new ArrayList<>();
-        while (sc.hasNextInt()) prices.add(sc.nextInt());
+        List<Integer> list = new ArrayList<>();
+        while (sc.hasNextInt()) list.add(sc.nextInt());
+        int[] prices = list.stream().mapToInt(i -> i).toArray();
 
-        // TODO: Write your solution here
-
+        Solution sol = new Solution();
+        System.out.println(sol.maxProfit(prices));
     }
 }"""
         }

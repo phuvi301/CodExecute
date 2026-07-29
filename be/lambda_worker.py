@@ -25,11 +25,18 @@ def process_single_submission(submission_id: str, problem_id: str, language: str
     testcases = submissions_service.get_testcases_with_content(problem_id)
     logger.info(f"Loaded {len(testcases)} testcases for problem {problem_id}")
 
+    code_to_run = code
+    if problem:
+        driver_dict = problem.get("DriverCode") or problem.get("driver_code")
+        drv = runner.get_driver_code_for_lang(driver_dict, language)
+        if drv and drv not in code_to_run:
+            code_to_run = code_to_run + "\n\n" + drv
+
     # 2 & 3. Thực thi code qua ECS Task / Runner
     result = runner.execute_submission(
         submission_id=submission_id,
         language=language,
-        code=code,
+        code=code_to_run,
         testcases=testcases,
         time_limit=time_limit,
         memory_limit=memory_limit

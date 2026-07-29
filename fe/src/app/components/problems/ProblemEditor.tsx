@@ -1166,7 +1166,10 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 										cursorBlinking: 'smooth',
 										cursorSmoothCaretAnimation: 'on',
 										smoothScrolling: true,
-										bracketPairColorization: { enabled: true },
+										bracketPairColorization: {
+											enabled: true,
+											independentColorPoolPerBracketType: true,
+										},
 										suggestOnTriggerCharacters: true,
 										quickSuggestions: true,
 										wordWrap: 'on',
