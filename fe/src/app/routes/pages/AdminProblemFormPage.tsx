@@ -119,6 +119,29 @@ export function AdminProblemFormPage() {
 
   const [idInput, setIdInput] = useState('');
   const [title, setTitle] = useState('');
+  const [isCustomIdSet, setIsCustomIdSet] = useState(false);
+
+  const slugifyTitle = (text: string) => {
+    return text
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
+
+  const handleTitleChange = (newTitle: string) => {
+    setTitle(newTitle);
+    if (!isEditMode && !isCustomIdSet) {
+      setIdInput(slugifyTitle(newTitle));
+    }
+  };
+
+  const handleIdChange = (val: string) => {
+    setIdInput(val);
+    setIsCustomIdSet(Boolean(val.trim()));
+  };
   const [category, setCategory] = useState('Array & Hash Table');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Easy');
   const [timeLimit, setTimeLimit] = useState<number>(2.0);
@@ -311,8 +334,8 @@ export function AdminProblemFormPage() {
               <Label className="text-xs font-semibold">Problem ID (Slug / Custom ID)</Label>
               <Input
                 value={idInput}
-                onChange={(e) => setIdInput(e.target.value)}
-                placeholder="e.g. two-sum (leave empty to auto-generate)"
+                onChange={(e) => handleIdChange(e.target.value)}
+                placeholder="e.g. two-sum (auto-generated from title)"
                 disabled={isEditMode}
               />
             </div>
@@ -321,7 +344,7 @@ export function AdminProblemFormPage() {
               <Label className="text-xs font-semibold">Problem Title</Label>
               <Input
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => handleTitleChange(e.target.value)}
                 placeholder="e.g. Two Sum"
                 required
               />

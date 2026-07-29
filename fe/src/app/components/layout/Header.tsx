@@ -115,7 +115,7 @@ export function Header({ currentScreen }: HeaderProps) {
 
 						<div className="flex items-center gap-2 truncate">
 							<span className="text-sm font-semibold text-foreground truncate max-w-[150px] sm:max-w-[250px] md:max-w-[350px]">
-								{problem.id}. {problem.title}
+								{problem.title}
 							</span>
 							<Badge
 								variant="outline"

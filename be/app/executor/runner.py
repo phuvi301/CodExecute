@@ -95,12 +95,12 @@ def execute_submission_local(
                         "memory_used": 0.0,
                         "passed_testcases": 0,
                         "total_testcases": total_testcases,
-                        "error_message": f"Lỗi biên dịch:\n{compile_proc.stderr.strip()}"
+                        "error_message": f"Compilation Error:\n{compile_proc.stderr.strip()}"
                     }
             except FileNotFoundError:
-                logger.warning(f"Compiler '{compile_cmd[0]}' không tìm thấy trên máy. Chạy mô phỏng.")
+                logger.warning(f"Compiler '{compile_cmd[0]}' not found on host. Running mock execution.")
 
-        # Nếu không có testcase nào, mặc định Passed
+        # If no testcase, default to Passed
         if total_testcases == 0:
             return {
                 "status": "Accepted",
@@ -111,10 +111,10 @@ def execute_submission_local(
                 "error_message": ""
             }
 
-        # 4. Chạy thực thi với từng testcase
+        # 4. Run execution for each testcase
         for idx, tc in enumerate(testcases):
-            tc_input = tc.get("input", "")
-            expected_output = tc.get("output", "")
+            tc_input = (tc.get("input") or tc.get("Input") or tc.get("InputPreview") or "")
+            expected_output = (tc.get("output") or tc.get("Output") or tc.get("OutputPreview") or "")
 
             start_time = time.perf_counter()
 
@@ -139,23 +139,27 @@ def execute_submission_local(
                         "memory_used": memory_used,
                         "passed_testcases": passed_testcases,
                         "total_testcases": total_testcases,
-                        "error_message": f"Lỗi Runtime tại testcase {idx+1}:\n{stderr_data.strip()}"
+                        "error_message": f"Runtime Error on testcase {idx+1}:\n{stderr_data.strip()}"
                     }
 
-                # So sánh kết quả đầu ra
+                # Compare output
                 clean_actual = "\n".join([line.rstrip() for line in stdout_data.strip().splitlines()])
                 clean_expected = "\n".join([line.rstrip() for line in expected_output.strip().splitlines()])
 
                 if clean_actual == clean_expected:
                     passed_testcases += 1
                 else:
+                    display_input = tc_input[:500] if tc_input.strip() else "(empty input)"
+                    display_actual = clean_actual[:500] if clean_actual.strip() else "(empty output)"
+                    display_expected = clean_expected[:500] if clean_expected.strip() else "(empty output)"
+
                     return {
                         "status": "Wrong Answer",
                         "execution_time": round(max_execution_time, 3),
                         "memory_used": memory_used,
                         "passed_testcases": passed_testcases,
                         "total_testcases": total_testcases,
-                        "error_message": f"Sai kết quả ở testcase {idx+1}.\nInput: {tc_input[:150]}\nOutput thực tế: {clean_actual[:150]}\nOutput kỳ vọng: {clean_expected[:150]}"
+                        "error_message": f"Wrong Answer on testcase {idx+1}.\nInput:\n{display_input}\n\nActual Output:\n{display_actual}\n\nExpected Output:\n{display_expected}"
                     }
 
             except subprocess.TimeoutExpired:
@@ -166,7 +170,7 @@ def execute_submission_local(
                     "memory_used": memory_used,
                     "passed_testcases": passed_testcases,
                     "total_testcases": total_testcases,
-                    "error_message": f"Vượt quá thời gian cho phép ({time_limit}s) tại testcase {idx+1}"
+                    "error_message": f"Time Limit Exceeded ({time_limit}s) on testcase {idx+1}"
                 }
 
         return {
@@ -179,14 +183,14 @@ def execute_submission_local(
         }
 
     except Exception as e:
-        logger.error(f"Lỗi không xác định khi thực thi code local: {e}", exc_info=True)
+        logger.error(f"Unidentified error executing local code: {e}", exc_info=True)
         return {
             "status": "Runtime Error",
             "execution_time": 0.0,
             "memory_used": 0.0,
             "passed_testcases": passed_testcases,
             "total_testcases": total_testcases,
-            "error_message": f"Lỗi hệ thống: {str(e)}"
+            "error_message": f"System Error: {str(e)}"
         }
 
     finally:
@@ -195,7 +199,7 @@ def execute_submission_local(
                 shutil.rmtree(work_dir)
                 logger.info(f"Cleaned up temporary working directory: {work_dir}")
             except Exception as e:
-                logger.warning(f"Không thể xóa thư mục tạm {work_dir}: {e}")
+                logger.warning(f"Could not remove temporary directory {work_dir}: {e}")
 
 
 def execute_submission_ecs(
@@ -253,21 +257,21 @@ def execute_submission_ecs(
         if not tasks:
             failures = response.get("failures", [])
             err_desc = ", ".join([f.get("reason", "Unknown") for f in failures])
-            logger.error(f"Khong the tao ECS Task: {err_desc}")
+            logger.error(f"Failed to create ECS Task: {err_desc}")
             return {
                 "status": "Runtime Error",
                 "execution_time": 0.0,
                 "memory_used": 0.0,
                 "passed_testcases": 0,
                 "total_testcases": len(testcases),
-                "error_message": f"Lỗi khởi tạo ECS Task: {err_desc}"
+                "error_message": f"ECS Task initialization error: {err_desc}"
             }
 
         task_arn = tasks[0]["taskArn"]
         task_id = task_arn.split("/")[-1]
         logger.info(f"ECS Task started with ARN: {task_arn} (ID: {task_id}). Waiting for completion...")
 
-        # Chờ ECS Task hoàn thành (chờ tối đa 60 giây)
+        # Wait for ECS Task to complete (up to 60s)
         waiter = ecs_client.get_waiter("tasks_stopped")
         waiter.wait(
             cluster=settings.ECS_CLUSTER_NAME,
@@ -275,7 +279,7 @@ def execute_submission_ecs(
             WaiterConfig={"Delay": 2, "MaxAttempts": 30}
         )
 
-        # Lấy kết quả từ CloudWatch Logs
+        # Get results from CloudWatch Logs
         log_stream_name = f"ecs/{settings.ECS_CONTAINER_NAME}/{task_id}"
         logger.info(f"Reading logs from log stream: {log_stream_name}")
 
@@ -288,37 +292,37 @@ def execute_submission_ecs(
         events = log_response.get("events", [])
         log_text = "\n".join([e.get("message", "") for e in events])
 
-        # Đọc khối JSON được bọc giữa ---RESULT_START--- và ---RESULT_END---
+        # Read JSON block wrapped between ---RESULT_START--- and ---RESULT_END---
         if "---RESULT_START---" in log_text and "---RESULT_END---" in log_text:
             json_str = log_text.split("---RESULT_START---")[1].split("---RESULT_END---")[0].strip()
             result = json.loads(json_str)
             return result
         else:
-            # Fallback nếu in log JSON trực tiếp hoặc bị trích xuất một phần
+            # Fallback if log JSON printed directly or partially extracted
             for line in reversed(log_text.splitlines()):
                 line = line.strip()
                 if line.startswith("{") and line.endswith("}") and "status" in line:
                     return json.loads(line)
 
-            logger.warning(f"Không tìm thấy khối JSON kết quả trong logs. Raw logs: {log_text[:300]}")
+            logger.warning(f"Could not find JSON result block in logs. Raw logs: {log_text[:300]}")
             return {
                 "status": "Runtime Error",
                 "execution_time": 0.0,
                 "memory_used": 0.0,
                 "passed_testcases": 0,
                 "total_testcases": len(testcases),
-                "error_message": f"ECS Task kết thúc nhưng không trả về kết quả hợp lệ:\n{log_text[:500]}"
+                "error_message": f"ECS Task finished but did not return valid result:\n{log_text[:500]}"
             }
 
     except Exception as e:
-        logger.error(f"Lỗi khi thực thi code trên ECS Task: {e}", exc_info=True)
+        logger.error(f"Error executing code on ECS Task: {e}", exc_info=True)
         return {
             "status": "Runtime Error",
             "execution_time": 0.0,
             "memory_used": 0.0,
             "passed_testcases": 0,
             "total_testcases": len(testcases),
-            "error_message": f"Lỗi hệ thống ECS Execution: {str(e)}"
+            "error_message": f"ECS Execution system error: {str(e)}"
         }
 
 

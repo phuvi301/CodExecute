@@ -1,6 +1,9 @@
 import logging
 import uuid
+import re
+import unicodedata
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional, List, Dict, Any
 from app.core.aws import dynamodb_resource
 from app.core.config import settings
@@ -10,90 +13,55 @@ logger = logging.getLogger(__name__)
 problems_table = dynamodb_resource.Table(settings.DYNAMODB_PROBLEMS_TABLE)
 testcases_table = dynamodb_resource.Table(settings.DYNAMODB_TESTCASES_TABLE)
 
-# Danh sách bài toán mẫu được khởi tạo mặc định nếu DB chưa có
-SAMPLE_PROBLEMS: List[Dict[str, Any]] = [
-    {
-        "ProblemID": "two-sum",
-        "Title": "Two Sum",
-        "Difficulty": "Easy",
-        "Category": "Array & Hash Table",
-        "AcceptanceRate": 48.2,
-        "TimeLimit": 2.0,
-        "MemoryLimit": 256,
-        "TimeComplexity": "O(N)",
-        "SpaceComplexity": "O(N)",
-        "Description": "Cho một mảng số nguyên `nums` và một số nguyên `target`. Hãy tìm chỉ số của 2 số trong mảng sao cho tổng của chúng bằng `target`.\n\nInput format:\n- Dòng 1: Danh sách các số nguyên `nums` cách nhau bởi dấu cách.\n- Dòng 2: Số nguyên `target`.",
-        "Constraints": "2 <= nums.length <= 10^4\n-10^9 <= nums[i] <= 10^9\n-10^9 <= target <= 10^9",
-        "Examples": [
-            {"input": "2 7 11 15\n9", "output": "0 1", "explanation": "Do nums[0] + nums[1] == 9, trả về 0 1."},
-            {"input": "3 2 4\n6", "output": "1 2", "explanation": "nums[1] + nums[2] == 6, trả về 1 2."},
-            {"input": "3 3\n6", "output": "0 1", "explanation": "nums[0] + nums[1] == 6, trả về 0 1."}
-        ]
-    },
-    {
-        "ProblemID": "add-two-numbers",
-        "Title": "Add Two Numbers",
-        "Difficulty": "Medium",
-        "Category": "Linked List",
-        "AcceptanceRate": 41.5,
-        "TimeLimit": 2.0,
-        "MemoryLimit": 256,
-        "TimeComplexity": "O(max(N, M))",
-        "SpaceComplexity": "O(max(N, M))",
-        "Description": "Cho hai danh sách liên kết không rỗng biểu diễn hai số nguyên không âm. Các chữ số được lưu theo thứ tự ngược lại.",
-        "Constraints": "1 <= node.val <= 9",
-        "Examples": [
-            {"input": "2 4 3\n5 6 4", "output": "7 0 8", "explanation": "342 + 465 = 807."}
-        ]
-    }
-]
 
-# Bộ testcase mẫu cho hai bài toán (bao gồm sample testcase cho Run và full testcases cho Submit)
-SAMPLE_TESTCASES: Dict[str, List[Dict[str, Any]]] = {
-    "two-sum": [
-        {"testcase_id": "tc1", "is_sample": True, "input": "2 7 11 15\n9", "output": "0 1"},
-        {"testcase_id": "tc2", "is_sample": True, "input": "3 2 4\n6", "output": "1 2"},
-        {"testcase_id": "tc3", "is_sample": True, "input": "3 3\n6", "output": "0 1"},
-        {"testcase_id": "tc4", "is_sample": False, "input": "1 5 9 12\n14", "output": "1 2"},
-        {"testcase_id": "tc5", "is_sample": False, "input": "10 -2 5 8\n3", "output": "1 2"}
-    ],
-    "1": [
-        {"testcase_id": "tc1", "is_sample": True, "input": "2 7 11 15\n9", "output": "0 1"},
-        {"testcase_id": "tc2", "is_sample": True, "input": "3 2 4\n6", "output": "1 2"},
-        {"testcase_id": "tc3", "is_sample": True, "input": "3 3\n6", "output": "0 1"},
-        {"testcase_id": "tc4", "is_sample": False, "input": "1 5 9 12\n14", "output": "1 2"},
-        {"testcase_id": "tc5", "is_sample": False, "input": "10 -2 5 8\n3", "output": "1 2"}
-    ]
-}
+def slugify(text: str) -> str:
+    """Helper converting title or custom ID to URL slug (e.g., 'Two Sum' -> 'two-sum')"""
+    if not text:
+        return ""
+    normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+    normalized = normalized.lower().strip()
+    slug = re.sub(r'[^a-z0-9]+', '-', normalized)
+    return slug.strip('-')
+
+
+def convert_decimals(obj: Any) -> Any:
+    """Helper converting boto3 DynamoDB Decimal to standard float/int for JSON serialization"""
+    if isinstance(obj, list):
+        return [convert_decimals(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: convert_decimals(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return float(obj) if float(obj) % 1 != 0 else int(obj)
+    return obj
 
 
 def get_all_problems() -> List[Dict[str, Any]]:
-    """Lấy danh sách các bài toán thực tế từ DynamoDB"""
+    """Retrieve list of problems from DynamoDB"""
     try:
         response = problems_table.scan()
-        return response.get("Items", [])
+        items = response.get("Items", [])
+        return convert_decimals(items)
     except Exception as e:
-        logger.warning(f"Lỗi scan DynamoDB Problems: {e}")
+        logger.warning(f"Error scanning DynamoDB Problems: {e}")
         return []
 
 
 def get_problem_details(problem_id: str) -> Optional[Dict[str, Any]]:
-    """Lấy chi tiết một bài toán theo ID từ DynamoDB"""
+    """Retrieve problem details by ID from DynamoDB"""
     try:
         response = problems_table.get_item(Key={"ProblemID": problem_id})
         item = response.get("Item")
         if item:
-            return item
+            return convert_decimals(item)
     except Exception as e:
-        logger.warning(f"Không thể lấy problem {problem_id} từ DynamoDB: {e}")
+        logger.warning(f"Failed to get problem {problem_id} from DynamoDB: {e}")
 
     return None
 
 
 def get_sample_testcases_for_run(problem_id: str) -> List[Dict[str, str]]:
     """
-    Lấy ra từ 3 đến 5 testcases mẫu (is_sample = True) cho chức năng RUN CODE.
-    Không lưu kết quả vào Database.
+    Get sample testcases (is_sample = True) for RUN CODE feature.
     """
     all_tc = get_all_testcases_for_submit(problem_id)
     sample_tc = [tc for tc in all_tc if tc.get("is_sample", True)]
@@ -102,7 +70,7 @@ def get_sample_testcases_for_run(problem_id: str) -> List[Dict[str, str]]:
 
 def get_all_testcases_for_submit(problem_id: str) -> List[Dict[str, Any]]:
     """
-    Lấy đầy đủ bộ testcases (gồm cả testcases mẫu và testcases ẩn) cho chức năng SUBMIT CODE.
+    Get full suite of testcases for SUBMIT CODE feature.
     """
     try:
         response = testcases_table.scan(
@@ -121,25 +89,20 @@ def get_all_testcases_for_submit(problem_id: str) -> List[Dict[str, Any]]:
                 })
             return tc_list
     except Exception as e:
-        logger.warning(f"Lỗi truy vấn TestCases cho {problem_id}: {e}")
-
-    if problem_id in SAMPLE_TESTCASES:
-        return SAMPLE_TESTCASES[problem_id]
-    
-    return SAMPLE_TESTCASES["two-sum"]
-
+        logger.warning(f"Error querying TestCases for {problem_id}: {e}")
+    return []
 
 # --- ADMIN SERVICE FUNCTIONS FOR PROBLEMS & TESTCASES ---
 
 def get_problem_testcases_admin(problem_id: str) -> List[Dict[str, Any]]:
-    """Lấy tất cả testcases của 1 bài toán cho màn hình Admin"""
+    """Get all testcases for a problem for Admin screen"""
     return get_all_testcases_for_submit(problem_id)
 
 
 def save_problem_testcases(problem_id: str, testcases: List[Dict[str, Any]]) -> None:
-    """Lưu/Cập nhật bộ testcases của 1 bài toán vào DynamoDB TestCases table"""
+    """Save/Update testcases for a problem in DynamoDB TestCases table"""
     try:
-        # Xóa các testcases cũ
+        # Delete old testcases
         existing = testcases_table.scan(
             FilterExpression="ProblemID = :pid",
             ExpressionAttributeValues={":pid": problem_id}
@@ -151,9 +114,9 @@ def save_problem_testcases(problem_id: str, testcases: List[Dict[str, Any]]) -> 
                 "TestCaseID": old_tc["TestCaseID"]
             })
     except Exception as e:
-        logger.warning(f"Lỗi khi xóa testcases cũ của {problem_id}: {e}")
+        logger.warning(f"Error deleting old testcases for {problem_id}: {e}")
 
-    # Chèn các testcases mới
+    # Insert new testcases
     for idx, tc in enumerate(testcases, start=1):
         tc_id = tc.get("testcase_id") or f"tc_{idx}_{uuid.uuid4().hex[:6]}"
         item = {
@@ -168,12 +131,24 @@ def save_problem_testcases(problem_id: str, testcases: List[Dict[str, Any]]) -> 
         try:
             testcases_table.put_item(Item=item)
         except Exception as e:
-            logger.error(f"Lỗi khi lưu testcase {tc_id} cho {problem_id}: {e}")
+            logger.error(f"Error saving testcase {tc_id} for {problem_id}: {e}")
 
 
 def create_problem(problem_data: Dict[str, Any], testcases: List[Dict[str, Any]] = None) -> Dict[str, Any]:
-    """Tạo mới một bài toán trong DynamoDB"""
-    problem_id = problem_data.get("problem_id") or f"prob_{uuid.uuid4().hex[:8]}"
+    """Create a new problem in DynamoDB with auto-slugified problem_id"""
+    title = (problem_data.get("title") or "").strip()
+    raw_id = (problem_data.get("problem_id") or "").strip()
+
+    if raw_id:
+        problem_id = slugify(raw_id)
+    elif title:
+        problem_id = slugify(title)
+    else:
+        problem_id = f"prob-{uuid.uuid4().hex[:8]}"
+
+    if not problem_id:
+        problem_id = f"prob-{uuid.uuid4().hex[:8]}"
+
     now_str = datetime.utcnow().isoformat()
 
     item = {
@@ -181,21 +156,21 @@ def create_problem(problem_data: Dict[str, Any], testcases: List[Dict[str, Any]]
         "Title": problem_data.get("title", ""),
         "Difficulty": problem_data.get("difficulty", "Easy"),
         "Category": problem_data.get("category", "General"),
-        "TimeLimit": float(problem_data.get("time_limit", 2.0)),
+        "TimeLimit": Decimal(str(problem_data.get("time_limit", 2.0))),
         "MemoryLimit": int(problem_data.get("memory_limit", 256)),
         "TimeComplexity": problem_data.get("time_complexity", ""),
         "SpaceComplexity": problem_data.get("space_complexity", ""),
         "Description": problem_data.get("description", ""),
         "Constraints": problem_data.get("constraints", ""),
-        "AcceptanceRate": 0.0,
+        "AcceptanceRate": Decimal("0.0"),
         "CreatedAt": now_str,
     }
 
     try:
         problems_table.put_item(Item=item)
     except Exception as e:
-        logger.error(f"Lỗi put_item DynamoDB Problems: {e}")
-        raise RuntimeError(f"Không thể lưu bài toán vào Database: {e}")
+        logger.error(f"Error put_item DynamoDB Problems: {e}")
+        raise RuntimeError(f"Could not save problem to Database: {e}")
 
     if testcases:
         save_problem_testcases(problem_id, testcases)
@@ -204,7 +179,7 @@ def create_problem(problem_data: Dict[str, Any], testcases: List[Dict[str, Any]]
 
 
 def update_problem(problem_id: str, update_fields: Dict[str, Any], testcases: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-    """Cập nhật bài toán trong DynamoDB"""
+    """Update a problem in DynamoDB"""
     update_expr = []
     expr_attr_values = {}
     expr_attr_names = {}
@@ -225,7 +200,7 @@ def update_problem(problem_id: str, update_fields: Dict[str, Any], testcases: Op
         if key in update_fields and update_fields[key] is not None:
             val = update_fields[key]
             if key == "time_limit":
-                val = float(val)
+                val = Decimal(str(val))
             elif key == "memory_limit":
                 val = int(val)
             
@@ -244,7 +219,7 @@ def update_problem(problem_id: str, update_fields: Dict[str, Any], testcases: Op
                 ExpressionAttributeValues=expr_attr_values
             )
         except Exception as e:
-            logger.error(f"Lỗi update_item DynamoDB Problems cho {problem_id}: {e}")
+            logger.error(f"Error update_item DynamoDB Problems for {problem_id}: {e}")
 
     if testcases is not None:
         save_problem_testcases(problem_id, testcases)
@@ -253,11 +228,11 @@ def update_problem(problem_id: str, update_fields: Dict[str, Any], testcases: Op
 
 
 def delete_problem(problem_id: str) -> None:
-    """Xóa bài toán và bộ testcase khỏi DynamoDB"""
+    """Delete a problem and its testcases from DynamoDB"""
     try:
         problems_table.delete_item(Key={"ProblemID": problem_id})
     except Exception as e:
-        logger.error(f"Lỗi delete_item DynamoDB Problems cho {problem_id}: {e}")
+        logger.error(f"Error delete_item DynamoDB Problems for {problem_id}: {e}")
 
     try:
         tcs = testcases_table.scan(
@@ -267,12 +242,12 @@ def delete_problem(problem_id: str) -> None:
         for tc in tcs:
             testcases_table.delete_item(Key={"ProblemID": problem_id, "TestCaseID": tc["TestCaseID"]})
     except Exception as e:
-        logger.warning(f"Lỗi khi dọn dẹp testcases của {problem_id}: {e}")
+        logger.warning(f"Error cleaning up testcases for {problem_id}: {e}")
 
 
 def get_admin_problem_detail(problem_id: str) -> Dict[str, Any]:
-    """Lấy chi tiết bài toán + tất cả testcases phục vụ màn hình Admin Edit"""
-    prob = get_problem_details(problem_id)
+    """Get problem detail + testcases for Admin Edit screen"""
+    prob = get_problem_details(problem_id) or {}
     tcs = get_problem_testcases_admin(problem_id)
 
     formatted_tcs = []

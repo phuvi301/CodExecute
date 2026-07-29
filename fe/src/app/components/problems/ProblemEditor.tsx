@@ -849,7 +849,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 
 														<button
 															disabled={isOwner}
-															title={isOwner ? "Bạn không thể chia sẻ lại bài viết của chính mình" : undefined}
+															title={isOwner ? "You cannot repost your own discussion post" : undefined}
 															onClick={() => !isOwner && handleToggleRepostDiscussion(disc.post_id)}
 															className={`flex items-center gap-1.5 transition-colors ${
 																isOwner

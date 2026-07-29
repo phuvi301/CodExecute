@@ -267,13 +267,13 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 
 			setTestOutput(formattedOutput);
 		} catch (error: any) {
-			setTestOutput(`Lỗi thực thi Run Code:\n${error.message || error}`);
+			setTestOutput(`Run Code Execution Error:\n${error.message || error}`);
 		} finally {
 			setIsRunning(false);
 		}
 	};
 
-	// NÚT SUBMIT CODE: Nộp bài, LƯU DYNAMODB (Status: Pending, Code content), PUSH SQS
+	// SUBMIT CODE BUTTON: Submit solution, SAVE TO DYNAMODB (Status: Pending, Code content), PUSH TO SQS
 	const submitCode = async () => {
 		setIsSubmitting(true);
 		setSubmissionResult(null);
@@ -288,7 +288,7 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 
 			setSubmissionResult(pendingSub);
 
-			// Poll kết quả cho đến khi hoàn thành chấm bài
+			// Poll for results until execution finishes
 			let attempts = 0;
 			const maxAttempts = 15;
 
@@ -320,7 +320,7 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 				memory_used: 0,
 				passed_testcases: 0,
 				total_testcases: 0,
-				error_message: error.message || 'Lỗi nộp bài',
+				error_message: error.message || 'Submission Error',
 				submitted_at: new Date().toISOString()
 			});
 			setIsSubmitting(false);

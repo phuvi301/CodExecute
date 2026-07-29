@@ -8,9 +8,9 @@ logger.setLevel(logging.INFO)
 
 def push_submission_to_queue(submission_id: str, user_id: str, problem_id: str, language: str, code: str):
     """
-    Đẩy payload code của user vào Amazon SQS Queue để Lambda Worker nhận và xử lý.
+    Pushes user submission code payload to Amazon SQS Queue for Lambda Worker execution.
     """
-    logger.info(f"🚀 [SQS Service] Bắt đầu xử lý push_submission_to_queue cho submission_id: {submission_id}")
+    logger.info(f"[SQS Service] Starting push_submission_to_queue for submission_id: {submission_id}")
 
     message_body = {
         "submission_id": submission_id,
@@ -22,23 +22,18 @@ def push_submission_to_queue(submission_id: str, user_id: str, problem_id: str, 
 
     queue_url = settings.SQS_QUEUE_URL
     if not queue_url:
-        logger.warning("SQS_QUEUE_URL chưa được cấu hình. Bỏ qua push message SQS.")
+        logger.warning("SQS_QUEUE_URL is not configured. Skipping SQS message push.")
         return None
 
-    # Ở môi trường local development, ưu tiên dùng local BackgroundTasks để chấm bài tức thì
-    # if settings.ENVIRONMENT == "development":
-    #     logger.info(f"💡 [Development Mode] Bỏ qua SQS Queue, sử dụng local BackgroundTasks để chấm bài tức thì cho {submission_id}")
-    #     return None
-
     try:
-        logger.info(f"📡 Đang gửi message đến AWS SQS Queue...")
+        logger.info(f"Sending message to AWS SQS Queue...")
         response = sqs_client.send_message(
             QueueUrl=queue_url,
             MessageBody=json.dumps(message_body)
         )
-        logger.info(f"✅ Đã gửi submission {submission_id} vào SQS Queue thành công.\nMessageId: {response.get('MessageId')}")
+        logger.info(f"Successfully pushed submission {submission_id} to SQS Queue. MessageId: {response.get('MessageId')}")
         return response.get('MessageId')
     except Exception as e:
-        logger.error(f"❌ Lỗi khi gửi message vào SQS (tự động chuyển sang fallback chấm ngầm local): {e}")
+        logger.error(f"Error sending message to SQS (falling back to local background execution): {e}")
         return None
 

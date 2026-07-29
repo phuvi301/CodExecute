@@ -190,16 +190,15 @@ def get_testcases_with_content(problem_id: str) -> List[Dict[str, str]]:
     if items:
         items.sort(key=tc_sort_key)
         for item in items:
-            s3_in = item.get("S3InputKey") or item.get("s3_input_key") or f"{problem_id}/input/{item.get('TestCaseID')}.txt"
-            s3_out = item.get("S3OutputKey") or item.get("s3_output_key") or f"{problem_id}/output/{item.get('TestCaseID')}.txt"
-
-            inp = fetch_s3_text_file(s3_in)
+            inp = item.get("Input") or item.get("InputPreview") or item.get("input") or ""
             if not inp:
-                inp = item.get("InputPreview") or item.get("Input") or item.get("input") or ""
+                s3_in = item.get("S3InputKey") or item.get("s3_input_key") or f"{problem_id}/input/{item.get('TestCaseID')}.txt"
+                inp = fetch_s3_text_file(s3_in)
 
-            out = fetch_s3_text_file(s3_out)
+            out = item.get("Output") or item.get("OutputPreview") or item.get("output") or ""
             if not out:
-                out = item.get("OutputPreview") or item.get("Output") or item.get("output") or ""
+                s3_out = item.get("S3OutputKey") or item.get("s3_output_key") or f"{problem_id}/output/{item.get('TestCaseID')}.txt"
+                out = fetch_s3_text_file(s3_out)
 
             testcases.append({
                 "testcase_id": str(item.get("TestCaseID", "tc")),
