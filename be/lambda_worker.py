@@ -11,8 +11,8 @@ def process_single_submission(submission_id: str, problem_id: str, language: str
     """
     Xử lý chấm bài toán:
     1. Lấy thông tin bài toán & testcases (input/output tải từ S3)
-    2. Chuyển giao việc thực thi code sang AWS ECS Task container (hoặc runner local)
-    3. Nhận kết quả chấm bài từ runner
+    2. Thực thi code qua subprocess runner trong /tmp của Lambda Container
+    3. Nhận kết quả chấm bài
     4. Lưu kết quả vào DynamoDB database
     """
     logger.info(f"[Worker] Starting execution for submission {submission_id} (Problem: {problem_id}, Lang: {language})")
@@ -32,7 +32,7 @@ def process_single_submission(submission_id: str, problem_id: str, language: str
         if drv and drv not in code_to_run:
             code_to_run = code_to_run + "\n\n" + drv
 
-    # 2 & 3. Thực thi code qua ECS Task / Runner
+    # 2 & 3. Thực thi code qua Lambda Runner
     result = runner.execute_submission(
         submission_id=submission_id,
         language=language,

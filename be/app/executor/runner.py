@@ -9,7 +9,6 @@ import logging
 from typing import List, Dict, Any
 
 from app.core.config import settings
-from app.core.aws import ecs_client, logs_client
 
 logger = logging.getLogger(__name__)
 
@@ -298,130 +297,6 @@ def execute_submission_local(
                 logger.warning(f"Could not remove temporary directory {work_dir}: {e}")
 
 
-def execute_submission_ecs(
-    submission_id: str,
-    language: str,
-    code: str,
-    testcases: List[Dict[str, str]],
-    time_limit: float = 2.0,
-    memory_limit: int = 256
-) -> Dict[str, Any]:
-    """
-    Kích hoạt AWS ECS Task (Fargate) để thực thi bài nộp hoàn toàn cách ly trong container.
-    """
-    logger.info(f"[ECS Runner] Triggering ECS Task for submission {submission_id}")
-
-    # Truyền tham số dưới dạng Container Environment Overrides
-    container_overrides = [
-        {
-            "name": settings.ECS_CONTAINER_NAME,
-            "environment": [
-                {"name": "SUBMISSION_ID", "value": submission_id},
-                {"name": "LANGUAGE", "value": language},
-                {"name": "CODE", "value": code},
-                {"name": "TESTCASES_JSON", "value": json.dumps(testcases)},
-                {"name": "TIME_LIMIT", "value": str(time_limit)},
-                {"name": "MEMORY_LIMIT", "value": str(memory_limit)},
-                {"name": "EXECUTION_MODE", "value": "tmp"}  # Bên trong ECS container sẽ chạy mode tmp
-            ]
-        }
-    ]
-
-    subnets = [s.strip() for s in settings.ECS_SUBNET_IDS.split(",") if s.strip()]
-    security_groups = [s.strip() for s in settings.ECS_SECURITY_GROUP_IDS.split(",") if s.strip()]
-
-    network_config = {}
-    if subnets:
-        awsvpc = {"subnets": subnets, "assignPublicIp": "ENABLED"}
-        if security_groups:
-            awsvpc["securityGroups"] = security_groups
-        network_config["awsvpcConfiguration"] = awsvpc
-
-    try:
-        run_task_kwargs = {
-            "cluster": settings.ECS_CLUSTER_NAME,
-            "taskDefinition": settings.ECS_TASK_DEFINITION,
-            "launchType": "FARGATE",
-            "overrides": {"containerOverrides": container_overrides}
-        }
-        if network_config:
-            run_task_kwargs["networkConfiguration"] = network_config
-
-        response = ecs_client.run_task(**run_task_kwargs)
-        tasks = response.get("tasks", [])
-
-        if not tasks:
-            failures = response.get("failures", [])
-            err_desc = ", ".join([f.get("reason", "Unknown") for f in failures])
-            logger.error(f"Failed to create ECS Task: {err_desc}")
-            return {
-                "status": "Runtime Error",
-                "execution_time": 0.0,
-                "memory_used": 0.0,
-                "passed_testcases": 0,
-                "total_testcases": len(testcases),
-                "error_message": f"ECS Task initialization error: {err_desc}"
-            }
-
-        task_arn = tasks[0]["taskArn"]
-        task_id = task_arn.split("/")[-1]
-        logger.info(f"ECS Task started with ARN: {task_arn} (ID: {task_id}). Waiting for completion...")
-
-        # Wait for ECS Task to complete (up to 60s)
-        waiter = ecs_client.get_waiter("tasks_stopped")
-        waiter.wait(
-            cluster=settings.ECS_CLUSTER_NAME,
-            tasks=[task_arn],
-            WaiterConfig={"Delay": 2, "MaxAttempts": 30}
-        )
-
-        # Get results from CloudWatch Logs
-        log_stream_name = f"ecs/{settings.ECS_CONTAINER_NAME}/{task_id}"
-        logger.info(f"Reading logs from log stream: {log_stream_name}")
-
-        log_response = logs_client.get_log_events(
-            logGroupName=settings.ECS_LOG_GROUP_NAME,
-            logStreamName=log_stream_name,
-            startFromHead=False
-        )
-
-        events = log_response.get("events", [])
-        log_text = "\n".join([e.get("message", "") for e in events])
-
-        # Read JSON block wrapped between ---RESULT_START--- and ---RESULT_END---
-        if "---RESULT_START---" in log_text and "---RESULT_END---" in log_text:
-            json_str = log_text.split("---RESULT_START---")[1].split("---RESULT_END---")[0].strip()
-            result = json.loads(json_str)
-            return result
-        else:
-            # Fallback if log JSON printed directly or partially extracted
-            for line in reversed(log_text.splitlines()):
-                line = line.strip()
-                if line.startswith("{") and line.endswith("}") and "status" in line:
-                    return json.loads(line)
-
-            logger.warning(f"Could not find JSON result block in logs. Raw logs: {log_text[:300]}")
-            return {
-                "status": "Runtime Error",
-                "execution_time": 0.0,
-                "memory_used": 0.0,
-                "passed_testcases": 0,
-                "total_testcases": len(testcases),
-                "error_message": f"ECS Task finished but did not return valid result:\n{log_text[:500]}"
-            }
-
-    except Exception as e:
-        logger.error(f"Error executing code on ECS Task: {e}", exc_info=True)
-        return {
-            "status": "Runtime Error",
-            "execution_time": 0.0,
-            "memory_used": 0.0,
-            "passed_testcases": 0,
-            "total_testcases": len(testcases),
-            "error_message": f"ECS Execution system error: {str(e)}"
-        }
-
-
 def execute_submission(
     submission_id: str,
     language: str,
@@ -431,53 +306,13 @@ def execute_submission(
     memory_limit: int = 256
 ) -> Dict[str, Any]:
     """
-    Hàm entrypoint chính để thực thi bài nộp.
-    Tùy vào settings.EXECUTION_MODE mà chạy qua AWS ECS Task hay qua Local /tmp.
+    Hàm entrypoint chính để thực thi bài nộp (qua subprocess trực tiếp trong /tmp của máy hoặc Lambda).
     """
-    mode = getattr(settings, "EXECUTION_MODE", "tmp").lower()
-    if mode == "ecs":
-        return execute_submission_ecs(
-            submission_id=submission_id,
-            language=language,
-            code=code,
-            testcases=testcases,
-            time_limit=time_limit,
-            memory_limit=memory_limit
-        )
-    else:
-        return execute_submission_local(
-            submission_id=submission_id,
-            language=language,
-            code=code,
-            testcases=testcases,
-            time_limit=time_limit,
-            memory_limit=memory_limit
-        )
-
-
-if __name__ == "__main__":
-    # Khi runner được chạy trực tiếp bên trong ECS Container Task
-    sub_id = os.environ.get("SUBMISSION_ID", "test_sub_ecs")
-    lang = os.environ.get("LANGUAGE", "python")
-    user_code = os.environ.get("CODE", "")
-    tcs_raw = os.environ.get("TESTCASES_JSON", "[]")
-    t_limit = float(os.environ.get("TIME_LIMIT", "2.0"))
-    m_limit = int(os.environ.get("MEMORY_LIMIT", "256"))
-
-    try:
-        parsed_testcases = json.loads(tcs_raw)
-    except Exception:
-        parsed_testcases = []
-
-    exec_result = execute_submission_local(
-        submission_id=sub_id,
-        language=lang,
-        code=user_code,
-        testcases=parsed_testcases,
-        time_limit=t_limit,
-        memory_limit=m_limit
+    return execute_submission_local(
+        submission_id=submission_id,
+        language=language,
+        code=code,
+        testcases=testcases,
+        time_limit=time_limit,
+        memory_limit=memory_limit
     )
-
-    print("---RESULT_START---")
-    print(json.dumps(exec_result, ensure_ascii=False))
-    print("---RESULT_END---")

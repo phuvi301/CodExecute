@@ -121,9 +121,9 @@ async def create_submission(
         code=payload.code
     )
 
-    # 2. Đẩy payload bài nộp vào SQS Queue (chỉ đẩy SQS nếu cấu hình EXECUTION_MODE == "ecs" hoặc ENVIRONMENT == "production")
+    # 2. Đẩy payload bài nộp vào SQS Queue (nếu có SQS_QUEUE_URL hoặc ENVIRONMENT == "production")
     message_id = None
-    if getattr(settings, "EXECUTION_MODE", "tmp").lower() == "ecs" or getattr(settings, "ENVIRONMENT", "development").lower() == "production":
+    if settings.SQS_QUEUE_URL or getattr(settings, "ENVIRONMENT", "development").lower() == "production":
         message_id = sqs_service.push_submission_to_queue(
             submission_id=submission_id,
             user_id=user_id,
@@ -132,7 +132,7 @@ async def create_submission(
             code=code_to_submit
         )
 
-    # Nếu đang ở local (EXECUTION_MODE == "tmp"), tự động dùng local BackgroundTasks để chấm bài trên máy
+    # Nếu không đẩy qua SQS (chạy local dev), dùng FastAPI BackgroundTasks để chấm bài trực tiếp
     if not message_id:
         background_tasks.add_task(
             process_single_submission,

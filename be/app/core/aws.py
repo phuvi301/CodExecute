@@ -32,14 +32,6 @@ s3_client = boto3.client('s3', config=boto_config, **_get_boto3_kwargs())
 # --- 3. Amazon SQS (Hàng đợi bài chấm) ---
 sqs_client = boto3.client('sqs', config=boto_config, **_get_boto3_kwargs())
 
-# --- 4. Amazon ECS & CloudWatch Logs (Thực thi code trên Container Fargate) ---
-ecs_boto_config = Config(
-    connect_timeout=5.0,
-    read_timeout=15.0,
-    retries={"max_attempts": 3}
-)
-ecs_client = boto3.client('ecs', config=ecs_boto_config, **_get_boto3_kwargs())
-logs_client = boto3.client('logs', config=ecs_boto_config, **_get_boto3_kwargs())
 
 
 def get_dynamodb_table(table_name: str):

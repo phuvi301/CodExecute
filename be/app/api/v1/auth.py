@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, SendOTPRequest, VerifyOTPRequest, OAuthLoginRequest
 from app.services import auth_service, otp_service, email_service, oauth_service
 from app.core import security
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -128,7 +129,7 @@ async def login(payload: LoginRequest, response: Response):
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,  # Đổi thành True trên Production (HTTPS)
+        secure=settings.ENVIRONMENT == "production",
         samesite="lax",
         path="/"
     )
