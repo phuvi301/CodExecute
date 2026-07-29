@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
 	MapPin,
 	Mail,
@@ -26,6 +26,8 @@ import {
 	Trash2,
 	Loader2,
 	FileText,
+	FileCode2,
+	Calendar,
 	MoreVertical
 } from 'lucide-react';
 import { Card } from '../ui/card';
@@ -63,11 +65,14 @@ import {
 	deletePostApi,
 	deleteCommentApi,
 	getAccessToken,
+	getMySubmissionsApi,
 	PostItem,
-	UserProfile as UserProfileType
+	UserProfile as UserProfileType,
+	UserAchievementItem
 } from '../../services/api';
 import { FollowListModal } from './FollowListModal';
 import { FormattedPostContent } from '../feed/FormattedPostContent';
+import { AchievementSelector } from '../feed/AchievementSelector';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -121,14 +126,46 @@ export function UserProfile() {
 	const [codeLanguage, setCodeLanguage] = useState('python');
 	const [codeText, setCodeText] = useState('');
 	const [achievementText, setAchievementText] = useState('');
+	const [selectedAchievement, setSelectedAchievement] = useState<UserAchievementItem | null>(null);
+	const [currentUserProfile, setCurrentUserProfile] = useState<UserProfileType | null>(null);
 	const [tagInput, setTagInput] = useState('');
 	const [tags, setTags] = useState<string[]>(['Discussion', 'CodExecute']);
 	const [isPosting, setIsPosting] = useState(false);
+
+	// Fetch current user achievements if not on own profile
+	useEffect(() => {
+		if (currentUser?.user_id) {
+			getProfileApi(currentUser.user_id).then(data => {
+				setCurrentUserProfile(data);
+			}).catch(err => console.error('Failed to load current user profile:', err));
+		}
+	}, [currentUser?.user_id]);
+
+	const myAchievements = currentUserProfile?.achievements || (profile?.user_id === currentUser?.user_id ? profile?.achievements : []) || currentUser?.achievements || [];
+
+	useEffect(() => {
+		if (postType === 'achievement') {
+			const unlocked = myAchievements.filter(a => a.unlocked);
+			if (unlocked.length > 0 && !selectedAchievement) {
+				setSelectedAchievement(unlocked[0]);
+				setAchievementText(unlocked[0].title);
+			}
+		}
+	}, [postType, myAchievements]);
 
 	// Comments state
 	const [openCommentsMap, setOpenCommentsMap] = useState<Record<string, boolean>>({});
 	const [commentInputsMap, setCommentInputsMap] = useState<Record<string, string>>({});
 	const [commentSubmittingMap, setCommentSubmittingMap] = useState<Record<string, boolean>>({});
+	const [allSubmissions, setAllSubmissions] = useState<any[]>([]);
+
+	useEffect(() => {
+		if (targetUserId && currentUser?.user_id && targetUserId === currentUser.user_id) {
+			getMySubmissionsApi().then(data => {
+				if (Array.isArray(data)) setAllSubmissions(data);
+			}).catch(() => {});
+		}
+	}, [targetUserId, currentUser?.user_id]);
 
 	const fetchUserPosts = async () => {
 		if (!targetUserId) return;
@@ -427,18 +464,35 @@ export function UserProfile() {
 	};
 
 	const handleSubmitNewPost = async () => {
-		if (isPostContentEmpty(postContent)) return;
-
 		const authToken = getAccessToken();
 		if (!authToken) {
 			navigate('/login');
 			return;
 		}
 
+		if (postType === 'achievement') {
+			if (!selectedAchievement && !achievementText.trim()) {
+				alert('Please select an unlocked achievement to publish your post.');
+				return;
+			}
+		} else {
+			if (isPostContentEmpty(postContent)) return;
+		}
+
 		try {
 			setIsPosting(true);
+			const titleToUse = selectedAchievement?.title || achievementText.trim();
+			const descToUse = selectedAchievement?.desc || '';
+			const defaultAchievementContent = descToUse
+				? `🏆 I unlocked the achievement "${titleToUse}": ${descToUse}`
+				: `🏆 I unlocked the achievement "${titleToUse}"`;
+
+			const finalContent = postType === 'achievement'
+				? (postContent.trim() || defaultAchievementContent)
+				: postContent.trim();
+
 			const payload: any = {
-				content: postContent.trim(),
+				content: finalContent,
 				type: postType,
 				tags: tags.length > 0 ? tags : ['CodExecute']
 			};
@@ -451,8 +505,8 @@ export function UserProfile() {
 				};
 			}
 
-			if (postType === 'achievement' && achievementText.trim()) {
-				payload.achievement = achievementText.trim();
+			if (postType === 'achievement' && titleToUse) {
+				payload.achievement = titleToUse;
 			}
 
 			const newPost = await createPostApi(authToken, payload);
@@ -461,9 +515,11 @@ export function UserProfile() {
 			setPostContent('');
 			setCodeText('');
 			setAchievementText('');
+			setSelectedAchievement(null);
 			setIsCreateModalOpen(false);
 		} catch (err: any) {
 			console.error('Failed to create post:', err);
+			alert(err.message || 'Không thể tạo bài viết');
 		} finally {
 			setIsPosting(false);
 		}
@@ -536,44 +592,125 @@ export function UserProfile() {
 		setTimeout(() => setCopied(false), 2000);
 	};
 
-	const achievements = [
-		{ id: 1, title: '100 Day Streak', desc: 'Solved coding problems for 100 consecutive days', icon: Trophy, color: 'text-amber-500', bg: 'bg-amber-500/10 border-amber-500/20', unlocked: true },
-		{ id: 2, title: 'Algorithm Master', desc: 'Solved over 50 hard algorithm problems', icon: Star, color: 'text-purple-500', bg: 'bg-purple-500/10 border-purple-500/20', unlocked: true },
-		{ id: 3, title: 'Speed Demon', desc: 'Beat 95%+ runtime on 20 different problems', icon: Zap, color: 'text-blue-500', bg: 'bg-blue-500/10 border-blue-500/20', unlocked: true },
-		{ id: 4, title: 'Problem Solver', desc: 'Successfully solved over 80 coding challenges', icon: Code2, color: 'text-emerald-500', bg: 'bg-emerald-500/10 border-emerald-500/20', unlocked: true },
-		{ id: 5, title: 'Graph Guru', desc: 'Mastered all Graph & BFS/DFS problems', icon: Sparkles, color: 'text-rose-500', bg: 'bg-rose-500/10 border-rose-500/20', unlocked: true },
-		{ id: 6, title: 'Community Star', desc: 'Received 100+ likes on solution discussions', icon: Award, color: 'text-cyan-500', bg: 'bg-cyan-500/10 border-cyan-500/20', unlocked: false }
-	];
+	const ICON_MAP: Record<string, any> = {
+		Code2,
+		CheckCircle2,
+		Flame,
+		Trophy,
+		Zap,
+		Sparkles,
+		Star,
+		Award,
+		Clock,
+	};
+
+	const achievementsList = profile?.achievements || [];
 
 	const problemStats = [
-		{ label: 'Easy', count: 45, total: 100, color: 'bg-emerald-500', badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' },
-		{ label: 'Medium', count: 32, total: 150, color: 'bg-amber-500', badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30' },
-		{ label: 'Hard', count: 10, total: 80, color: 'bg-rose-500', badgeClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30' }
+		{
+			label: 'Easy',
+			count: profile?.stats?.easy_solved || 0,
+			total: profile?.stats?.total_easy || 0,
+			color: 'bg-emerald-500',
+			badgeClass: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+		},
+		{
+			label: 'Medium',
+			count: profile?.stats?.medium_solved || 0,
+			total: profile?.stats?.total_medium || 0,
+			color: 'bg-amber-500',
+			badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+		},
+		{
+			label: 'Hard',
+			count: profile?.stats?.hard_solved || 0,
+			total: profile?.stats?.total_hard || 0,
+			color: 'bg-rose-500',
+			badgeClass: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+		}
 	];
 
-	const recentSubmissions = [
-		{ problem: 'Two Sum', difficulty: 'Easy', status: 'Accepted', runtime: '52 ms', beats: '88.4%', time: '2 hours ago' },
-		{ problem: 'Binary Tree Level Order Traversal', difficulty: 'Medium', status: 'Accepted', runtime: '64 ms', beats: '92.1%', time: '5 hours ago' },
-		{ problem: 'Longest Substring Without Repeating', difficulty: 'Medium', status: 'Accepted', runtime: '78 ms', beats: '84.5%', time: '1 day ago' },
-		{ problem: 'Median of Two Sorted Arrays', difficulty: 'Hard', status: 'Accepted', runtime: '44 ms', beats: '98.4%', time: '2 days ago' },
-		{ problem: 'Valid Parentheses', difficulty: 'Easy', status: 'Accepted', runtime: '36 ms', beats: '96.2%', time: '3 days ago' }
+	const recentSubmissionsList = profile?.recent_submissions || [];
+	const skillsList = profile?.skills && profile.skills.length > 0
+		? profile.skills
+		: [
+			{ name: 'Python', level: 0, category: 'Language' },
+			{ name: 'C++', level: 0, category: 'Language' }
+		];
+
+	const dynamicActivity = [
+		...(recentSubmissionsList.slice(0, 5).map((sub, idx) => ({
+			id: `sub-${idx}`,
+			type: 'problem',
+			title: `Solved "${sub.problem}"`,
+			detail: `Language: ${sub.language} • Runtime: ${sub.runtime} • Memory: ${sub.memory}`,
+			time: formatTimeAgo(sub.submitted_at)
+		}))),
+		...(achievementsList.filter(a => a.unlocked).map((ach, idx) => ({
+			id: `ach-${idx}`,
+			type: 'achievement',
+			title: `Unlocked Achievement "${ach.title}"`,
+			detail: ach.desc,
+			time: formatTimeAgo(ach.unlocked_at)
+		})))
 	];
 
-	const skills = [
-		{ name: 'Python', level: 92, category: 'Language' },
-		{ name: 'JavaScript', level: 88, category: 'Language' },
-		{ name: 'Data Structures', level: 85, category: 'Core' },
-		{ name: 'Algorithms & Dynamic Programming', level: 80, category: 'Core' },
-		{ name: 'C++', level: 74, category: 'Language' },
-		{ name: 'System Design', level: 70, category: 'Architecture' }
-	];
+	// Heatmap computation for User Profile
+	const { heatmapWeeks, heatmapMonthHeaders } = useMemo(() => {
+		const submissionDatesMap: Record<string, number> = {};
+		
+		const sourceList = allSubmissions.length > 0 ? allSubmissions : recentSubmissionsList;
+		if (Array.isArray(sourceList)) {
+			sourceList.forEach((sub: any) => {
+				if (sub.submitted_at) {
+					const dStr = sub.submitted_at.substring(0, 10);
+					submissionDatesMap[dStr] = (submissionDatesMap[dStr] || 0) + 1;
+				}
+			});
+		}
 
-	const recentActivity = [
-		{ id: 1, type: 'problem', title: 'Solved "Two Sum" with Optimal Hash Map', detail: 'Runtime: 52 ms (Beats 88.4%)', time: '2 hours ago' },
-		{ id: 2, type: 'achievement', title: 'Unlocked Badge "100 Day Streak"', detail: 'Completed daily challenges for 100 days straight!', time: '1 day ago' },
-		{ id: 3, type: 'problem', title: 'Solved "Median of Two Sorted Arrays"', detail: 'Binary Search partition strategy • Runtime: 44 ms', time: '2 days ago' },
-		{ id: 4, type: 'discussion', title: 'Posted solution in "Optimal Approach using Hash Map"', detail: 'Received 14 upvotes from the community', time: '3 days ago' }
-	];
+		const today = new Date();
+		const startDate = new Date(today);
+		startDate.setDate(today.getDate() - 364);
+		const dayOfWeek = startDate.getDay(); // 0 = Sun
+		startDate.setDate(startDate.getDate() - dayOfWeek);
+
+		const weeks: Array<Array<{ dateStr: string; count: number; date: Date }>> = [];
+		const months: Array<{ name: string; colIndex: number }> = [];
+
+		let currentWeek: Array<{ dateStr: string; count: number; date: Date }> = [];
+		let lastMonth = '';
+		let colIndex = 0;
+
+		const curr = new Date(startDate);
+		while (curr <= today || currentWeek.length > 0) {
+			const dateStr = curr.toISOString().substring(0, 10);
+			const count = submissionDatesMap[dateStr] || 0;
+			const monthName = curr.toLocaleString('en-US', { month: 'short' });
+
+			if (monthName !== lastMonth && curr <= today) {
+				months.push({ name: monthName, colIndex });
+				lastMonth = monthName;
+			}
+
+			currentWeek.push({
+				dateStr,
+				count,
+				date: new Date(curr)
+			});
+
+			if (currentWeek.length === 7) {
+				weeks.push(currentWeek);
+				currentWeek = [];
+				colIndex++;
+			}
+
+			curr.setDate(curr.getDate() + 1);
+			if (curr > today && currentWeek.length === 0) break;
+		}
+
+		return { heatmapWeeks: weeks, heatmapMonthHeaders: months };
+	}, [allSubmissions, recentSubmissionsList]);
 
 	if (isLoading) {
 		return (
@@ -682,17 +819,29 @@ export function UserProfile() {
 							<span>{copied ? 'Link Copied' : 'Share'}</span>
 						</Button>
 
-						{/* Nếu là profile của bản thân: Hiển thị Edit Profile */}
+						{/* Nếu là profile của bản thân: Hiển thị Submissions History & Edit Profile */}
 						{profile?.can_edit && (
-							<Button
-								variant="outline"
-								size="sm"
-								className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer"
-								onClick={() => navigate('/settings')}
-							>
-								<Pencil className="w-4 h-4 text-primary" />
-								<span>Edit Profile</span>
-							</Button>
+							<>
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer text-foreground"
+									onClick={() => navigate('/submissions')}
+								>
+									<FileCode2 className="w-4 h-4 text-primary" />
+									<span>Submissions History</span>
+								</Button>
+
+								<Button
+									variant="outline"
+									size="sm"
+									className="gap-2 rounded-xl h-10 px-4 text-xs font-semibold border-border hover:bg-accent cursor-pointer"
+									onClick={() => navigate('/settings')}
+								>
+									<Pencil className="w-4 h-4 text-primary" />
+									<span>Edit Profile</span>
+								</Button>
+							</>
 						)}
 
 						{/* Nếu là profile người khác: Hiển thị Follow / Following */}
@@ -717,60 +866,156 @@ export function UserProfile() {
 				{/* Developer Stat Highlights Cards */}
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-border/60">
 					{/* Problems Solved */}
-					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
-						<div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20 shrink-0">
+					<Card
+						onClick={() => navigate('/submissions')}
+						className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all cursor-pointer group"
+					>
+						<div className="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center border border-emerald-500/20 shrink-0 group-hover:scale-105 transition-transform">
 							<Code2 className="w-6 h-6" />
 						</div>
 						<div>
-							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Problems Solved</p>
+							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-emerald-500 transition-colors">Problems Solved</p>
 							<div className="flex items-baseline gap-2 mt-0.5">
-								<span className="text-2xl font-extrabold text-foreground">87</span>
-								<span className="text-xs text-emerald-500 font-semibold font-mono">26% Total</span>
+								<span className="text-2xl font-extrabold text-foreground">{profile?.stats?.solved_count ?? 0}</span>
+								<span className="text-xs text-emerald-500 font-semibold font-mono">
+									{profile?.stats?.total_problems ? Math.round((profile.stats.solved_count / profile.stats.total_problems) * 100) : 0}% Total
+								</span>
 							</div>
 						</div>
 					</Card>
 
 					{/* Acceptance Rate */}
-					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
-						<div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20 shrink-0">
+					<Card
+						onClick={() => navigate('/submissions')}
+						className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-blue-500/50 hover:bg-blue-500/5 transition-all cursor-pointer group"
+					>
+						<div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20 shrink-0 group-hover:scale-105 transition-transform">
 							<TrendingUp className="w-6 h-6" />
 						</div>
 						<div>
-							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Acceptance Rate</p>
+							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-blue-500 transition-colors">Acceptance Rate</p>
 							<div className="flex items-baseline gap-2 mt-0.5">
-								<span className="text-2xl font-extrabold text-foreground">68.4%</span>
-								<span className="text-xs text-blue-500 font-semibold font-mono">120 Subs</span>
+								<span className="text-2xl font-extrabold text-foreground">{profile?.stats?.acceptance_rate ?? 0}%</span>
+								<span className="text-xs text-blue-500 font-semibold font-mono">{profile?.stats?.total_submissions ?? 0} Subs</span>
 							</div>
 						</div>
 					</Card>
 
 					{/* Day Streak */}
-					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
-						<div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20 shrink-0">
+					<Card
+						onClick={() => navigate('/streak')}
+						className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all cursor-pointer group"
+					>
+						<div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20 shrink-0 group-hover:scale-105 transition-transform">
 							<Flame className="w-6 h-6 fill-amber-500" />
 						</div>
 						<div>
-							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Active Streak</p>
+							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-amber-500 transition-colors">Active Streak</p>
 							<div className="flex items-baseline gap-2 mt-0.5">
-								<span className="text-2xl font-extrabold text-foreground">47 Days</span>
-								<span className="text-xs text-amber-500 font-semibold font-mono">Best: 60</span>
+								<span className="text-2xl font-extrabold text-foreground">{profile?.streak?.current_streak ?? 0} Days</span>
+								<span className="text-xs text-amber-500 font-semibold font-mono">Best: {profile?.streak?.best_streak ?? 0}</span>
 							</div>
 						</div>
 					</Card>
 
-					{/* Achievements Count */}
-					<Card className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-primary/40 transition-colors">
-						<div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center border border-purple-500/20 shrink-0">
+					{/* Global Rank */}
+					<Card
+						onClick={() => navigate('/leaderboard')}
+						className="p-4 bg-card/60 backdrop-blur-xl border border-border/80 rounded-xl shadow-sm flex items-center gap-4 hover:border-purple-500/50 hover:bg-purple-500/5 transition-all cursor-pointer group"
+					>
+						<div className="w-12 h-12 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center border border-purple-500/20 shrink-0 group-hover:scale-105 transition-transform">
 							<Trophy className="w-6 h-6" />
 						</div>
 						<div>
-							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Badges Unlocked</p>
+							<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground group-hover:text-purple-500 transition-colors">Leaderboard</p>
 							<div className="flex items-baseline gap-2 mt-0.5">
-								<span className="text-2xl font-extrabold text-foreground">15</span>
-								<span className="text-xs text-purple-500 font-semibold font-mono">Top 5%</span>
+								<span className="text-2xl font-extrabold text-foreground">#{profile?.rank ?? 1}</span>
+								<span className="text-xs text-purple-500 font-semibold font-mono">of {profile?.total_users ?? 1} Users</span>
 							</div>
 						</div>
 					</Card>
+				</div>
+
+				{/* 365-Day Activity Heatmap Grid */}
+				<div className="pt-4 border-t border-border/60">
+					<div className="flex items-center justify-between mb-3">
+						<div className="flex items-center gap-2">
+							<Calendar className="w-4 h-4 text-primary" />
+							<h3 className="text-sm font-bold text-foreground">Activity Heatmap</h3>
+						</div>
+						<Button
+							variant="ghost"
+							size="sm"
+							className="text-xs text-primary font-medium hover:underline gap-1 cursor-pointer h-7 px-2"
+							onClick={() => navigate('/streak')}
+						>
+							<span>View Streak & Activity Details</span>
+							<ExternalLink className="w-3 h-3" />
+						</Button>
+					</div>
+
+					<div className="overflow-x-auto pb-2">
+						<div className="min-w-[760px] space-y-2">
+							{/* Month Headers */}
+							<div className="flex text-[11px] font-mono text-muted-foreground pl-10 h-4 relative">
+								{heatmapMonthHeaders.map((m, idx) => (
+									<span
+										key={`${m.name}-${idx}`}
+										style={{ left: `${m.colIndex * 20 + 40}px` }}
+										className="absolute"
+									>
+										{m.name}
+									</span>
+								))}
+							</div>
+
+							{/* Days of Week Labels + Grid Matrix */}
+							<div className="flex gap-2 items-start">
+								{/* Day of Week Labels */}
+								<div className="grid grid-rows-7 gap-1.5 text-[10px] font-mono text-muted-foreground shrink-0 leading-3 py-0.5 text-right w-8">
+									<span>Sun</span>
+									<span>Mon</span>
+									<span>Tue</span>
+									<span>Wed</span>
+									<span>Thu</span>
+									<span>Fri</span>
+									<span>Sat</span>
+								</div>
+
+								{/* Heatmap Weeks Grid */}
+								<div className="flex gap-1.5 flex-1">
+									{heatmapWeeks.map((week, wIdx) => (
+										<div key={wIdx} className="grid grid-rows-7 gap-1.5">
+											{week.map((day) => {
+												let bgClass = 'bg-muted/40 border border-border/40';
+												if (day.count === 1) bgClass = 'bg-emerald-900/60 dark:bg-emerald-950/80 border border-emerald-700/50 text-emerald-300';
+												else if (day.count >= 2 && day.count <= 3) bgClass = 'bg-emerald-600/80 border border-emerald-500 text-white';
+												else if (day.count >= 4) bgClass = 'bg-emerald-400 border border-emerald-300 text-slate-950';
+
+												return (
+													<div
+														key={day.dateStr}
+														title={`${day.dateStr}: ${day.count} submission${day.count === 1 ? '' : 's'}`}
+														className={`w-3.5 h-3.5 rounded-sm transition-all hover:scale-125 cursor-pointer ${bgClass}`}
+													/>
+												);
+											})}
+										</div>
+									))}
+								</div>
+							</div>
+
+							{/* Legend */}
+							<div className="flex items-center justify-end gap-2 text-[11px] text-muted-foreground pt-1">
+								<span>Less</span>
+								<div className="w-3.5 h-3.5 rounded-sm bg-muted/40 border border-border/40" />
+								<div className="w-3.5 h-3.5 rounded-sm bg-emerald-900/60 dark:bg-emerald-950/80 border border-emerald-700/50" />
+								<div className="w-3.5 h-3.5 rounded-sm bg-emerald-600/80 border border-emerald-500" />
+								<div className="w-3.5 h-3.5 rounded-sm bg-emerald-400 border border-emerald-300" />
+								<span>More</span>
+							</div>
+						</div>
+					</div>
 				</div>
 			</Card>
 
@@ -1200,7 +1445,7 @@ export function UserProfile() {
 								</div>
 								<div className="space-y-2">
 									<div className="w-full bg-muted rounded-full h-2.5 overflow-hidden p-0.5 border border-border/40">
-										<div className={`${stat.color} h-full rounded-full transition-all duration-500`} style={{ width: `${(stat.count / stat.total) * 100}%` }}></div>
+										<div className={`${stat.color} h-full rounded-full transition-all duration-500`} style={{ width: `${stat.total > 0 ? (stat.count / stat.total) * 100 : 0}%` }}></div>
 									</div>
 									<div className="flex justify-between text-xs text-muted-foreground font-mono">
 										<span>Progress</span>
@@ -1218,80 +1463,130 @@ export function UserProfile() {
 								<CheckCircle2 className="w-5 h-5 text-emerald-500" />
 								<span>Recent Accepted Submissions</span>
 							</h3>
-							<Button variant="ghost" size="sm" className="text-xs text-primary font-medium hover:underline gap-1" onClick={() => navigate('/problems')}>
-								<span>View All Problems</span>
-								<ExternalLink className="w-3.5 h-3.5" />
-							</Button>
-						</div>
-
-						<div className="space-y-2.5">
-							{recentSubmissions.map((submission, i) => (
-								<div
-									key={i}
-									className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-background/60 rounded-xl border border-border/60 hover:border-primary/40 transition-colors cursor-pointer gap-3"
-									onClick={() => navigate('/problems/1')}
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									className="text-xs text-primary font-medium hover:bg-accent gap-1.5 rounded-xl cursor-pointer"
+									onClick={() => navigate('/submissions')}
 								>
-									<div className="flex items-center gap-3">
-										<Badge
-											variant="outline"
-											className={`text-xs px-2.5 py-0.5 font-medium shrink-0 ${
-												submission.difficulty === 'Easy'
-													? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-													: submission.difficulty === 'Medium'
-													? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-													: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
-											}`}
-										>
-											{submission.difficulty}
-										</Badge>
-										<span className="text-foreground font-semibold text-sm hover:text-primary transition-colors">
-											{submission.problem}
-										</span>
-									</div>
-
-									<div className="flex items-center gap-4 text-xs font-mono shrink-0">
-										<Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-[11px] gap-1">
-											<Check className="w-3 h-3" />
-											<span>{submission.status}</span>
-										</Badge>
-										<span className="text-muted-foreground">{submission.runtime}</span>
-										<span className="text-emerald-500 font-semibold">{submission.beats}</span>
-										<span className="text-muted-foreground/60">{submission.time}</span>
-									</div>
-								</div>
-							))}
+									<FileCode2 className="w-3.5 h-3.5" />
+									<span>Submissions History</span>
+								</Button>
+								<Button variant="ghost" size="sm" className="text-xs text-primary font-medium hover:underline gap-1 cursor-pointer" onClick={() => navigate('/problems')}>
+									<span>View All Problems</span>
+									<ExternalLink className="w-3.5 h-3.5" />
+								</Button>
+							</div>
 						</div>
+
+						{recentSubmissionsList.length === 0 ? (
+							<div className="p-8 text-center text-muted-foreground text-xs font-medium">
+								No submissions recorded yet. Solve a problem to start tracking your progress!
+							</div>
+						) : (
+							<div className="space-y-2.5">
+								{recentSubmissionsList.map((submission, i) => (
+									<div
+										key={submission.submission_id || i}
+										className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 bg-background/60 rounded-xl border border-border/60 hover:border-primary/40 transition-colors cursor-pointer gap-3"
+										onClick={() => navigate(`/problems/${submission.problem_id}`)}
+									>
+										<div className="flex items-center gap-3">
+											<Badge
+												variant="outline"
+												className={`text-xs px-2.5 py-0.5 font-medium shrink-0 ${
+													submission.difficulty === 'Easy'
+														? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+														: submission.difficulty === 'Medium'
+														? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+														: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+												}`}
+											>
+												{submission.difficulty || 'Easy'}
+											</Badge>
+											<span className="text-foreground font-semibold text-sm hover:text-primary transition-colors">
+												{submission.problem}
+											</span>
+										</div>
+
+										<div className="flex items-center gap-4 text-xs font-mono shrink-0">
+											<Badge
+												variant="outline"
+												className={`text-[11px] gap-1 ${
+													submission.status === 'Accepted'
+														? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
+														: 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+												}`}
+											>
+												{submission.status === 'Accepted' ? <Check className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+												<span>{submission.status}</span>
+											</Badge>
+											<span className="text-muted-foreground">{submission.runtime}</span>
+											<span className="text-muted-foreground">{submission.memory}</span>
+											<span className="text-muted-foreground/60">{formatTimeAgo(submission.submitted_at)}</span>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
 					</Card>
 				</TabsContent>
 
-				{/* TAB 2: Achievements & Badges */}
+				{/* TAB 2: Achievements */}
 				<TabsContent value="achievements" className="space-y-4">
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-						{achievements.map((achievement) => (
-							<Card
-								key={achievement.id}
-								className={`p-5 bg-card/60 backdrop-blur-xl border rounded-2xl shadow-sm transition-all ${
-									achievement.unlocked ? 'border-border/80 hover:border-primary/40' : 'border-border/40 opacity-60'
-								}`}
-							>
-								<div className="flex items-start gap-4">
-									<div className={`w-14 h-14 rounded-2xl border flex items-center justify-center shrink-0 ${achievement.bg}`}>
-										<achievement.icon className={`w-7 h-7 ${achievement.color}`} />
-									</div>
-									<div className="space-y-1">
-										<div className="flex items-center gap-2">
-											<h4 className="text-foreground font-bold text-sm">{achievement.title}</h4>
-											{achievement.unlocked ? (
-												<Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-[10px] px-1.5 py-0">Unlocked</Badge>
-											) : (
-												<Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0">Locked</Badge>
-											)}
+						{achievementsList.map((achievement) => {
+							const IconComponent = ICON_MAP[achievement.icon] || Trophy;
+							const isUnlocked = achievement.unlocked;
+							const getCategoryBg = (cat: string) => {
+								switch (cat) {
+									case 'Solving': return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+									case 'Streak': return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+									case 'Performance': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+									case 'Challenge': return 'bg-rose-500/10 text-rose-500 border-rose-500/20';
+									default: return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+								}
+							};
+
+							return (
+								<Card
+									key={achievement.id}
+									className={`p-5 bg-card/60 backdrop-blur-xl border rounded-2xl shadow-sm transition-all ${
+										isUnlocked ? 'border-border/80 hover:border-primary/40' : 'border-border/40 opacity-60'
+									}`}
+								>
+									<div className="flex items-start gap-4">
+										<div className={`w-14 h-14 rounded-2xl border flex items-center justify-center shrink-0 ${getCategoryBg(achievement.category)}`}>
+											<IconComponent className="w-7 h-7" />
 										</div>
-										<p className="text-muted-foreground text-xs leading-relaxed">{achievement.desc}</p>
+										<div className="space-y-1 flex-1">
+											<div className="flex items-center justify-between gap-2">
+												<h4 className="text-foreground font-bold text-sm">{achievement.title}</h4>
+												{isUnlocked ? (
+													<Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-[10px] px-1.5 py-0">Unlocked</Badge>
+												) : (
+													<Badge variant="outline" className="text-muted-foreground text-[10px] px-1.5 py-0">Locked</Badge>
+												)}
+											</div>
+											<p className="text-muted-foreground text-xs leading-relaxed">{achievement.desc}</p>
+											<div className="pt-2 space-y-1">
+												<div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+													<div
+														className={`h-full rounded-full transition-all ${isUnlocked ? 'bg-emerald-500' : 'bg-primary/50'}`}
+														style={{ width: `${Math.min(100, (achievement.progress / achievement.max_progress) * 100)}%` }}
+													/>
+												</div>
+												<div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+													<span>Progress</span>
+													<span>{achievement.progress} / {achievement.max_progress}</span>
+												</div>
+											</div>
+										</div>
 									</div>
-								</div>
-							</Card>
-						))}
+								</Card>
+							);
+						})}
 					</div>
 				</TabsContent>
 
@@ -1299,12 +1594,12 @@ export function UserProfile() {
 				<TabsContent value="skills" className="space-y-4">
 					<Card className="p-6 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm space-y-6">
 						<div>
-							<h3 className="text-foreground font-bold text-lg mb-1">Developer Skills & Proficiency</h3>
-							<p className="text-muted-foreground text-xs">Based on solved problems, algorithm categories, and code submissions.</p>
+							<h3 className="text-foreground font-bold text-lg mb-1">Developer Skills & Languages</h3>
+							<p className="text-muted-foreground text-xs">Based on programming languages used in code submissions.</p>
 						</div>
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-							{skills.map((skill) => (
+							{skillsList.map((skill) => (
 								<div key={skill.name} className="space-y-2 p-4 rounded-xl bg-background/60 border border-border/60">
 									<div className="flex justify-between items-center text-sm font-medium">
 										<span className="text-foreground font-semibold flex items-center gap-2">
@@ -1335,20 +1630,26 @@ export function UserProfile() {
 							<span>Recent Activity Timeline</span>
 						</h3>
 
-						<div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
-							{recentActivity.map((act) => (
-								<div key={act.id} className="relative flex items-start gap-4">
-									<div className="absolute -left-6 top-1.5 w-3 h-3 rounded-full bg-primary ring-4 ring-background"></div>
-									<div className="bg-background/60 p-4 rounded-xl border border-border/60 flex-1 space-y-1">
-										<div className="flex items-center justify-between gap-2">
-											<h4 className="text-foreground font-bold text-sm">{act.title}</h4>
-											<span className="text-xs text-muted-foreground font-mono">{act.time}</span>
+						{dynamicActivity.length === 0 ? (
+							<div className="p-6 text-center text-muted-foreground text-xs font-medium">
+								No activity logged yet.
+							</div>
+						) : (
+							<div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">
+								{dynamicActivity.map((act) => (
+									<div key={act.id} className="relative flex items-start gap-4">
+										<div className="absolute -left-6 top-1.5 w-3 h-3 rounded-full bg-primary ring-4 ring-background"></div>
+										<div className="bg-background/60 p-4 rounded-xl border border-border/60 flex-1 space-y-1">
+											<div className="flex items-center justify-between gap-2">
+												<h4 className="text-foreground font-bold text-sm">{act.title}</h4>
+												<span className="text-xs text-muted-foreground font-mono">{act.time}</span>
+											</div>
+											<p className="text-muted-foreground text-xs">{act.detail}</p>
 										</div>
-										<p className="text-muted-foreground text-xs">{act.detail}</p>
 									</div>
-								</div>
-							))}
-						</div>
+								))}
+							</div>
+						)}
 					</Card>
 				</TabsContent>
 			</Tabs>
@@ -1631,12 +1932,35 @@ export function UserProfile() {
 							</div>
 						</div>
 
-						{/* Main Post Live Rich Text WYSIWYG Editor */}
-						<PostRichTextEditor
-							value={postContent}
-							onChange={setPostContent}
-							placeholder="Share code snippet, ask an algorithm question, or post a coding milestone..."
-						/>
+						{/* Post Content Area: Rich Text Editor for normal posts, or Achievement Selector for Milestones */}
+						{postType === 'achievement' ? (
+							<div className="space-y-3">
+								<AchievementSelector
+									achievements={myAchievements}
+									selectedAchievement={selectedAchievement}
+									onSelect={(ach) => {
+										setSelectedAchievement(ach);
+										setAchievementText(ach.title);
+									}}
+								/>
+								<div className="space-y-1.5 pt-1">
+									<label className="text-xs font-semibold text-muted-foreground">Additional Note (Optional)</label>
+									<textarea
+										value={postContent}
+										onChange={(e) => setPostContent(e.target.value)}
+										placeholder={selectedAchievement ? `🎉 Share your thoughts about "${selectedAchievement.title}"...` : "Write a note about this achievement..."}
+										rows={2}
+										className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all resize-none"
+									/>
+								</div>
+							</div>
+						) : (
+							<PostRichTextEditor
+								value={postContent}
+								onChange={setPostContent}
+								placeholder="Share code snippet, ask an algorithm question, or post a coding milestone..."
+							/>
+						)}
 
 						{/* Code Snippet Attachment Form (IDE Style) */}
 						{postType === 'code-share' && (
@@ -1714,23 +2038,6 @@ export function UserProfile() {
 							</div>
 						)}
 
-						{/* Milestone Attachment Form */}
-						{postType === 'achievement' && (
-							<div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
-								<label className="text-xs font-bold text-amber-500 flex items-center gap-1.5">
-									<Trophy className="w-4 h-4 fill-amber-500" />
-									<span>Achievement Title</span>
-								</label>
-								<input
-									type="text"
-									value={achievementText}
-									onChange={(e) => setAchievementText(e.target.value)}
-									placeholder="e.g. Solved 100 Dynamic Programming Problems!"
-									className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all"
-								/>
-							</div>
-						)}
-
 						{/* Tags Input */}
 						<div className="space-y-1.5">
 							<label className="text-xs font-semibold text-muted-foreground">Tags (comma separated)</label>
@@ -1775,7 +2082,12 @@ export function UserProfile() {
 						<Button
 							type="button"
 							size="sm"
-							disabled={isPosting || isPostContentEmpty(postContent)}
+							disabled={
+								isPosting ||
+								(postType === 'achievement'
+									? !selectedAchievement && !achievementText.trim()
+									: isPostContentEmpty(postContent))
+							}
 							onClick={handleSubmitNewPost}
 							className="rounded-xl h-9 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-sm cursor-pointer"
 						>

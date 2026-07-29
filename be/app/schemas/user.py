@@ -67,3 +67,10 @@ class UserProfileResponse(BaseModel):
     is_following: bool = False
     followers_count: int = 0
     following_count: int = 0
+    rank: Optional[int] = 1
+    total_users: Optional[int] = 1
+    streak: Optional[dict] = None
+    stats: Optional[dict] = None
+    achievements: Optional[list] = None
+    skills: Optional[list] = None
+    recent_submissions: Optional[list] = None

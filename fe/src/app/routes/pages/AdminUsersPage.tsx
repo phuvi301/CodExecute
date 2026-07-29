@@ -6,12 +6,23 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
-import { Users, Search, Edit, ArrowLeft, Loader2, RefreshCw, Shield } from 'lucide-react';
-import { UserProfile, adminGetUsersApi } from '../../services/api';
+import { Users, Search, Edit, Trash2, ArrowLeft, Loader2, RefreshCw, Shield, AlertTriangle } from 'lucide-react';
+import { UserProfile, adminGetUsersApi, adminDeleteUserApi } from '../../services/api';
 import { AdminUserEditModal } from '../../components/admin/AdminUserEditModal';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+} from '../../components/ui/alert-dialog';
+import { useAuth } from '../../context/AuthContext';
 
 export function AdminUsersPage() {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -19,6 +30,11 @@ export function AdminUsersPage() {
 
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // Delete User state
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -39,6 +55,21 @@ export function AdminUsersPage() {
   const handleOpenEdit = (user: UserProfile) => {
     setSelectedUser(user);
     setIsEditModalOpen(true);
+  };
+
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await adminDeleteUserApi(userToDelete.user_id);
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (err: any) {
+      setDeleteError(err.message || 'An error occurred while deleting user');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const getInitials = (name?: string) => {
@@ -140,6 +171,7 @@ export function AdminUsersPage() {
             <TableBody>
               {filteredUsers.map((u) => {
                 const isAdmin = u.role === 'admin';
+                const isSelf = u.user_id === currentUser?.user_id;
 
                 return (
                   <TableRow key={u.user_id} className="border-border hover:bg-accent/40">
@@ -152,7 +184,14 @@ export function AdminUsersPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-semibold text-sm text-foreground">{u.full_name || 'No Name'}</p>
+                          <p className="font-semibold text-sm text-foreground flex items-center gap-1.5">
+                            {u.full_name || 'No Name'}
+                            {isSelf && (
+                              <span className="text-[10px] bg-blue-500/10 text-blue-600 dark:text-blue-400 font-normal px-1.5 py-0.2 rounded border border-blue-500/20">
+                                You
+                              </span>
+                            )}
+                          </p>
                           <p className="text-[11px] text-muted-foreground font-mono">ID: {u.user_id.substring(0, 8)}...</p>
                         </div>
                       </div>
@@ -178,15 +217,31 @@ export function AdminUsersPage() {
                       {u.created_at ? new Date(u.created_at).toLocaleDateString('en-US') : '-'}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleOpenEdit(u)}
-                        className="h-8 px-2.5 gap-1.5 text-xs hover:bg-blue-500/10 hover:text-blue-600 border-border"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenEdit(u)}
+                          className="h-8 px-2.5 gap-1.5 text-xs hover:bg-blue-500/10 hover:text-blue-600 border-border"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={isSelf}
+                          onClick={() => {
+                            setUserToDelete(u);
+                            setDeleteError('');
+                          }}
+                          className="h-8 px-2.5 gap-1.5 text-xs text-red-600 hover:bg-red-500/10 hover:text-red-700 border-red-200 dark:border-red-900/40 disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={isSelf ? 'Cannot delete your own account' : 'Delete user account'}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -203,6 +258,54 @@ export function AdminUsersPage() {
         onClose={() => setIsEditModalOpen(false)}
         onSuccess={fetchUsers}
       />
+
+      {/* Delete User Confirmation Modal */}
+      <AlertDialog open={!!userToDelete} onOpenChange={(open) => !open && !isDeleting && setUserToDelete(null)}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              Confirm Delete User
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2 text-sm text-muted-foreground">
+                <p>
+                  Are you sure you want to permanently delete user <strong className="text-foreground">{userToDelete?.full_name || userToDelete?.email}</strong>?
+                </p>
+                {userToDelete && (
+                  <div className="p-3 rounded-lg bg-accent/50 border border-border text-xs space-y-1">
+                    <div><span className="font-semibold text-foreground">Email:</span> {userToDelete.email}</div>
+                    <div><span className="font-semibold text-foreground">Role:</span> <span className="capitalize font-medium">{userToDelete.role}</span></div>
+                    <div><span className="font-semibold text-foreground">ID:</span> <code className="font-mono text-[11px]">{userToDelete.user_id}</code></div>
+                  </div>
+                )}
+                <p className="text-xs text-red-500 font-medium">
+                  ⚠️ This action cannot be undone. All data belonging to this account will be permanently removed.
+                </p>
+                {deleteError && (
+                  <div className="p-2.5 rounded bg-red-500/10 border border-red-500/20 text-red-600 text-xs font-medium">
+                    {deleteError}
+                  </div>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel disabled={isDeleting} onClick={() => setUserToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={isDeleting}
+              onClick={handleDeleteUser}
+              className="gap-2 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeleting && <Loader2 className="w-4 h-4 animate-spin" />}
+              <span>{isDeleting ? 'Deleting...' : 'Confirm Delete'}</span>
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

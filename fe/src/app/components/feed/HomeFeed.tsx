@@ -20,7 +20,8 @@ import {
 	Pencil,
 	Trash2,
 	AlertTriangle,
-	ExternalLink
+	ExternalLink,
+	FileCode2
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -28,7 +29,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { PROBLEMS_LIST } from '../../context/ProblemContext';
 import { TrendingTopics } from './TrendingTopics';
 import {
 	DropdownMenu,
@@ -43,8 +43,12 @@ import {
 	DialogTitle,
 	DialogFooter
 } from '../ui/dialog';
+import { AchievementSelector } from './AchievementSelector';
 import {
 	PostItem,
+	UserProfile,
+	UserAchievementItem,
+	LeaderboardUser,
 	getPostsApi,
 	createPostApi,
 	addCommentApi,
@@ -53,6 +57,9 @@ import {
 	deletePostApi,
 	deleteCommentApi,
 	toggleRepostPostApi,
+	getProfileApi,
+	getProblemsApi,
+	getLeaderboardApi,
 	getAccessToken
 } from '../../services/api';
 
@@ -63,6 +70,9 @@ export function HomeFeed() {
 	const profileUrl = user?.user_id ? `/profile/${user.user_id}` : '/profile/me';
 
 	const [posts, setPosts] = useState<PostItem[]>([]);
+	const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+	const [problemsList, setProblemsList] = useState<any[]>([]);
+	const [topSolvers, setTopSolvers] = useState<LeaderboardUser[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [activeTab, setActiveTab] = useState<'all' | 'code' | 'milestones' | 'discussions'>('all');
 	const [selectedTopicFilter, setSelectedTopicFilter] = useState<string | null>(null);
@@ -123,6 +133,7 @@ export function HomeFeed() {
 
 	// Achievement state
 	const [achievementText, setAchievementText] = useState('');
+	const [selectedAchievement, setSelectedAchievement] = useState<UserAchievementItem | null>(null);
 
 	// Comment states
 	const [openCommentsMap, setOpenCommentsMap] = useState<Record<string, boolean>>({});
@@ -153,7 +164,7 @@ export function HomeFeed() {
 	};
 
 	const getProblemTitle = (problemId: string) => {
-		const found = PROBLEMS_LIST.find(p => p.id === problemId || p.id === problemId.toLowerCase());
+		const found = problemsList.find(p => p.problem_id === problemId || p.id === problemId || p.problem_id?.toLowerCase() === problemId.toLowerCase());
 		if (found) return found.title;
 		return problemId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 	};
@@ -228,7 +239,38 @@ export function HomeFeed() {
 
 	useEffect(() => {
 		fetchFeedPosts();
+
+		// Fetch database problems for titles & counts
+		getProblemsApi().then(data => {
+			if (Array.isArray(data)) setProblemsList(data);
+		}).catch(err => console.error('Failed to fetch problems:', err));
+
+		// Fetch top solvers from leaderboard DB
+		getLeaderboardApi().then(data => {
+			if (Array.isArray(data)) setTopSolvers(data.slice(0, 4));
+		}).catch(err => console.error('Failed to fetch leaderboard:', err));
 	}, []);
+
+	useEffect(() => {
+		if (user?.user_id) {
+			getProfileApi(user.user_id).then(data => {
+				setUserProfile(data);
+			}).catch(err => console.error('Failed to fetch user profile:', err));
+		} else {
+			setUserProfile(null);
+		}
+	}, [user?.user_id]);
+
+	useEffect(() => {
+		if (postType === 'achievement') {
+			const achievements = userProfile?.achievements || user?.achievements || [];
+			const unlocked = achievements.filter(a => a.unlocked);
+			if (unlocked.length > 0 && !selectedAchievement) {
+				setSelectedAchievement(unlocked[0]);
+				setAchievementText(unlocked[0].title);
+			}
+		}
+	}, [postType, userProfile, user]);
 
 	useEffect(() => {
 		const searchParams = new URLSearchParams(location.search);
@@ -249,13 +291,6 @@ export function HomeFeed() {
 			}, 300);
 		}
 	}, [location.search, location.hash, posts]);
-
-	const topSolvers = [
-		{ id: 1, name: 'David Kim', username: '@davidk', avatar: 'DK', solved: 412, rank: 1, streak: '45 days' },
-		{ id: 2, name: 'Elena Rostova', username: '@elena_r', avatar: 'ER', solved: 389, rank: 2, streak: '32 days' },
-		{ id: 3, name: 'Kenji Sato', username: '@kenjis', avatar: 'KS', solved: 356, rank: 3, streak: '28 days' },
-		{ id: 4, name: 'Sophia Miller', username: '@sophiam', avatar: 'SM', solved: 310, rank: 4, streak: '19 days' }
-	];
 
 	const toggleLike = async (postId: string) => {
 		const authToken = getAccessToken();
@@ -356,18 +391,35 @@ export function HomeFeed() {
 	};
 
 	const handleSubmitNewPost = async () => {
-		if (isPostContentEmpty(postContent)) return;
-
 		const authToken = getAccessToken();
 		if (!authToken) {
 			navigate('/login');
 			return;
 		}
 
+		if (postType === 'achievement') {
+			if (!selectedAchievement && !achievementText.trim()) {
+				alert('Please select an unlocked achievement to publish your post.');
+				return;
+			}
+		} else {
+			if (isPostContentEmpty(postContent)) return;
+		}
+
 		try {
 			setIsPosting(true);
+			const titleToUse = selectedAchievement?.title || achievementText.trim();
+			const descToUse = selectedAchievement?.desc || '';
+			const defaultAchievementContent = descToUse
+				? `🏆 I unlocked the achievement "${titleToUse}": ${descToUse}`
+				: `🏆 I unlocked the achievement "${titleToUse}"`;
+
+			const finalContent = postType === 'achievement'
+				? (postContent.trim() || defaultAchievementContent)
+				: postContent.trim();
+
 			const payload: any = {
-				content: postContent.trim(),
+				content: finalContent,
 				type: postType,
 				tags: tags.length > 0 ? tags : ['CodExecute']
 			};
@@ -380,8 +432,8 @@ export function HomeFeed() {
 				};
 			}
 
-			if (postType === 'achievement' && achievementText.trim()) {
-				payload.achievement = achievementText.trim();
+			if (postType === 'achievement' && titleToUse) {
+				payload.achievement = titleToUse;
 			}
 
 			const newPost = await createPostApi(authToken, payload);
@@ -390,6 +442,7 @@ export function HomeFeed() {
 			setPostContent('');
 			setCodeText('');
 			setAchievementText('');
+			setSelectedAchievement(null);
 			setIsCreateModalOpen(false);
 		} catch (err: any) {
 			alert(err.message || 'Không thể tạo bài viết');
@@ -557,8 +610,8 @@ export function HomeFeed() {
 								<span className="absolute bottom-1 right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-background" title="Online"></span>
 							</div>
 
-							<h3 className="text-foreground font-bold text-lg leading-tight">{user?.full_name || 'Le Minh Tri'}</h3>
-							<p className="text-muted-foreground text-xs mt-1 mb-3 font-medium">{user?.title || 'Frontend Developer'}</p>
+							<h3 className="text-foreground font-bold text-lg leading-tight">{userProfile?.full_name || user?.full_name || 'Guest User'}</h3>
+							<p className="text-muted-foreground text-xs mt-1 mb-3 font-medium">{userProfile?.title || user?.title || 'Member'}</p>
 							
 							<Button
 								variant="outline"
@@ -572,20 +625,32 @@ export function HomeFeed() {
 
 						{/* Developer Stats Grid */}
 						<div className="mt-5 pt-5 border-t border-border/60 grid grid-cols-3 gap-2 text-center">
-							<div className="p-2 rounded-xl bg-muted/30">
-								<p className="text-xs text-muted-foreground">Solved</p>
-								<p className="text-foreground font-bold text-base mt-0.5">87</p>
+							<div
+								onClick={() => navigate('/submissions')}
+								className="p-2 rounded-xl bg-muted/30 hover:bg-muted/70 cursor-pointer transition-colors group"
+								title="View Submissions History"
+							>
+								<p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">Solved</p>
+								<p className="text-foreground font-bold text-base mt-0.5">{userProfile?.stats?.solved_count ?? 0}</p>
 							</div>
-							<div className="p-2 rounded-xl bg-muted/30">
-								<p className="text-xs text-muted-foreground">Streak</p>
+							<div
+								onClick={() => navigate('/streak')}
+								className="p-2 rounded-xl bg-muted/30 hover:bg-muted/70 cursor-pointer transition-colors group"
+								title="View Streak Details & Activity"
+							>
+								<p className="text-xs text-muted-foreground group-hover:text-amber-500 transition-colors">Streak</p>
 								<p className="text-amber-500 font-bold text-base mt-0.5 flex items-center justify-center gap-0.5">
-									<span>7</span>
+									<span>{userProfile?.streak?.current_streak ?? 0}</span>
 									<Flame className="w-3.5 h-3.5 fill-amber-500" />
 								</p>
 							</div>
-							<div className="p-2 rounded-xl bg-muted/30">
-								<p className="text-xs text-muted-foreground">Rank</p>
-								<p className="text-primary font-bold text-base mt-0.5">#142</p>
+							<div
+								onClick={() => navigate('/leaderboard')}
+								className="p-2 rounded-xl bg-muted/30 hover:bg-muted/70 cursor-pointer transition-colors group"
+								title="View Leaderboard"
+							>
+								<p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">Rank</p>
+								<p className="text-primary font-bold text-base mt-0.5">{userProfile?.rank ? `#${userProfile.rank}` : 'N/A'}</p>
 							</div>
 						</div>
 					</Card>
@@ -597,40 +662,54 @@ export function HomeFeed() {
 						</h4>
 						<div className="space-y-1">
 							<button
-								onClick={() => navigate('/problems/1')}
-								className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-accent text-left transition-colors group cursor-pointer"
+								onClick={() => navigate('/streak')}
+								className="w-full flex items-center justify-between p-2.5 rounded-xl border border-transparent hover:border-amber-500/20 hover:bg-amber-500/10 text-left transition-all duration-200 group cursor-pointer"
 							>
 								<div className="flex items-center gap-3">
-									<div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20">
-										<Flame className="w-4 h-4" />
+									<div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-500 flex items-center justify-center border border-amber-500/20 group-hover:bg-amber-500 group-hover:text-slate-950 group-hover:border-amber-400 group-hover:scale-105 transition-all duration-200">
+										<Flame className="w-4 h-4 fill-amber-500 group-hover:fill-slate-950" />
 									</div>
-									<span className="text-foreground text-sm font-medium group-hover:text-primary transition-colors">Daily Challenge</span>
+									<span className="text-foreground text-sm font-medium group-hover:text-amber-500 transition-colors">Streak & Activity</span>
 								</div>
-								<Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] px-2">Active</Badge>
+								<Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] px-2 font-mono">
+									{userProfile?.streak?.current_streak ?? 0}🔥
+								</Badge>
 							</button>
 
 							<button
 								onClick={() => navigate('/problems')}
-								className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-accent text-left transition-colors group cursor-pointer"
+								className="w-full flex items-center justify-between p-2.5 rounded-xl border border-transparent hover:border-primary/20 hover:bg-primary/10 text-left transition-all duration-200 group cursor-pointer"
 							>
 								<div className="flex items-center gap-3">
-									<div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20">
+									<div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center border border-primary/20 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary/40 group-hover:scale-105 transition-all duration-200">
 										<Code2 className="w-4 h-4" />
 									</div>
 									<span className="text-foreground text-sm font-medium group-hover:text-primary transition-colors">Problem Set</span>
 								</div>
-								<span className="text-xs text-muted-foreground font-mono">1.2K+</span>
+								<span className="text-xs text-muted-foreground font-mono">{problemsList.length > 0 ? `${problemsList.length}` : '0'}</span>
 							</button>
 
 							<button
-								onClick={() => navigate('/problems')}
-								className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-accent text-left transition-colors group cursor-pointer"
+								onClick={() => navigate('/submissions')}
+								className="w-full flex items-center justify-between p-2.5 rounded-xl border border-transparent hover:border-blue-500/20 hover:bg-blue-500/10 text-left transition-all duration-200 group cursor-pointer"
 							>
 								<div className="flex items-center gap-3">
-									<div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/20">
+									<div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-500/20 group-hover:bg-blue-500 group-hover:text-white group-hover:border-blue-400 group-hover:scale-105 transition-all duration-200">
+										<FileCode2 className="w-4 h-4" />
+									</div>
+									<span className="text-foreground text-sm font-medium group-hover:text-blue-500 transition-colors">Submissions</span>
+								</div>
+							</button>
+
+							<button
+								onClick={() => navigate('/leaderboard')}
+								className="w-full flex items-center justify-between p-2.5 rounded-xl border border-transparent hover:border-rose-500/20 hover:bg-rose-500/10 text-left transition-all duration-200 group cursor-pointer"
+							>
+								<div className="flex items-center gap-3">
+									<div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center border border-rose-500/20 group-hover:bg-rose-500 group-hover:text-white group-hover:border-rose-400 group-hover:scale-105 transition-all duration-200">
 										<Trophy className="w-4 h-4" />
 									</div>
-									<span className="text-foreground text-sm font-medium group-hover:text-primary transition-colors">Leaderboard</span>
+									<span className="text-foreground text-sm font-medium group-hover:text-rose-500 transition-colors">Leaderboard</span>
 								</div>
 							</button>
 						</div>
@@ -799,46 +878,36 @@ export function HomeFeed() {
 												</div>
 											</div>
 
-											{/* Action Menu & Bookmark */}
-											<div className="flex items-center gap-1">
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8 text-muted-foreground hover:text-foreground"
-													onClick={() => toggleBookmark(post.post_id)}
-												>
-												</Button>
-
-												{isAuthor && (
-													<DropdownMenu>
-														<DropdownMenuTrigger asChild>
-															<button
-																type="button"
-																className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer rounded-lg transition-colors focus:outline-none"
-															>
-																<MoreVertical className="w-4 h-4" />
-															</button>
-														</DropdownMenuTrigger>
-														<DropdownMenuContent align="end" sideOffset={6} className="w-40 p-1.5 rounded-xl border-border bg-card shadow-2xl z-50 space-y-0.5">
-															<DropdownMenuItem
-																className="cursor-pointer gap-2.5 p-2 rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors"
-																onClick={() => handleOpenEditModal(post)}
-															>
-																<Pencil className="w-3.5 h-3.5 text-primary" />
-																<span>Edit Post</span>
-															</DropdownMenuItem>
-															<DropdownMenuItem
-																variant="destructive"
-																className="cursor-pointer gap-2.5 p-2 rounded-lg text-xs font-medium text-destructive focus:bg-destructive/10 dark:focus:bg-destructive/20 transition-colors"
-																onClick={() => handleDeletePost(post.post_id)}
-															>
-																<Trash2 className="w-3.5 h-3.5 text-destructive" />
-																<span>Delete Post</span>
-															</DropdownMenuItem>
-														</DropdownMenuContent>
-													</DropdownMenu>
-												)}
-											</div>
+											{/* Action Menu */}
+											{isAuthor && (
+												<DropdownMenu>
+													<DropdownMenuTrigger asChild>
+														<button
+															type="button"
+															className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer rounded-lg transition-colors focus:outline-none"
+														>
+															<MoreVertical className="w-4 h-4" />
+														</button>
+													</DropdownMenuTrigger>
+													<DropdownMenuContent align="end" sideOffset={6} className="w-40 p-1.5 rounded-xl border-border bg-card shadow-2xl z-50 space-y-0.5">
+														<DropdownMenuItem
+															className="cursor-pointer gap-2.5 p-2 rounded-lg text-xs font-medium text-foreground hover:bg-accent transition-colors"
+															onClick={() => handleOpenEditModal(post)}
+														>
+															<Pencil className="w-3.5 h-3.5 text-primary" />
+															<span>Edit Post</span>
+														</DropdownMenuItem>
+														<DropdownMenuItem
+															variant="destructive"
+															className="cursor-pointer gap-2.5 p-2 rounded-lg text-xs font-medium text-destructive focus:bg-destructive/10 dark:focus:bg-destructive/20 transition-colors"
+															onClick={() => handleDeletePost(post.post_id)}
+														>
+															<Trash2 className="w-3.5 h-3.5 text-destructive" />
+															<span>Delete Post</span>
+														</DropdownMenuItem>
+													</DropdownMenuContent>
+												</DropdownMenu>
+											)}
 										</div>
 
 										{/* Topic Badge if associated with a Problem */}
@@ -1060,7 +1129,7 @@ export function HomeFeed() {
 					</div>
 				</div>
 
-				{/* RIGHT SIDEBAR: Top Solvers & Trending Topics (No Courses!) */}
+				{/* RIGHT SIDEBAR: Top Solvers & Trending Topics */}
 				<div className="col-span-12 lg:col-span-3 space-y-5">
 					{/* Trending Coding Topics Widget */}
 					<TrendingTopics
@@ -1069,26 +1138,62 @@ export function HomeFeed() {
 						onTopicClick={handleTopicClick}
 					/>
 
-					{/* Upcoming Challenge Banner */}
-					<Card className="p-4 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-2xl shadow-sm space-y-3">
-						<div className="flex items-center gap-2 text-primary font-bold text-xs">
-							<Clock className="w-4 h-4" />
-							<span>Upcoming Contest</span>
+					{/* Top Community Solvers Leaderboard Widget */}
+					<Card className="p-5 bg-card/60 backdrop-blur-xl border border-border/80 rounded-2xl shadow-sm space-y-3">
+						<div className="flex items-center justify-between">
+							<div className="flex items-center gap-2">
+								<Trophy className="w-4 h-4 text-amber-500" />
+								<h4 className="text-sm font-bold text-foreground">Top Solvers</h4>
+							</div>
+							<button
+								onClick={() => navigate('/leaderboard')}
+								className="text-xs text-primary hover:underline font-medium cursor-pointer"
+							>
+								View all
+							</button>
 						</div>
 
-						<div>
-							<h5 className="text-foreground font-bold text-sm">Weekly Contest #42</h5>
-							<p className="text-muted-foreground text-xs mt-0.5">4 algorithmic problems • 90 minutes</p>
-						</div>
+						{topSolvers.length === 0 ? (
+							<p className="text-xs text-muted-foreground italic py-1 text-center">No solvers yet</p>
+						) : (
+							<div className="space-y-2.5 pt-1">
+								{topSolvers.map((solver, idx) => (
+									<div
+										key={solver.user_id}
+										onClick={() => navigate(`/profile/${solver.user_id}`)}
+										className="flex items-center justify-between p-2 rounded-xl hover:bg-accent/60 transition-colors cursor-pointer group"
+									>
+										<div className="flex items-center gap-2.5">
+											<span className={`w-4 text-center text-xs font-bold font-mono ${
+												idx === 0 ? 'text-amber-500' : idx === 1 ? 'text-slate-400' : idx === 2 ? 'text-amber-700' : 'text-muted-foreground'
+											}`}>
+												#{solver.rank || idx + 1}
+											</span>
+											<Avatar className="w-7 h-7 border border-border">
+												<AvatarImage src={solver.avatar_url} />
+												<AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+													{getInitials(solver.full_name)}
+												</AvatarFallback>
+											</Avatar>
+											<div className="min-w-0 flex-1">
+												<p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors leading-tight truncate">
+													{solver.full_name}
+												</p>
+												<p className="text-[10px] text-muted-foreground truncate">
+													{solver.title || 'Developer'}
+												</p>
+											</div>
+										</div>
 
-						<div className="flex items-center justify-between text-xs text-muted-foreground font-mono pt-1">
-							<span>Starts in 2h 30m</span>
-							<Button size="sm" className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg">
-								Register
-							</Button>
-						</div>
+										<div className="text-right shrink-0">
+											<span className="text-xs font-bold text-foreground">{solver.solved_count}</span>
+											<span className="text-[10px] text-muted-foreground ml-1">solved</span>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
 					</Card>
-
 				</div>
 			</div>
 
@@ -1386,12 +1491,35 @@ export function HomeFeed() {
 							</div>
 						</div>
 
-						{/* Main Post Live Rich Text WYSIWYG Editor */}
-						<PostRichTextEditor
-							value={postContent}
-							onChange={setPostContent}
-							placeholder="Share code snippet, ask an algorithm question, or post a coding milestone..."
-						/>
+						{/* Post Content Area: Rich Text Editor for normal posts, or Achievement Selector for Milestones */}
+						{postType === 'achievement' ? (
+							<div className="space-y-3">
+								<AchievementSelector
+									achievements={userProfile?.achievements || user?.achievements || []}
+									selectedAchievement={selectedAchievement}
+									onSelect={(ach) => {
+										setSelectedAchievement(ach);
+										setAchievementText(ach.title);
+									}}
+								/>
+								<div className="space-y-1.5 pt-1">
+									<label className="text-xs font-semibold text-muted-foreground">Additional Note (Optional)</label>
+									<textarea
+										value={postContent}
+										onChange={(e) => setPostContent(e.target.value)}
+										placeholder={selectedAchievement ? `🎉 Share your thoughts about "${selectedAchievement.title}"...` : "Write a note about this achievement..."}
+										rows={2}
+										className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all resize-none"
+									/>
+								</div>
+							</div>
+						) : (
+							<PostRichTextEditor
+								value={postContent}
+								onChange={setPostContent}
+								placeholder="Share code snippet, ask an algorithm question, or post a coding milestone..."
+							/>
+						)}
 
 						{/* Code Snippet Attachment Form (IDE Style) */}
 						{postType === 'code-share' && (
@@ -1500,23 +1628,6 @@ export function HomeFeed() {
 							</div>
 						)}
 
-						{/* Milestone Attachment Form */}
-						{postType === 'achievement' && (
-							<div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 space-y-2">
-								<label className="text-xs font-bold text-amber-500 flex items-center gap-1.5">
-									<Trophy className="w-4 h-4 fill-amber-500" />
-									<span>Achievement Title</span>
-								</label>
-								<input
-									type="text"
-									value={achievementText}
-									onChange={(e) => setAchievementText(e.target.value)}
-									placeholder="e.g. Solved 100 Dynamic Programming Problems!"
-									className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all"
-								/>
-							</div>
-						)}
-
 						{/* Tags Input */}
 						<div className="space-y-1.5">
 							<label className="text-xs font-semibold text-muted-foreground">Tags (comma separated)</label>
@@ -1561,7 +1672,12 @@ export function HomeFeed() {
 						<Button
 							type="button"
 							size="sm"
-							disabled={isPosting || isPostContentEmpty(postContent)}
+							disabled={
+								isPosting ||
+								(postType === 'achievement'
+									? !selectedAchievement && !achievementText.trim()
+									: isPostContentEmpty(postContent))
+							}
 							onClick={handleSubmitNewPost}
 							className="rounded-xl h-9 px-5 text-xs bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 font-semibold cursor-pointer"
 						>

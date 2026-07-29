@@ -3,6 +3,9 @@ export type Screen =
   | 'user-profile'
   | 'problem-list'
   | 'problem-editor'
+  | 'leaderboard'
+  | 'submissions'
+  | 'streak'
   | 'settings'
   | 'search'
   | 'admin-dashboard'
@@ -41,6 +44,18 @@ export function screenFromPathname(pathname: string): Screen {
     return 'problem-list';
   }
 
+  if (pathname.startsWith('/submissions')) {
+    return 'submissions';
+  }
+
+  if (pathname.startsWith('/streak')) {
+    return 'streak';
+  }
+
+  if (pathname.startsWith('/leaderboard')) {
+    return 'leaderboard';
+  }
+
   if (pathname.startsWith('/settings')) {
     return 'settings';
   }
@@ -72,6 +87,12 @@ export function screenToPath(screen: Screen, options?: NavigateOptions) {
       return '/problems';
     case 'problem-editor':
       return `/problems/${options?.problemId ?? '1'}`;
+    case 'submissions':
+      return '/submissions';
+    case 'streak':
+      return '/streak';
+    case 'leaderboard':
+      return '/leaderboard';
     case 'user-profile':
       return `/profile/${options?.userId ?? 'me'}`;
     case 'settings':
@@ -82,3 +103,4 @@ export function screenToPath(screen: Screen, options?: NavigateOptions) {
       return '/problems';
   }
 }
+

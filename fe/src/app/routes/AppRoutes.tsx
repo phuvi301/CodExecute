@@ -11,6 +11,9 @@ import { ProblemEditorPage } from './pages/ProblemEditorPage';
 import { UserProfilePage } from './pages/UserProfilePage';
 import { EditProfilePage } from './pages/EditProfilePage';
 import { SearchPage } from './pages/SearchPage';
+import { LeaderboardPage } from './pages/LeaderboardPage';
+import { SubmissionHistoryPage } from './pages/SubmissionHistoryPage';
+import { StreakPage } from './pages/StreakPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminProblemsPage } from './pages/AdminProblemsPage';
 import { AdminProblemFormPage } from './pages/AdminProblemFormPage';
@@ -30,6 +33,9 @@ export function AppRoutes() {
           <Route path="feed" element={<HomeFeedPage />} />
           <Route path="problems" element={<ProblemListPage />} />
           <Route path="problems/:problemId" element={<ProblemEditorPage />} />
+          <Route path="leaderboard" element={<LeaderboardPage />} />
+          <Route path="submissions" element={<SubmissionHistoryPage />} />
+          <Route path="streak" element={<StreakPage />} />
           <Route path="profile" element={<UserProfilePage />} />
           <Route path="profile/:userId" element={<UserProfilePage />} />
           <Route path="settings" element={<EditProfilePage />} />

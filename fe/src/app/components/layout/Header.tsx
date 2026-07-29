@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { Bell, Search, Code2, Moon, Sun, LogOut, User, Settings, ArrowLeft, Play, Send, ChevronLeft, ChevronRight, Rss, ShieldCheck } from 'lucide-react';
+import { Bell, Search, Code2, Moon, Sun, LogOut, User, Settings, ArrowLeft, Play, Send, ChevronLeft, ChevronRight, Rss, ShieldCheck, Trophy, FileCode2, Flame } from 'lucide-react';
 import { NavLink, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -230,6 +230,20 @@ export function Header({ currentScreen }: HeaderProps) {
 											</DropdownMenuItem>
 											<DropdownMenuItem
 												className="cursor-pointer gap-3 p-2 rounded-xl font-medium text-foreground hover:bg-accent transition-colors"
+												onClick={() => navigate('/submissions')}
+											>
+												<FileCode2 className="h-4 w-4 text-muted-foreground" />
+												<span>Submissions History</span>
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												className="cursor-pointer gap-3 p-2 rounded-xl font-medium text-foreground hover:bg-accent transition-colors"
+												onClick={() => navigate('/streak')}
+											>
+												<Flame className="h-4 w-4 text-amber-500 fill-amber-500" />
+												<span>Streak & Activity</span>
+											</DropdownMenuItem>
+											<DropdownMenuItem
+												className="cursor-pointer gap-3 p-2 rounded-xl font-medium text-foreground hover:bg-accent transition-colors"
 												onClick={() => navigate('/settings')}
 											>
 												<Settings className="h-4 w-4 text-muted-foreground" />
@@ -298,6 +312,10 @@ export function Header({ currentScreen }: HeaderProps) {
 						<NavLink to="/problems" className={({ isActive }) => navItemClass(isActive || currentScreen === 'problem-list')}>
 							<Code2 className="w-5 h-5" />
 							<span>Problems</span>
+						</NavLink>
+						<NavLink to="/leaderboard" className={({ isActive }) => navItemClass(isActive || currentScreen === 'leaderboard')}>
+							<Trophy className="w-5 h-5" />
+							<span>Leaderboard</span>
 						</NavLink>
 						{user?.role === 'admin' && (
 							<NavLink to="/admin" className={({ isActive }) => navItemClass(isActive || currentScreen.startsWith('admin'))}>

@@ -33,6 +33,49 @@ export interface AuthTokenResponse {
   token_type: string;
 }
 
+export interface UserAchievementItem {
+  id: string;
+  title: string;
+  desc: string;
+  category: string;
+  icon: string;
+  unlocked: boolean;
+  unlocked_at?: string;
+  progress: number;
+  max_progress: number;
+}
+
+export interface UserSubmissionItem {
+  submission_id: string;
+  problem_id: string;
+  problem: string;
+  difficulty: string;
+  status: string;
+  language: string;
+  runtime: string;
+  memory: string;
+  submitted_at: string;
+}
+
+export interface LeaderboardUser {
+  rank: number;
+  user_id: string;
+  email: string;
+  full_name: string;
+  avatar_url?: string;
+  title?: string;
+  solved_count: number;
+  easy_solved: number;
+  medium_solved: number;
+  hard_solved: number;
+  total_problems: number;
+  acceptance_rate: number;
+  total_submissions: number;
+  current_streak: number;
+  best_streak: number;
+  achievements_count: number;
+}
+
 export interface UserProfile {
   user_id: string;
   email: string;
@@ -48,6 +91,27 @@ export interface UserProfile {
   is_following?: boolean;
   followers_count?: number;
   following_count?: number;
+  rank?: number;
+  total_users?: number;
+  streak?: {
+    current_streak: number;
+    best_streak: number;
+  };
+  stats?: {
+    solved_count: number;
+    total_problems: number;
+    easy_solved: number;
+    total_easy: number;
+    medium_solved: number;
+    total_medium: number;
+    hard_solved: number;
+    total_hard: number;
+    acceptance_rate: number;
+    total_submissions: number;
+  };
+  achievements?: UserAchievementItem[];
+  skills?: Array<{ name: string; level: number; category: string }>;
+  recent_submissions?: UserSubmissionItem[];
 }
 
 // --- TỰ ĐỘNG REFRESH TOKEN VÀ GỬI REQUEST CÓ AUTHENTICATION ---
@@ -861,6 +925,16 @@ export async function adminUpdateUserApi(userId: string, payload: AdminUserUpdat
   return data;
 }
 
+export async function adminDeleteUserApi(userId: string): Promise<void> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/admin/${userId}`, {
+    method: 'DELETE',
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Failed to delete user');
+  }
+}
+
 export async function adminCreateProblemApi(payload: AdminProblemPayload): Promise<any> {
   const response = await fetchWithAuth(`${API_BASE_URL}/problems`, {
     method: 'POST',
@@ -933,6 +1007,14 @@ export async function getProblemDetailApi(problemId: string): Promise<any> {
     throw new Error(data.detail || 'Failed to fetch problem details');
   }
   return data;
+}
+
+export async function getLeaderboardApi(): Promise<LeaderboardUser[]> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/users/leaderboard`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch global leaderboard');
+  }
+  return response.json();
 }
 
 

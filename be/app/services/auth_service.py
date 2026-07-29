@@ -121,3 +121,12 @@ def admin_update_user(user_id: str, update_data: dict) -> Dict[str, Any]:
             update_fields[attr_name] = update_data[key]
 
     return update_user(user_id, update_fields)
+
+def delete_user(user_id: str) -> bool:
+    """Delete a user from the system by Admin"""
+    try:
+        users_table.delete_item(Key={'UserID': user_id})
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting user {user_id}: {e}")
+        return False

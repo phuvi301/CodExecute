@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7 # 7 ngày
 
     # Cấu hình AWS ECS Task Execution
-    EXECUTION_MODE: str = "ecs" # "ecs" hoặc "tmp" (local / mô phỏng)
+    EXECUTION_MODE: str = "tmp" # "ecs" hoặc "tmp" (local / mô phỏng)
     ECS_CLUSTER_NAME: str = "codeexecute-cluster"
     ECS_TASK_DEFINITION: str = "codeexecute-runner-task"
     ECS_CONTAINER_NAME: str = "codeexecute-runner"

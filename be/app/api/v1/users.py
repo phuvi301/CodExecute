@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.user import UserUpdate, AdminUserUpdate
-from app.services import auth_service, storage_service, follow_service, notification_service, posts_service
+from app.services import auth_service, storage_service, follow_service, notification_service, posts_service, user_stats_service
 from app.core import security
 from app.core.dependencies import require_admin
 
@@ -25,6 +25,7 @@ def format_user_profile(user: dict, current_user_id: str = None):
         is_following = False
 
     follow_counts = follow_service.get_follow_counts(target_user_id)
+    user_stats = user_stats_service.get_user_full_stats(target_user_id)
 
     return {
         "user_id": target_user_id,
@@ -41,7 +42,19 @@ def format_user_profile(user: dict, current_user_id: str = None):
         "is_following": is_following,
         "followers_count": follow_counts["followers_count"],
         "following_count": follow_counts["following_count"],
+        "rank": user_stats["rank"],
+        "total_users": user_stats["total_users"],
+        "streak": user_stats["streak"],
+        "stats": user_stats["stats"],
+        "achievements": user_stats["achievements"],
+        "skills": user_stats["skills"],
+        "recent_submissions": user_stats["recent_submissions"],
     }
+
+@router.get("/leaderboard", summary="Get global user rankings leaderboard")
+async def get_global_leaderboard_endpoint():
+    """Get global user rankings sorted by solved count, acceptance rate, and streak"""
+    return user_stats_service.get_global_leaderboard()
 
 @router.get("/admin/all", summary="Get all users list (Admin Only)")
 async def admin_get_all_users(
@@ -88,6 +101,26 @@ async def admin_update_user_endpoint(
 
     updated = auth_service.admin_update_user(user_id, update_dict)
     return format_user_profile(updated, current_user_id=current_admin.get("UserID"))
+
+@router.delete("/admin/{user_id}", summary="Admin delete a user account")
+async def admin_delete_user_endpoint(
+    user_id: str,
+    current_admin: dict = Depends(require_admin)
+):
+    """Admin deletes a user from the system"""
+    admin_id = current_admin.get("UserID")
+    if admin_id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account.")
+
+    target_user = auth_service.get_user_by_id(user_id)
+    if not target_user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    success = auth_service.delete_user(user_id)
+    if not success:
+        raise HTTPException(status_code=500, detail="Error occurred while deleting user.")
+
+    return {"message": f"User {user_id} deleted successfully."}
 
 @router.get("/{user_id}", summary="Get user profile by User ID")
 async def get_user_profile(
