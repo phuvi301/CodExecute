@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { runCodeApi, submitCodeApi, getSubmissionResultApi, getProblemDetailApi, RunCodeResponse, SubmissionResponseData } from '../services/api';
+import { runCodeApi, submitCodeApi, getSubmissionResultApi, getProblemDetailApi, getProblemsApi, RunCodeResponse, SubmissionResponseData } from '../services/api';
 
 export interface Problem {
 	id: string;
@@ -7,6 +7,10 @@ export interface Problem {
 	difficulty: 'Easy' | 'Medium' | 'Hard';
 	acceptance: string;
 	submissions: string;
+	likes_count?: number;
+	dislikes_count?: number;
+	liked_by?: string[];
+	disliked_by?: string[];
 	description: string;
 	examples: {
 		input: string;
@@ -67,13 +71,8 @@ def solve():
     nums = list(map(int, lines[0].split()))
     target = int(lines[1])
     
-    seen = {}
-    for i, num in enumerate(nums):
-        diff = target - num
-        if diff in seen:
-            print(f"{seen[diff]} {i}")
-            return
-        seen[num] = i
+    # TODO: Write your solution here
+    pass
 
 if __name__ == "__main__":
     solve()`,
@@ -83,23 +82,15 @@ function solve() {
     const lines = fs.readFileSync(0, 'utf-8').trim().split('\\n');
     if (lines.length < 2) return;
     const nums = lines[0].trim().split(/\\s+/).map(Number);
-    const target = Number(lines[1].trim());
+    const target = parseInt(lines[1]);
 
-    const map = new Map();
-    for (let i = 0; i < nums.length; i++) {
-        const diff = target - nums[i];
-        if (map.has(diff)) {
-            console.log(\`\${map.get(diff)} \${i}\`);
-            return;
-        }
-        map.set(nums[i], i);
-    }
+    // TODO: Write your solution here
+
 }
 
 solve();`,
 	cpp: `#include <iostream>
 #include <vector>
-#include <unordered_map>
 using namespace std;
 
 int main() {
@@ -112,15 +103,8 @@ int main() {
     int target = nums.back();
     nums.pop_back();
 
-    unordered_map<int, int> mp;
-    for (int i = 0; i < nums.size(); i++) {
-        int diff = target - nums[i];
-        if (mp.find(diff) != mp.end()) {
-            cout << mp[diff] << " " << i << endl;
-            return 0;
-        }
-        mp[nums[i]] = i;
-    }
+    // TODO: Write your solution here
+
     return 0;
 }`,
 	java: `import java.util.*;
@@ -128,20 +112,15 @@ int main() {
 public class Main {
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
-        if (!sc.hasNextLine()) return;
-        String[] parts = sc.nextLine().trim().split("\\\\s+");
-        int target = sc.nextInt();
-
-        Map<Integer, Integer> map = new HashMap<>();
-        for (int i = 0; i < parts.length; i++) {
-            int num = Integer.parseInt(parts[i]);
-            int diff = target - num;
-            if (map.containsKey(diff)) {
-                System.out.println(map.get(diff) + " " + i);
-                return;
-            }
-            map.put(num, i);
+        ArrayList<Integer> nums = new ArrayList<>();
+        while (sc.hasNextInt()) {
+            nums.add(sc.nextInt());
         }
+        if (nums.size() < 2) return;
+        int target = nums.remove(nums.size() - 1);
+
+        // TODO: Write your solution here
+
     }
 }`
 };
@@ -149,6 +128,7 @@ public class Main {
 interface ProblemContextType {
 	currentProblemId: string;
 	setCurrentProblemId: (id: string) => void;
+	problemsList: { id: string; title: string }[];
 	problem: Problem;
 	language: string;
 	setLanguage: (lang: string) => void;
@@ -182,11 +162,32 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 	const [submissionResult, setSubmissionResult] = useState<SubmissionResponseData | null>(null);
 	const [activeTab, setActiveTab] = useState<string>('testcase');
 
+	const [problemsList, setProblemsList] = useState<{ id: string; title: string }[]>([]);
 	const [fetchedProblem, setFetchedProblem] = useState<Problem | null>(null);
+
+	useEffect(() => {
+		getProblemsApi()
+			.then((data) => {
+				if (Array.isArray(data) && data.length > 0) {
+					const list = data
+						.map((p) => ({
+							id: p.ProblemID || p.problem_id || p.id || '',
+							title: p.Title || p.title || 'Untitled Problem',
+						}))
+						.filter((p) => Boolean(p.id));
+					setProblemsList(list);
+				}
+			})
+			.catch((err) => {
+				console.error('Failed to fetch problems list in ProblemContext:', err);
+			});
+	}, []);
 
 	useEffect(() => {
 		let isMounted = true;
 		if (!currentProblemId) return;
+
+		setFetchedProblem(null);
 
 		getProblemDetailApi(currentProblemId)
 			.then((data) => {
@@ -214,12 +215,19 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 					constraintArr = data.constraints;
 				}
 
+				const accRateStr = data.AcceptanceRate ? String(data.AcceptanceRate) : (data.acceptance || '0.0%');
+				const totalSubsStr = data.TotalSubmissions !== undefined ? String(data.TotalSubmissions) : (data.submissions ? String(data.submissions) : '0');
+
 				setFetchedProblem({
 					id: data.ProblemID || data.problem_id || currentProblemId,
 					title: data.Title || data.title || 'Untitled Problem',
 					difficulty: formattedDiff,
-					acceptance: data.AcceptanceRate ? `${data.AcceptanceRate}%` : (data.acceptance || '0%'),
-					submissions: data.submissions ? String(data.submissions) : '0',
+					acceptance: accRateStr.endsWith('%') ? accRateStr : `${accRateStr}%`,
+					submissions: totalSubsStr,
+					likes_count: data.LikesCount !== undefined ? data.LikesCount : (data.likes_count || 0),
+					dislikes_count: data.DislikesCount !== undefined ? data.DislikesCount : (data.dislikes_count || 0),
+					liked_by: data.LikedBy || data.liked_by || [],
+					disliked_by: data.DislikedBy || data.disliked_by || [],
 					description: data.Description || data.description || '',
 					examples: exList,
 					constraints: constraintArr,
@@ -377,6 +385,7 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 			value={{
 				currentProblemId,
 				setCurrentProblemId,
+				problemsList,
 				problem,
 				language,
 				setLanguage,
@@ -407,6 +416,7 @@ export function useProblem() {
 		return {
 			currentProblemId: 'two-sum',
 			setCurrentProblemId: () => {},
+			problemsList: PROBLEMS_LIST.map((p) => ({ id: p.id, title: p.title })),
 			problem: PROBLEMS_LIST[0],
 			language: 'python',
 			setLanguage: () => {},

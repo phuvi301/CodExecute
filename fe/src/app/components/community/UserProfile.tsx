@@ -392,10 +392,33 @@ export function UserProfile() {
 		setEditCodeFilename(post.code_snippet?.filename || 'solution.py');
 		setEditCodeLanguage(post.code_snippet?.language || 'python');
 		setEditCodeText(post.code_snippet?.code || '');
-		setEditAchievementText(post.achievement || '');
+		
+		let achTitle = post.achievement || '';
+		if (!achTitle && post.content) {
+			const match = post.content.match(/🏆 I unlocked the achievement "([^"]+)"/);
+			if (match) {
+				achTitle = match[1];
+			}
+		}
+		setEditAchievementText(achTitle);
+		
 		const existingTags = post.tags || [];
 		setEditTagInput(existingTags.join(', '));
 		setEditTags(existingTags);
+	};
+
+	const handleAchievementTitleChange = (newTitle: string) => {
+		const oldTitle = editAchievementText;
+		setEditAchievementText(newTitle);
+
+		if (oldTitle && editContent.includes(oldTitle)) {
+			setEditContent(editContent.replaceAll(oldTitle, newTitle));
+		} else if (editContent.includes('🏆 I unlocked the achievement')) {
+			setEditContent(editContent.replace(
+				/🏆 I unlocked the achievement "[^"]*"/,
+				`🏆 I unlocked the achievement "${newTitle}"`
+			));
+		}
 	};
 
 	const handleSaveEditPost = async () => {
@@ -423,7 +446,7 @@ export function UserProfile() {
 				};
 			}
 
-			if (editAchievementText.trim()) {
+			if (editPostType === 'achievement' || editAchievementText.trim()) {
 				payload.achievement = editAchievementText.trim();
 			}
 
@@ -1812,7 +1835,7 @@ export function UserProfile() {
 								<input
 									type="text"
 									value={editAchievementText}
-									onChange={(e) => setEditAchievementText(e.target.value)}
+									onChange={(e) => handleAchievementTitleChange(e.target.value)}
 									placeholder="e.g. Solved 100 Dynamic Programming Problems!"
 									className="w-full px-3 py-2 bg-background rounded-xl border border-border text-foreground text-xs focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500/40 transition-all"
 								/>

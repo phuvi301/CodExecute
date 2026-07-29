@@ -26,7 +26,10 @@ import {
 	Trash2,
 	Loader2,
 	Repeat,
-	Share2
+	Share2,
+	FileText,
+	Lightbulb,
+	MessageSquare
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -53,8 +56,31 @@ import {
 	deleteCommentApi,
 	getAccessToken,
 	PostItem,
-	SubmissionResponseData
+	toggleLikeProblemApi,
+	toggleDislikeProblemApi
 } from '../../services/api';
+
+const formatErrorMessage = (msg: string | undefined | null, defaultInput?: string) => {
+	if (!msg) return '';
+	let formatted = msg
+		.replace(/Sai kết quả ở testcase/g, 'Wrong Answer on testcase')
+		.replace(/Output thực tế:/g, 'Actual Output:')
+		.replace(/Output kỳ vọng:/g, 'Expected Output:')
+		.replace(/Lỗi Runtime \(Runtime Error\) ở testcase/g, 'Runtime Error on testcase')
+		.replace(/Lỗi Runtime ở testcase/g, 'Runtime Error on testcase')
+		.replace(/Vượt quá thời gian chạy \(Time Limit Exceeded - ([^)]+)\) ở testcase/g, 'Time Limit Exceeded ($1) on testcase')
+		.replace(/Lỗi biên dịch \(Compilation Error\):/g, 'Compilation Error:');
+
+	if (formatted.includes('Wrong Answer on testcase') && !formatted.includes('Input:')) {
+		const fallbackInput = defaultInput || '2 7 11 15\n9';
+		formatted = formatted.replace(
+			/(Wrong Answer on testcase \d+\.[\s]*)/,
+			`$1Input:\n${fallbackInput}\n\n`
+		);
+	}
+
+	return formatted;
+};
 
 interface ProblemEditorProps {
 	problemId: string | null;
@@ -99,6 +125,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 		resetCodeToInit,
 	} = useProblem();
 
+	const { user } = useAuth();
 	const [selectedTestCase, setSelectedTestCase] = useState<number>(0);
 	const [cursorPos, setCursorPos] = useState({ line: 1, column: 1 });
 	const [fontSize, setFontSize] = useState<number>(14);
@@ -106,6 +133,55 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 	// State cho Submissions Tab
 	const [submissionsList, setSubmissionsList] = useState<SubmissionResponseData[]>([]);
 	const [isLoadingSubmissions, setIsLoadingSubmissions] = useState<boolean>(false);
+
+	const [likesCount, setLikesCount] = useState<number>(0);
+	const [dislikesCount, setDislikesCount] = useState<number>(0);
+	const [isLiked, setIsLiked] = useState<boolean>(false);
+	const [isDisliked, setIsDisliked] = useState<boolean>(false);
+	const [isLikeLoading, setIsLikeLoading] = useState<boolean>(false);
+
+	useEffect(() => {
+		if (problem) {
+			setLikesCount(problem.likes_count || 0);
+			setDislikesCount(problem.dislikes_count || 0);
+			if (user && user.id) {
+				setIsLiked((problem.liked_by || []).includes(user.id));
+				setIsDisliked((problem.disliked_by || []).includes(user.id));
+			}
+		}
+	}, [problem, user]);
+
+	const handleToggleLike = async () => {
+		if (!currentProblemId || isLikeLoading) return;
+		setIsLikeLoading(true);
+		try {
+			const res = await toggleLikeProblemApi(currentProblemId);
+			setLikesCount(res.likes_count);
+			setDislikesCount(res.dislikes_count);
+			setIsLiked(res.user_liked);
+			setIsDisliked(res.user_disliked);
+		} catch (e) {
+			console.error('Failed to toggle like on problem:', e);
+		} finally {
+			setIsLikeLoading(false);
+		}
+	};
+
+	const handleToggleDislike = async () => {
+		if (!currentProblemId || isLikeLoading) return;
+		setIsLikeLoading(true);
+		try {
+			const res = await toggleDislikeProblemApi(currentProblemId);
+			setLikesCount(res.likes_count);
+			setDislikesCount(res.dislikes_count);
+			setIsLiked(res.user_liked);
+			setIsDisliked(res.user_disliked);
+		} catch (e) {
+			console.error('Failed to toggle dislike on problem:', e);
+		} finally {
+			setIsLikeLoading(false);
+		}
+	};
 	const [expandedSubmissionId, setExpandedSubmissionId] = useState<string | null>(null);
 
 	const { user: currentUser } = useAuth();
@@ -418,19 +494,44 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 				>
 					<div className="p-4 sm:p-6 flex-1 flex flex-col min-h-0 overflow-hidden">
 						<Tabs defaultValue="description" className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
-							<TabsList className="mb-4 bg-muted/60 p-1 rounded-xl flex-wrap h-auto gap-1 shrink-0">
-								<TabsTrigger value="description" className="rounded-lg text-xs font-semibold px-3.5 py-1.5">
-									Description
+							<TabsList className="mb-4 bg-[#18181b]/80 border border-gray-800/80 p-1.5 rounded-2xl flex items-center gap-1.5 shadow-md backdrop-blur-md shrink-0 w-full sm:w-auto overflow-x-auto custom-scrollbar">
+								<TabsTrigger
+									value="description"
+									className="rounded-xl text-xs font-semibold px-4 py-2 flex items-center gap-2 transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted/30 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:shadow-primary/20"
+								>
+									<FileText className="w-4 h-4 shrink-0" />
+									<span>Description</span>
 								</TabsTrigger>
-								<TabsTrigger value="submissions" className="rounded-lg text-xs font-semibold px-3.5 py-1.5 flex items-center gap-1.5">
-									<History className="w-3.5 h-3.5" />
+								<TabsTrigger
+									value="submissions"
+									className="rounded-xl text-xs font-semibold px-4 py-2 flex items-center gap-2 transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted/30 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:shadow-primary/20"
+								>
+									<History className="w-4 h-4 shrink-0" />
 									<span>Submissions</span>
+									{submissionsList.length > 0 && (
+										<span className="ml-0.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-background/20 text-current">
+											{submissionsList.length}
+										</span>
+									)}
 								</TabsTrigger>
-								<TabsTrigger value="solutions" className="rounded-lg text-xs font-semibold px-3.5 py-1.5">
-									Solutions
+								<TabsTrigger
+									value="solutions"
+									className="rounded-xl text-xs font-semibold px-4 py-2 flex items-center gap-2 transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted/30 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:shadow-primary/20"
+								>
+									<Lightbulb className="w-4 h-4 shrink-0" />
+									<span>Solutions</span>
 								</TabsTrigger>
-								<TabsTrigger value="discussions" className="rounded-lg text-xs font-semibold px-3.5 py-1.5">
-									Discussions
+								<TabsTrigger
+									value="discussions"
+									className="rounded-xl text-xs font-semibold px-4 py-2 flex items-center gap-2 transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted/30 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm data-[state=active]:shadow-primary/20"
+								>
+									<MessageSquare className="w-4 h-4 shrink-0" />
+									<span>Discussions</span>
+									{discussionsList.length > 0 && (
+										<span className="ml-0.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-background/20 text-current">
+											{discussionsList.length}
+										</span>
+									)}
 								</TabsTrigger>
 							</TabsList>
 
@@ -452,56 +553,58 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 											{problem.difficulty}
 										</Badge>
 									</h2>
-									<p className="text-muted-foreground whitespace-pre-line text-sm leading-relaxed">
-										{problem.description}
-									</p>
+									<FormattedPostContent content={problem.description} className="text-muted-foreground text-sm leading-relaxed" />
 								</div>
 
-								<div>
-									<h3 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wider">
-										Examples
-									</h3>
-									<div className="space-y-3">
-										{problem.examples.map((example, index) => (
-											<Card key={index} className="p-4 bg-muted/40 border-border/60 rounded-xl space-y-2">
-												<div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-													<Sparkles className="w-3.5 h-3.5 text-primary" />
-													<span>Example {index + 1}</span>
-												</div>
-												<div className="space-y-1.5 font-mono text-xs leading-relaxed bg-background/60 p-3 rounded-lg border border-border/40 overflow-x-auto">
-													<div>
-														<span className="text-muted-foreground font-semibold">Input: </span>
-														<span className="text-foreground">{example.input}</span>
+								{problem.examples && problem.examples.length > 0 && (
+									<div>
+										<h3 className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wider">
+											Examples
+										</h3>
+										<div className="space-y-3">
+											{problem.examples.map((example, index) => (
+												<Card key={index} className="p-4 bg-muted/40 border-border/60 rounded-xl space-y-2">
+													<div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+														<Sparkles className="w-3.5 h-3.5 text-primary" />
+														<span>Example {index + 1}</span>
 													</div>
-													<div>
-														<span className="text-muted-foreground font-semibold">Output: </span>
-														<span className="text-primary font-semibold">{example.output}</span>
-													</div>
-													{example.explanation && (
-														<div className="pt-1 text-muted-foreground border-t border-border/40 text-[11px]">
-															<span className="font-semibold text-muted-foreground">Explanation: </span>
-															{example.explanation}
+													<div className="space-y-1.5 font-mono text-xs leading-relaxed bg-background/60 p-3 rounded-lg border border-border/40 overflow-x-auto">
+														<div>
+															<span className="text-muted-foreground font-semibold">Input: </span>
+															<span className="text-foreground">{example.input}</span>
 														</div>
-													)}
-												</div>
-											</Card>
-										))}
+														<div>
+															<span className="text-muted-foreground font-semibold">Output: </span>
+															<span className="text-primary font-semibold">{example.output}</span>
+														</div>
+														{example.explanation && (
+															<div className="pt-1 text-muted-foreground border-t border-border/40 text-[11px]">
+																<span className="font-semibold text-muted-foreground">Explanation: </span>
+																{example.explanation}
+															</div>
+														)}
+													</div>
+												</Card>
+											))}
+										</div>
 									</div>
-								</div>
+								)}
 
-								<div>
-									<h3 className="text-xs font-semibold text-foreground mb-2 uppercase tracking-wider">
-										Constraints
-									</h3>
-									<ul className="space-y-1.5 text-muted-foreground text-xs font-mono bg-muted/30 p-3.5 rounded-xl border border-border/40">
-										{problem.constraints.map((constraint, index) => (
-											<li key={index} className="flex items-center gap-2">
-												<span className="w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0"></span>
-												<span>{constraint}</span>
-											</li>
-										))}
-									</ul>
-								</div>
+								{problem.constraints && problem.constraints.length > 0 && (
+									<div>
+										<h3 className="text-xs font-semibold text-foreground mb-2 uppercase tracking-wider">
+											Constraints
+										</h3>
+										<ul className="space-y-1.5 text-muted-foreground text-xs font-mono bg-muted/30 p-3.5 rounded-xl border border-border/40">
+											{problem.constraints.map((constraint, index) => (
+												<li key={index} className="flex items-center gap-2">
+													<span className="w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0"></span>
+													<span>{constraint}</span>
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
 
 								<div className="pt-4 border-t border-border/60">
 									<div className="grid grid-cols-2 gap-4">
@@ -523,13 +626,33 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 								</div>
 
 								<div className="flex items-center gap-2 pt-2">
-									<Button variant="outline" size="sm" className="gap-2 rounded-xl h-8 text-xs border-border">
-										<ThumbsUp className="w-3.5 h-3.5" />
-										<span>1.2K</span>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleToggleLike}
+										disabled={isLikeLoading}
+										className={`gap-2 rounded-xl h-8 text-xs border-border transition-colors cursor-pointer ${
+											isLiked
+												? 'bg-blue-500/10 border-blue-500/30 text-blue-500 font-semibold'
+												: 'text-muted-foreground hover:text-foreground'
+										}`}
+									>
+										<ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-blue-500 text-blue-500' : ''}`} />
+										<span>{likesCount}</span>
 									</Button>
-									<Button variant="outline" size="sm" className="gap-2 rounded-xl h-8 text-xs border-border">
-										<ThumbsDown className="w-3.5 h-3.5" />
-										<span>89</span>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={handleToggleDislike}
+										disabled={isLikeLoading}
+										className={`gap-2 rounded-xl h-8 text-xs border-border transition-colors cursor-pointer ${
+											isDisliked
+												? 'bg-rose-500/10 border-rose-500/30 text-rose-500 font-semibold'
+												: 'text-muted-foreground hover:text-foreground'
+										}`}
+									>
+										<ThumbsDown className={`w-3.5 h-3.5 ${isDisliked ? 'fill-rose-500 text-rose-500' : ''}`} />
+										<span>{dislikesCount}</span>
 									</Button>
 								</div>
 							</TabsContent>
@@ -628,9 +751,9 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 													{isExpanded && (
 														<div className="mt-4 pt-3 border-t border-border/60 space-y-3" onClick={(e) => e.stopPropagation()}>
 															{sub.error_message && (
-																<div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-300 font-mono text-xs whitespace-pre-wrap">
+																<div className="bg-[#1e1e1e] rounded-xl p-3 border border-rose-500/30 text-rose-300 font-mono text-xs whitespace-pre-wrap">
 																	<p className="font-bold text-rose-400 mb-1">Output / Error Log:</p>
-																	{sub.error_message}
+																	{formatErrorMessage(sub.error_message, problem?.examples?.[0]?.input)}
 																</div>
 															)}
 
@@ -1169,7 +1292,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 											{/* Detailed Diff / Error Details */}
 											{runResult.error_message && (
 												<div className="bg-[#1e1e1e] rounded-xl p-3 border border-rose-500/30 text-rose-300 font-mono text-xs whitespace-pre-wrap">
-													{runResult.error_message}
+													{formatErrorMessage(runResult.error_message, problem?.examples?.[0]?.input)}
 												</div>
 											)}
 										</div>
@@ -1258,8 +1381,8 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 						</div>
 
 						{submissionResult?.error_message && (
-							<div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl font-mono text-xs text-rose-300 whitespace-pre-wrap">
-								{submissionResult.error_message}
+							<div className="bg-[#1e1e1e] rounded-xl p-3 border border-rose-500/30 text-rose-300 font-mono text-xs whitespace-pre-wrap max-h-60 overflow-y-auto">
+								{formatErrorMessage(submissionResult.error_message, problem?.examples?.[0]?.input)}
 							</div>
 						)}
 

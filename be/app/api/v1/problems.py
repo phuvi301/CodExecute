@@ -74,3 +74,30 @@ async def delete_problem(
     """Admin deletes a problem"""
     problem_service.delete_problem(problem_id)
     return {"message": f"Successfully deleted problem '{problem_id}'."}
+
+from app.api.v1.submissions import get_optional_user_id
+
+@router.post("/{problem_id}/like", summary="Like or Unlike a problem")
+async def toggle_like_problem(
+    problem_id: str,
+    user_id: str = Depends(get_optional_user_id)
+):
+    """Toggle Like status for a problem"""
+    try:
+        res = problem_service.toggle_like_problem(problem_id, user_id)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/{problem_id}/dislike", summary="Dislike or Undislike a problem")
+async def toggle_dislike_problem(
+    problem_id: str,
+    user_id: str = Depends(get_optional_user_id)
+):
+    """Toggle Dislike status for a problem"""
+    try:
+        res = problem_service.toggle_dislike_problem(problem_id, user_id)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

@@ -758,6 +758,30 @@ export async function getMySubmissionsApi(problemId?: string): Promise<Submissio
   return data;
 }
 
+export async function toggleLikeProblemApi(problemId: string): Promise<{ likes_count: number; dislikes_count: number; user_liked: boolean; user_disliked: boolean }> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/problems/${problemId}/like`, {
+    method: 'POST',
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi khi thích bài toán');
+  }
+  return data;
+}
+
+export async function toggleDislikeProblemApi(problemId: string): Promise<{ likes_count: number; dislikes_count: number; user_liked: boolean; user_disliked: boolean }> {
+  const response = await fetchWithAuth(`${API_BASE_URL}/problems/${problemId}/dislike`, {
+    method: 'POST',
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || 'Lỗi khi không thích bài toán');
+  }
+  return data;
+}
+
 // --- NOTIFICATION APIS ---
 
 export interface NotificationItem {

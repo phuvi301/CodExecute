@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 problems_table = dynamodb_resource.Table(settings.DYNAMODB_PROBLEMS_TABLE)
 testcases_table = dynamodb_resource.Table(settings.DYNAMODB_TESTCASES_TABLE)
+submissions_table = dynamodb_resource.Table(settings.DYNAMODB_SUBMISSIONS_TABLE)
 
 
 def slugify(text: str) -> str:
@@ -47,12 +48,44 @@ def get_all_problems() -> List[Dict[str, Any]]:
 
 
 def get_problem_details(problem_id: str) -> Optional[Dict[str, Any]]:
-    """Retrieve problem details by ID from DynamoDB"""
+    """Retrieve problem details by ID from DynamoDB with real-time submission & like stats"""
     try:
         response = problems_table.get_item(Key={"ProblemID": problem_id})
         item = response.get("Item")
         if item:
-            return convert_decimals(item)
+            item = convert_decimals(item)
+
+            # 1. Tính toán số lượng bài nộp thực tế và tỉ lệ chấp nhận (Acceptance Rate) từ Submissions table
+            try:
+                sub_res = submissions_table.scan(
+                    FilterExpression="ProblemID = :pid",
+                    ExpressionAttributeValues={":pid": problem_id}
+                )
+                subs = sub_res.get("Items", [])
+                total_subs = len(subs)
+                accepted_subs = sum(1 for s in subs if s.get("Status") == "Accepted")
+                acc_rate = round((accepted_subs / total_subs * 100), 1) if total_subs > 0 else 0.0
+            except Exception as e:
+                logger.warning(f"Error scanning submissions for problem {problem_id}: {e}")
+                total_subs = int(item.get("Submissions", 0))
+                acc_rate = float(item.get("AcceptanceRate", 0.0))
+
+            liked_by = item.get("LikedBy", [])
+            if not isinstance(liked_by, list):
+                liked_by = []
+            disliked_by = item.get("DislikedBy", [])
+            if not isinstance(disliked_by, list):
+                disliked_by = []
+
+            item["TotalSubmissions"] = total_subs
+            item["AcceptedSubmissions"] = accepted_subs
+            item["AcceptanceRate"] = f"{acc_rate:.1f}%"
+            item["LikesCount"] = len(liked_by) if liked_by else int(item.get("Likes", 0))
+            item["DislikesCount"] = len(disliked_by) if disliked_by else int(item.get("Dislikes", 0))
+            item["LikedBy"] = liked_by
+            item["DislikedBy"] = disliked_by
+
+            return item
     except Exception as e:
         logger.warning(f"Failed to get problem {problem_id} from DynamoDB: {e}")
 
@@ -278,3 +311,102 @@ def get_admin_problem_detail(problem_id: str) -> Dict[str, Any]:
         "created_at": prob.get("CreatedAt") or prob.get("created_at") or "",
         "testcases": formatted_tcs
     }
+
+
+def toggle_like_problem(problem_id: str, user_id: str) -> Dict[str, Any]:
+    """Toggle Like for a user on a problem"""
+    try:
+        response = problems_table.get_item(Key={"ProblemID": problem_id})
+        item = response.get("Item")
+        if not item:
+            raise ValueError("Problem not found")
+
+        liked_by = item.get("LikedBy", [])
+        if not isinstance(liked_by, list):
+            liked_by = []
+        disliked_by = item.get("DislikedBy", [])
+        if not isinstance(disliked_by, list):
+            disliked_by = []
+
+        user_liked = False
+        if user_id in liked_by:
+            liked_by.remove(user_id)
+        else:
+            liked_by.append(user_id)
+            user_liked = True
+            if user_id in disliked_by:
+                disliked_by.remove(user_id)
+
+        likes_count = len(liked_by)
+        dislikes_count = len(disliked_by)
+
+        problems_table.update_item(
+            Key={"ProblemID": problem_id},
+            UpdateExpression="SET LikedBy = :lb, DislikedBy = :db, Likes = :lc, Dislikes = :dc",
+            ExpressionAttributeValues={
+                ":lb": liked_by,
+                ":db": disliked_by,
+                ":lc": likes_count,
+                ":dc": dislikes_count
+            }
+        )
+
+        return {
+            "likes_count": likes_count,
+            "dislikes_count": dislikes_count,
+            "user_liked": user_liked,
+            "user_disliked": False
+        }
+    except Exception as e:
+        logger.error(f"Error toggling like for problem {problem_id}: {e}")
+        raise e
+
+
+def toggle_dislike_problem(problem_id: str, user_id: str) -> Dict[str, Any]:
+    """Toggle Dislike for a user on a problem"""
+    try:
+        response = problems_table.get_item(Key={"ProblemID": problem_id})
+        item = response.get("Item")
+        if not item:
+            raise ValueError("Problem not found")
+
+        liked_by = item.get("LikedBy", [])
+        if not isinstance(liked_by, list):
+            liked_by = []
+        disliked_by = item.get("DislikedBy", [])
+        if not isinstance(disliked_by, list):
+            disliked_by = []
+
+        user_disliked = False
+        if user_id in disliked_by:
+            disliked_by.remove(user_id)
+        else:
+            disliked_by.append(user_id)
+            user_disliked = True
+            if user_id in liked_by:
+                liked_by.remove(user_id)
+
+        likes_count = len(liked_by)
+        dislikes_count = len(disliked_by)
+
+        problems_table.update_item(
+            Key={"ProblemID": problem_id},
+            UpdateExpression="SET LikedBy = :lb, DislikedBy = :db, Likes = :lc, Dislikes = :dc",
+            ExpressionAttributeValues={
+                ":lb": liked_by,
+                ":db": disliked_by,
+                ":lc": likes_count,
+                ":dc": dislikes_count
+            }
+        )
+
+        return {
+            "likes_count": likes_count,
+            "dislikes_count": dislikes_count,
+            "user_liked": False,
+            "user_disliked": user_disliked
+        }
+    except Exception as e:
+        logger.error(f"Error toggling dislike for problem {problem_id}: {e}")
+        raise e
+

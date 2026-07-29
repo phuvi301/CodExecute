@@ -46,7 +46,7 @@ export function Header({ currentScreen }: HeaderProps) {
 	};
 
 
-	const { problem, language, setLanguage, runCode, submitCode, isRunning, isSubmitting } = useProblem();
+	const { currentProblemId, problem, language, setLanguage, runCode, submitCode, isRunning, isSubmitting, problemsList } = useProblem();
 
 	const navItemClass = (active: boolean) =>
 		`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
@@ -62,15 +62,22 @@ export function Header({ currentScreen }: HeaderProps) {
 		return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 	};
 
-	const currentIndex = PROBLEMS_LIST.findIndex((p) => p.id === (problem?.id || '1'));
+	const activeProblemsList = problemsList && problemsList.length > 0 ? problemsList : PROBLEMS_LIST;
+	const activeId = currentProblemId || problem?.id;
+	const currentIndex = activeProblemsList.findIndex((p) => p.id === activeId);
+
 	const handlePrevProblem = () => {
-		const prevIndex = (currentIndex - 1 + PROBLEMS_LIST.length) % PROBLEMS_LIST.length;
-		navigate(`/problems/${PROBLEMS_LIST[prevIndex].id}`);
+		if (activeProblemsList.length === 0) return;
+		const validIndex = currentIndex === -1 ? 0 : currentIndex;
+		const prevIndex = (validIndex - 1 + activeProblemsList.length) % activeProblemsList.length;
+		navigate(`/problems/${activeProblemsList[prevIndex].id}`);
 	};
 
 	const handleNextProblem = () => {
-		const nextIndex = (currentIndex + 1) % PROBLEMS_LIST.length;
-		navigate(`/problems/${PROBLEMS_LIST[nextIndex].id}`);
+		if (activeProblemsList.length === 0) return;
+		const validIndex = currentIndex === -1 ? 0 : currentIndex;
+		const nextIndex = (validIndex + 1) % activeProblemsList.length;
+		navigate(`/problems/${activeProblemsList[nextIndex].id}`);
 	};
 
 	const isProblemEditor = currentScreen === 'problem-editor';
@@ -103,10 +110,24 @@ export function Header({ currentScreen }: HeaderProps) {
 						</Button>
 
 						<div className="flex items-center gap-0.5 shrink-0">
-							<Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={handlePrevProblem} title="Previous problem">
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-40"
+								onClick={handlePrevProblem}
+								disabled={activeProblemsList.length <= 1}
+								title="Previous problem"
+							>
 								<ChevronLeft className="w-4 h-4" />
 							</Button>
-							<Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={handleNextProblem} title="Next problem">
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-7 w-7 text-muted-foreground hover:text-foreground disabled:opacity-40"
+								onClick={handleNextProblem}
+								disabled={activeProblemsList.length <= 1}
+								title="Next problem"
+							>
 								<ChevronRight className="w-4 h-4" />
 							</Button>
 						</div>

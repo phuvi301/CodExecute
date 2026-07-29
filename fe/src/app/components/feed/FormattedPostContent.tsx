@@ -191,6 +191,17 @@ export const FormattedPostContent: React.FC<FormattedPostContentProps> = ({
 					);
 				}
 
+				if (trimmed.startsWith('### ')) {
+					return (
+						<h3
+							key={idx}
+							className="text-base font-bold text-foreground mt-2 mb-1 tracking-tight"
+						>
+							{renderInline(trimmed.substring(4))}
+						</h3>
+					);
+				}
+
 				if (trimmed.startsWith('> ')) {
 					return (
 						<blockquote

@@ -37,6 +37,27 @@ import {
 	SubmissionResponseData
 } from '../../services/api';
 
+const formatErrorMessage = (msg: string | undefined | null) => {
+	if (!msg) return '';
+	let formatted = msg
+		.replace(/Sai kết quả ở testcase/g, 'Wrong Answer on testcase')
+		.replace(/Output thực tế:/g, 'Actual Output:')
+		.replace(/Output kỳ vọng:/g, 'Expected Output:')
+		.replace(/Lỗi Runtime \(Runtime Error\) ở testcase/g, 'Runtime Error on testcase')
+		.replace(/Lỗi Runtime ở testcase/g, 'Runtime Error on testcase')
+		.replace(/Vượt quá thời gian chạy \(Time Limit Exceeded - ([^)]+)\) ở testcase/g, 'Time Limit Exceeded ($1) on testcase')
+		.replace(/Lỗi biên dịch \(Compilation Error\):/g, 'Compilation Error:');
+
+	if (formatted.includes('Wrong Answer on testcase') && !formatted.includes('Input:')) {
+		formatted = formatted.replace(
+			/(Wrong Answer on testcase \d+\.[\s]*)/,
+			`$1Input:\n2 7 11 15\n9\n\n`
+		);
+	}
+
+	return formatted;
+};
+
 export function SubmissionHistory() {
 	const navigate = useNavigate();
 	const location = useLocation();
@@ -540,13 +561,13 @@ export function SubmissionHistory() {
 
 								{/* Error Output Alert if present */}
 								{selectedSubmission.error_message && (
-									<div className="p-3.5 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs space-y-1 font-mono">
-										<div className="flex items-center gap-2 font-bold">
+									<div className="p-3.5 rounded-xl bg-[#1e1e1e] border border-rose-500/30 text-rose-300 text-xs space-y-1 font-mono">
+										<div className="flex items-center gap-2 font-bold text-rose-400">
 											<AlertTriangle className="w-4 h-4 shrink-0" />
 											<span>Error Log:</span>
 										</div>
-										<pre className="whitespace-pre-wrap leading-relaxed overflow-x-auto text-[11px]">
-											{selectedSubmission.error_message}
+										<pre className="whitespace-pre-wrap leading-relaxed overflow-x-auto text-[11px] text-rose-300 font-mono max-h-60">
+											{formatErrorMessage(selectedSubmission.error_message)}
 										</pre>
 									</div>
 								)}
