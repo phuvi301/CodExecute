@@ -155,7 +155,7 @@ def execute_submission_local(
                         "memory_used": memory_used,
                         "passed_testcases": passed_testcases,
                         "total_testcases": total_testcases,
-                        "error_message": f"Sai kết quả ở testcase {idx+1}.\nOutput thực tế: {clean_actual[:150]}\nOutput kỳ vọng: {clean_expected[:150]}"
+                        "error_message": f"Sai kết quả ở testcase {idx+1}.\nInput: {tc_input[:150]}\nOutput thực tế: {clean_actual[:150]}\nOutput kỳ vọng: {clean_expected[:150]}"
                     }
 
             except subprocess.TimeoutExpired:
