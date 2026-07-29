@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 from enum import Enum
 
@@ -28,6 +28,7 @@ class ProblemBase(BaseModel):
     memory_limit: int = Field(default=256, description="Giới hạn bộ nhớ (MB)")
     time_complexity: Optional[str] = Field(default="", description="Ví dụ: O(N log N)")
     space_complexity: Optional[str] = Field(default="", description="Ví dụ: O(N)")
+    init_code: Optional[Dict[str, str]] = Field(default=None, description="Mã khởi tạo mẫu cho các ngôn ngữ (python, javascript, cpp, java)")
 
 class ProblemCreate(ProblemBase):
     problem_id: Optional[str] = Field(default=None, description="Tùy chọn Custom ID (VD: two-sum) hoặc tự sinh UUID")
@@ -45,6 +46,7 @@ class ProblemUpdate(BaseModel):
     space_complexity: Optional[str] = None
     description: Optional[str] = None
     constraints: Optional[str] = None
+    init_code: Optional[Dict[str, str]] = None
     testcases: Optional[List[TestCaseCreate]] = None
 
 class ProblemResponse(ProblemBase):

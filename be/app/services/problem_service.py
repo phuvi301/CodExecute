@@ -162,6 +162,7 @@ def create_problem(problem_data: Dict[str, Any], testcases: List[Dict[str, Any]]
         "SpaceComplexity": problem_data.get("space_complexity", ""),
         "Description": problem_data.get("description", ""),
         "Constraints": problem_data.get("constraints", ""),
+        "InitCode": problem_data.get("init_code") or {},
         "AcceptanceRate": Decimal("0.0"),
         "CreatedAt": now_str,
     }
@@ -194,6 +195,7 @@ def update_problem(problem_id: str, update_fields: Dict[str, Any], testcases: Op
         "space_complexity": "SpaceComplexity",
         "description": "Description",
         "constraints": "Constraints",
+        "init_code": "InitCode",
     }
 
     for key, attr_name in field_mappings.items():
@@ -261,17 +263,18 @@ def get_admin_problem_detail(problem_id: str) -> Dict[str, Any]:
         })
 
     return {
-        "problem_id": prob.get("ProblemID", problem_id),
-        "title": prob.get("Title", ""),
-        "difficulty": prob.get("Difficulty", "Easy"),
-        "category": prob.get("Category", ""),
-        "time_limit": float(prob.get("TimeLimit", 2.0)),
-        "memory_limit": int(prob.get("MemoryLimit", 256)),
-        "time_complexity": prob.get("TimeComplexity", ""),
-        "space_complexity": prob.get("SpaceComplexity", ""),
-        "description": prob.get("Description", ""),
-        "constraints": prob.get("Constraints", ""),
-        "acceptance_rate": float(prob.get("AcceptanceRate", 0.0)),
-        "created_at": prob.get("CreatedAt", ""),
+        "problem_id": prob.get("ProblemID") or prob.get("problem_id") or problem_id,
+        "title": prob.get("Title") or prob.get("title") or "",
+        "difficulty": prob.get("Difficulty") or prob.get("difficulty") or "Easy",
+        "category": prob.get("Category") or prob.get("category") or "",
+        "time_limit": float(prob.get("TimeLimit", prob.get("time_limit", 2.0))),
+        "memory_limit": int(prob.get("MemoryLimit", prob.get("memory_limit", 256))),
+        "time_complexity": prob.get("TimeComplexity") or prob.get("time_complexity") or "",
+        "space_complexity": prob.get("SpaceComplexity") or prob.get("space_complexity") or "",
+        "description": prob.get("Description") or prob.get("description") or "",
+        "constraints": prob.get("Constraints") or prob.get("constraints") or "",
+        "init_code": prob.get("InitCode") or prob.get("init_code") or {},
+        "acceptance_rate": float(prob.get("AcceptanceRate", prob.get("acceptance_rate", 0.0))),
+        "created_at": prob.get("CreatedAt") or prob.get("created_at") or "",
         "testcases": formatted_tcs
     }

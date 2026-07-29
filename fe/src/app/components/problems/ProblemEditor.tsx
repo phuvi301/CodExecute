@@ -96,6 +96,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 		activeTab,
 		setActiveTab,
 		setCurrentProblemId,
+		resetCodeToInit,
 	} = useProblem();
 
 	const [selectedTestCase, setSelectedTestCase] = useState<number>(0);
@@ -972,6 +973,15 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 									</span>
 
 									<div className="flex items-center gap-1">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-6 w-6 text-gray-400 hover:text-white hover:bg-gray-700/50"
+											onClick={resetCodeToInit}
+											title="Reset code to starter template"
+										>
+											<RotateCcw className="w-3.5 h-3.5" />
+										</Button>
 										<Button
 											variant="ghost"
 											size="icon"

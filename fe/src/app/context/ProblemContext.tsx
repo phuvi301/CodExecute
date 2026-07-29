@@ -14,6 +14,7 @@ export interface Problem {
 		explanation?: string;
 	}[];
 	constraints: string[];
+	init_code?: Record<string, string>;
 }
 
 export const PROBLEMS_LIST: Problem[] = [
@@ -153,6 +154,7 @@ interface ProblemContextType {
 	setLanguage: (lang: string) => void;
 	code: string;
 	setCode: (code: string) => void;
+	resetCodeToInit: () => void;
 	isRunning: boolean;
 	isSubmitting: boolean;
 	runCode: () => Promise<void>;
@@ -171,7 +173,7 @@ const ProblemContext = createContext<ProblemContextType | undefined>(undefined);
 export function ProblemProvider({ children }: { children: React.ReactNode }) {
 	const [currentProblemId, setCurrentProblemId] = useState<string>('two-sum');
 	const [language, setLanguageState] = useState<string>('python');
-	const [code, setCode] = useState<string>(CODE_TEMPLATES['python']);
+	const [code, setCodeState] = useState<string>('');
 	const [isRunning, setIsRunning] = useState<boolean>(false);
 	const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 	const [showSubmitDialog, setShowSubmitDialog] = useState<boolean>(false);
@@ -221,6 +223,7 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 					description: data.Description || data.description || '',
 					examples: exList,
 					constraints: constraintArr,
+					init_code: data.InitCode || data.init_code || {},
 				});
 			})
 			.catch((err) => {
@@ -235,10 +238,52 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 	const localFallback = PROBLEMS_LIST.find((p) => p.id === currentProblemId) || PROBLEMS_LIST[0];
 	const problem = fetchedProblem || localFallback;
 
+	// Automatically load saved code from localStorage OR fallback to init_code / CODE_TEMPLATES
+	useEffect(() => {
+		if (!currentProblemId) return;
+		const storageKey = `codexecute_code_${currentProblemId}_${language}`;
+		const savedCode = localStorage.getItem(storageKey);
+		if (savedCode !== null) {
+			setCodeState(savedCode);
+		} else {
+			const initMap = fetchedProblem?.init_code || problem?.init_code;
+			if (initMap && initMap[language] && initMap[language].trim()) {
+				setCodeState(initMap[language]);
+			} else {
+				setCodeState(CODE_TEMPLATES[language] || '');
+			}
+		}
+	}, [currentProblemId, language, fetchedProblem]);
+
+	const setCode = (newCode: string) => {
+		setCodeState(newCode);
+		if (currentProblemId && language) {
+			localStorage.setItem(`codexecute_code_${currentProblemId}_${language}`, newCode);
+		}
+	};
+
 	const setLanguage = (lang: string) => {
 		setLanguageState(lang);
-		if (CODE_TEMPLATES[lang]) {
-			setCode(CODE_TEMPLATES[lang]);
+		const storageKey = `codexecute_code_${currentProblemId}_${lang}`;
+		const savedCode = localStorage.getItem(storageKey);
+		if (savedCode !== null) {
+			setCodeState(savedCode);
+		} else {
+			const initMap = fetchedProblem?.init_code || problem?.init_code;
+			if (initMap && initMap[lang] && initMap[lang].trim()) {
+				setCodeState(initMap[lang]);
+			} else {
+				setCodeState(CODE_TEMPLATES[lang] || '');
+			}
+		}
+	};
+
+	const resetCodeToInit = () => {
+		const initMap = fetchedProblem?.init_code || problem?.init_code;
+		const initCode = (initMap && initMap[language] && initMap[language].trim()) ? initMap[language] : (CODE_TEMPLATES[language] || '');
+		setCodeState(initCode);
+		if (currentProblemId && language) {
+			localStorage.setItem(`codexecute_code_${currentProblemId}_${language}`, initCode);
 		}
 	};
 
@@ -337,6 +382,7 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 				setLanguage,
 				code,
 				setCode,
+				resetCodeToInit,
 				isRunning,
 				isSubmitting,
 				runCode,
@@ -366,6 +412,7 @@ export function useProblem() {
 			setLanguage: () => {},
 			code: CODE_TEMPLATES['python'],
 			setCode: () => {},
+			resetCodeToInit: () => {},
 			isRunning: false,
 			isSubmitting: false,
 			runCode: async () => {},

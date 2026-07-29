@@ -886,6 +886,7 @@ export interface AdminProblemPayload {
   space_complexity?: string;
   description: string;
   constraints: string;
+  init_code?: Record<string, string>;
   testcases?: TestCaseData[];
 }
 

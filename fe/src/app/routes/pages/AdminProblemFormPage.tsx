@@ -8,6 +8,7 @@ import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { ArrowLeft, Save, Plus, Trash2, Loader2, Code2, AlertCircle, Upload, Download, FileText } from 'lucide-react';
 import { adminCreateProblemApi, adminUpdateProblemApi, adminGetProblemDetailApi, TestCaseData } from '../../services/api';
+import { CODE_TEMPLATES } from '../../context/ProblemContext';
 
 const SAMPLE_TEMPLATE_TXT = `=== TESTCASE 1 ===
 TYPE: SAMPLE
@@ -151,6 +152,14 @@ export function AdminProblemFormPage() {
   const [description, setDescription] = useState('');
   const [constraints, setConstraints] = useState('');
   
+  const [initCode, setInitCode] = useState<Record<string, string>>({
+    python: CODE_TEMPLATES.python || '',
+    javascript: CODE_TEMPLATES.javascript || '',
+    cpp: CODE_TEMPLATES.cpp || '',
+    java: CODE_TEMPLATES.java || ''
+  });
+  const [activeLangTab, setActiveLangTab] = useState<'python' | 'javascript' | 'cpp' | 'java'>('python');
+
   const [testcases, setTestcases] = useState<TestCaseData[]>([
     { is_sample: true, input: '2 7 11 15\n9', output: '0 1' },
     { is_sample: false, input: '3 2 4\n6', output: '1 2' }
@@ -177,6 +186,15 @@ export function AdminProblemFormPage() {
           setSpaceComplexity(data.space_complexity || '');
           setDescription(data.description || '');
           setConstraints(data.constraints || '');
+          if (data.init_code || data.InitCode) {
+            const customInit = data.init_code || data.InitCode || {};
+            setInitCode({
+              python: customInit.python !== undefined ? customInit.python : (CODE_TEMPLATES.python || ''),
+              javascript: customInit.javascript !== undefined ? customInit.javascript : (CODE_TEMPLATES.javascript || ''),
+              cpp: customInit.cpp !== undefined ? customInit.cpp : (CODE_TEMPLATES.cpp || ''),
+              java: customInit.java !== undefined ? customInit.java : (CODE_TEMPLATES.java || '')
+            });
+          }
           if (Array.isArray(data.testcases) && data.testcases.length > 0) {
             setTestcases(data.testcases.map((tc: any) => ({
               testcase_id: tc.testcase_id,
@@ -261,6 +279,7 @@ export function AdminProblemFormPage() {
         space_complexity: spaceComplexity.trim(),
         description: description.trim(),
         constraints: constraints.trim(),
+        init_code: initCode,
         testcases
       };
 
@@ -451,12 +470,71 @@ export function AdminProblemFormPage() {
           </div>
         </Card>
 
+        {/* Initial Code Templates Card */}
+        <Card className="bg-card border-border p-6 space-y-4">
+          <CardHeader className="p-0 pb-3 border-b border-border/60">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Code2 className="w-5 h-5 text-primary" />
+              <span>3. Initial Code Templates (Starter Code)</span>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Define custom starter code for each supported programming language. Displayed when a user opens the problem for the first time.
+            </CardDescription>
+          </CardHeader>
+
+          <div className="space-y-3 pt-2">
+            {/* Language Tabs */}
+            <div className="flex items-center gap-2 border-b border-border pb-2">
+              {[
+                { id: 'python', label: 'Python (3.x)' },
+                { id: 'javascript', label: 'JavaScript (Node)' },
+                { id: 'cpp', label: 'C++ (GCC)' },
+                { id: 'java', label: 'Java (OpenJDK)' }
+              ].map((lang) => (
+                <button
+                  key={lang.id}
+                  type="button"
+                  onClick={() => setActiveLangTab(lang.id as any)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    activeLangTab === lang.id
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Code Editor Textarea */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-mono text-muted-foreground uppercase">{activeLangTab} starter template:</Label>
+                <button
+                  type="button"
+                  onClick={() => setInitCode(prev => ({ ...prev, [activeLangTab]: CODE_TEMPLATES[activeLangTab] || '' }))}
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  Reset to default template
+                </button>
+              </div>
+              <Textarea
+                value={initCode[activeLangTab] || ''}
+                onChange={(e) => setInitCode(prev => ({ ...prev, [activeLangTab]: e.target.value }))}
+                rows={10}
+                className="font-mono text-xs bg-slate-950 text-emerald-400 border-slate-800 focus:border-primary focus:ring-1 focus:ring-primary"
+                placeholder={`// Enter ${activeLangTab} starter code...`}
+              />
+            </div>
+          </div>
+        </Card>
+
         {/* Testcases Manager Card with Batch .txt Upload */}
         <Card className="bg-card border-border p-6 space-y-4">
           <CardHeader className="p-0 pb-3 border-b border-border/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-lg flex items-center gap-2">
-                <span>3. Testcases Management</span>
+                <span>4. Testcases Management</span>
                 <span className="text-xs font-normal text-muted-foreground">({testcases.length} items)</span>
               </CardTitle>
               <CardDescription className="text-xs mt-0.5">
