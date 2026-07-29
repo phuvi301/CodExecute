@@ -413,11 +413,11 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 					defaultSize={isMobile ? 40 : 45}
 					minSize={20}
 					maxSize={80}
-					className="h-full overflow-y-auto bg-card/20 flex flex-col"
+					className="h-full bg-card/20 flex flex-col overflow-hidden"
 				>
-					<div className="p-4 sm:p-6 flex-1">
-						<Tabs defaultValue="description" className="w-full">
-							<TabsList className="mb-6 bg-muted/60 p-1 rounded-xl flex-wrap h-auto gap-1">
+					<div className="p-4 sm:p-6 flex-1 flex flex-col min-h-0 overflow-hidden">
+						<Tabs defaultValue="description" className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
+							<TabsList className="mb-4 bg-muted/60 p-1 rounded-xl flex-wrap h-auto gap-1 shrink-0">
 								<TabsTrigger value="description" className="rounded-lg text-xs font-semibold px-3.5 py-1.5">
 									Description
 								</TabsTrigger>
@@ -434,7 +434,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 							</TabsList>
 
 							{/* Description Content */}
-							<TabsContent value="description" className="space-y-6">
+							<TabsContent value="description" className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
 								<div>
 									<h2 className="text-xl font-bold text-foreground mb-3 flex items-center gap-2 flex-wrap">
 										<span>{problem.title}</span>
@@ -534,7 +534,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 							</TabsContent>
 
 							{/* TAB SUBMISSIONS: Hiển thị các bài nộp của user đối với bài toán này */}
-							<TabsContent value="submissions" className="space-y-4">
+							<TabsContent value="submissions" className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
 								<div className="flex items-center justify-between sticky top-0 bg-card/90 backdrop-blur-sm z-10 py-1">
 									<h3 className="text-sm font-bold text-foreground flex items-center gap-2">
 										<History className="w-4 h-4 text-primary" />
@@ -564,7 +564,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 										<p className="text-xs text-muted-foreground">Submit your solution to see your evaluation history here.</p>
 									</div>
 								) : (
-									<div className="space-y-3 max-h-[calc(100vh-230px)] overflow-y-auto pr-2 custom-scrollbar">
+									<div className="space-y-3">
 
 										{submissionsList.map((sub) => {
 											const isExpanded = expandedSubmissionId === sub.submission_id;
@@ -651,7 +651,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 								)}
 							</TabsContent>
 
-							<TabsContent value="solutions">
+							<TabsContent value="solutions" className="flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
 								<div className="p-6 rounded-xl bg-muted/20 border border-border text-center text-muted-foreground text-sm space-y-2">
 									<Code2 className="w-10 h-10 mx-auto text-primary opacity-80" />
 									<p className="font-medium text-foreground">Official Solutions Locked</p>
@@ -659,7 +659,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 								</div>
 							</TabsContent>
 
-							<TabsContent value="discussions" className="space-y-4">
+							<TabsContent value="discussions" className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar min-h-0">
 								{/* Header & Create Discussion Trigger */}
 								<div className="flex items-center justify-between sticky top-0 bg-card/90 backdrop-blur-sm z-10 py-1 border-b border-border/40 pb-2">
 									<h3 className="text-sm font-bold text-foreground flex items-center gap-2">
@@ -756,7 +756,7 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 										<p className="text-xs text-muted-foreground">Be the first to start a conversation or share a solution for this problem!</p>
 									</div>
 								) : (
-									<div className="space-y-4 max-h-[calc(100vh-250px)] overflow-y-auto pr-1 custom-scrollbar">
+									<div className="space-y-4">
 										{discussionsList.map((disc) => {
 											const isLiked = currentUser?.user_id ? disc.liked_by?.includes(currentUser.user_id) : false;
 											const isReposted = currentUser?.user_id ? disc.reposted_by?.includes(currentUser.user_id) : false;
@@ -1109,10 +1109,19 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 										))}
 									</div>
 
-									<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
-										<p className="text-gray-400 text-xs font-mono">Input:</p>
-										<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-gray-200 overflow-x-auto">
-											{problem.examples[selectedTestCase]?.input || 'nums = [2,7,11,15], target = 9'}
+									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+										<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
+											<p className="text-gray-400 text-xs font-mono">Input:</p>
+											<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-gray-200 overflow-x-auto whitespace-pre-wrap">
+												{problem.examples[selectedTestCase]?.input || 'nums = [2,7,11,15], target = 9'}
+											</div>
+										</div>
+
+										<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
+											<p className="text-gray-400 text-xs font-mono">Expected Output:</p>
+											<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-emerald-400 font-semibold overflow-x-auto whitespace-pre-wrap">
+												{problem.examples[selectedTestCase]?.output || ''}
+											</div>
 										</div>
 									</div>
 								</TabsContent>

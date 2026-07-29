@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { ArrowLeft, Save, Plus, Trash2, Loader2, Code2, AlertCircle, Upload, Download, FileText } from 'lucide-react';
 import { adminCreateProblemApi, adminUpdateProblemApi, adminGetProblemDetailApi, TestCaseData } from '../../services/api';
 
-const SAMPLE_TEMPLATE_TXT = `=== TESTCASE ===
+const SAMPLE_TEMPLATE_TXT = `=== TESTCASE 1 ===
 TYPE: SAMPLE
 INPUT:
 2 7 11 15
@@ -17,7 +17,15 @@ INPUT:
 OUTPUT:
 0 1
 
-=== TESTCASE ===
+=== TESTCASE 2 ===
+TYPE: SAMPLE
+INPUT:
+3 2 4
+6
+OUTPUT:
+1 2
+
+=== TESTCASE 3 ===
 TYPE: HIDDEN
 INPUT:
 1 5 9 12
@@ -27,36 +35,81 @@ OUTPUT:
 `;
 
 function parseTestcasesTxt(text: string): TestCaseData[] {
-  const blocks = text.split(/===\s*(?:TESTCASE|SAMPLE|HIDDEN)\s*===/i);
-  const parsed: TestCaseData[] = [];
+  const trimmed = text.trim();
+  if (!trimmed) return [];
 
-  for (const rawBlock of blocks) {
-    const block = rawBlock.trim();
-    if (!block) continue;
-
-    let is_sample = true;
-    if (/TYPE:\s*HIDDEN/i.test(block) || /IS_SAMPLE:\s*FALSE/i.test(block)) {
-      is_sample = false;
-    } else if (/TYPE:\s*SAMPLE/i.test(block) || /IS_SAMPLE:\s*TRUE/i.test(block)) {
-      is_sample = true;
-    }
-
-    const inputMatch = block.match(/INPUT:\s*\n?([\s\S]*?)(?=\n?OUTPUT:|$)/i);
-    const outputMatch = block.match(/OUTPUT:\s*\n?([\s\S]*?)$/i);
-
-    const inputVal = inputMatch ? inputMatch[1].trim() : '';
-    const outputVal = outputMatch ? outputMatch[1].trim() : '';
-
-    if (inputVal || outputVal) {
-      parsed.push({
-        is_sample,
-        input: inputVal,
-        output: outputVal
-      });
+  // 1. Try parsing JSON array format
+  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+    try {
+      const data = JSON.parse(trimmed);
+      const list = Array.isArray(data) ? data : data.testcases || [data];
+      const parsedJson: TestCaseData[] = [];
+      for (const item of list) {
+        if (item && typeof item === 'object') {
+          parsedJson.push({
+            is_sample: item.is_sample !== undefined ? Boolean(item.is_sample) : true,
+            input: String(item.input || '').trim(),
+            output: String(item.output || '').trim()
+          });
+        }
+      }
+      if (parsedJson.length > 0) return parsedJson;
+    } catch {
+      // Fallback to text parsing
     }
   }
 
-  return parsed;
+  // 2. Block-based parsing (headers like === TESTCASE 1 ===, === SAMPLE ===, === HIDDEN ===, --- TESTCASE ---)
+  const headerRegex = /(?:===|---)\s*(?:TESTCASE|SAMPLE|HIDDEN)[^=\-\n]*(?:===|---)/gi;
+  const matches = [...trimmed.matchAll(headerRegex)];
+
+  if (matches.length > 0) {
+    const parsedBlocks: TestCaseData[] = [];
+    for (let i = 0; i < matches.length; i++) {
+      const header = matches[i][0];
+      const startIndex = matches[i].index! + header.length;
+      const endIndex = i + 1 < matches.length ? matches[i + 1].index! : trimmed.length;
+      const blockContent = trimmed.substring(startIndex, endIndex).trim();
+
+      let is_sample = true;
+      if (/HIDDEN/i.test(header) || /TYPE:\s*HIDDEN/i.test(blockContent) || /IS_SAMPLE:\s*FALSE/i.test(blockContent)) {
+        is_sample = false;
+      } else if (/SAMPLE/i.test(header) || /TYPE:\s*SAMPLE/i.test(blockContent) || /IS_SAMPLE:\s*TRUE/i.test(blockContent)) {
+        is_sample = true;
+      }
+
+      const inputMatch = blockContent.match(/INPUT:\s*\n?([\s\S]*?)(?=\n?OUTPUT:|$)/i);
+      const outputMatch = blockContent.match(/OUTPUT:\s*\n?([\s\S]*?)$/i);
+
+      const inputVal = inputMatch ? inputMatch[1].trim() : '';
+      const outputVal = outputMatch ? outputMatch[1].trim() : '';
+
+      if (inputVal || outputVal) {
+        parsedBlocks.push({ is_sample, input: inputVal, output: outputVal });
+      }
+    }
+    if (parsedBlocks.length > 0) return parsedBlocks;
+  }
+
+  // 3. Fallback: Sequential INPUT: / OUTPUT: scanning (for files with multiple INPUT/OUTPUT blocks without explicit headers)
+  const ioRegex = /(?:TYPE:\s*(SAMPLE|HIDDEN)\s*\n?)?INPUT:\s*\n?([\s\S]*?)\n?OUTPUT:\s*\n?([\s\S]*?)(?=(?:TYPE:\s*(?:SAMPLE|HIDDEN)|INPUT:|$))/gi;
+  const sequentialMatches = [...trimmed.matchAll(ioRegex)];
+  if (sequentialMatches.length > 0) {
+    const parsedSequential: TestCaseData[] = [];
+    for (const match of sequentialMatches) {
+      const typeStr = match[1] || '';
+      const inputVal = (match[2] || '').trim();
+      const outputVal = (match[3] || '').trim();
+      const is_sample = !/HIDDEN/i.test(typeStr);
+
+      if (inputVal || outputVal) {
+        parsedSequential.push({ is_sample, input: inputVal, output: outputVal });
+      }
+    }
+    if (parsedSequential.length > 0) return parsedSequential;
+  }
+
+  return [];
 }
 
 export function AdminProblemFormPage() {
@@ -150,11 +203,12 @@ export function AdminProblemFormPage() {
           setSuccessMessage(`Successfully imported ${parsed.length} testcases from file '${file.name}'.`);
           setTimeout(() => setSuccessMessage(''), 5000);
         } else {
-          setError('Failed to parse testcases from .txt file. Please make sure to follow the template format.');
+          setError('Failed to parse testcases from file. Please ensure it follows the template format.');
         }
       }
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
   const handleDownloadTemplate = () => {
