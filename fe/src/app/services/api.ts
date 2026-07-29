@@ -1,4 +1,9 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+  const cleanUrl = envUrl.replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api/v1') ? cleanUrl : `${cleanUrl}/api/v1`;
+};
+const API_BASE_URL = getApiBaseUrl();
 
 // --- RUNTIME TOKEN STORAGE (Biến lưu ở RAM, không dùng localStorage) ---
 let inMemoryAccessToken: string | null = null;
