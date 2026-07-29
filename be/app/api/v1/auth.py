@@ -1,12 +1,55 @@
 import uuid
 from datetime import datetime
 
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, SendOTPRequest, VerifyOTPRequest
-from app.services import auth_service, otp_service, email_service
+from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, SendOTPRequest, VerifyOTPRequest, OAuthLoginRequest
+from app.services import auth_service, otp_service, email_service, oauth_service
 from app.core import security
 
 router = APIRouter()
+
+@router.get("/google/url")
+async def get_google_oauth_url(redirect_uri: Optional[str] = None):
+    """Lấy URL đăng nhập qua Google OAuth 2.0"""
+    auth_url = oauth_service.get_google_auth_url(redirect_uri=redirect_uri)
+    return {"url": auth_url}
+
+@router.get("/github/url")
+async def get_github_oauth_url(redirect_uri: Optional[str] = None):
+    """Lấy URL đăng nhập qua GitHub OAuth 2.0"""
+    auth_url = oauth_service.get_github_auth_url(redirect_uri=redirect_uri)
+    return {"url": auth_url}
+
+@router.post("/oauth", response_model=TokenResponse)
+async def oauth_login(payload: OAuthLoginRequest, response: Response):
+    """
+    Xác thực mã OAuth code từ Google/GitHub, tự động tạo/lấy tài khoản và đăng nhập.
+    """
+    provider = payload.provider.lower().strip()
+    if provider == "google":
+        oauth_user_info = await oauth_service.exchange_google_code(payload.code, redirect_uri=payload.redirect_uri)
+    elif provider == "github":
+        oauth_user_info = await oauth_service.exchange_github_code(payload.code, redirect_uri=payload.redirect_uri)
+    else:
+        raise HTTPException(status_code=400, detail="Provider không hợp lệ. Chỉ hỗ trợ 'google' hoặc 'github'")
+
+    user = auth_service.create_or_get_oauth_user(oauth_user_info)
+
+    refresh_token = security.create_token(data={"sub": user['UserID'], "role": user.get('Role', 'user')}, mode="refresh")
+    access_token = security.create_token(data={"sub": user['UserID'], "role": user.get('Role', 'user')}, mode="access")
+
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        path="/"
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
 
 @router.post("/send-otp")
 async def send_otp(payload: SendOTPRequest):

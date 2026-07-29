@@ -95,6 +95,36 @@ async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Re
 
 // --- API AUTHENTICATION ---
 
+export async function getOAuthUrlApi(provider: 'google' | 'github'): Promise<{ url: string }> {
+  const response = await fetch(`${API_BASE_URL}/auth/${provider}/url`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || `Không thể lấy link đăng nhập ${provider}`);
+  }
+  return data;
+}
+
+export async function oauthLoginApi(payload: { provider: 'google' | 'github'; code: string }): Promise<AuthTokenResponse> {
+  const response = await fetch(`${API_BASE_URL}/auth/oauth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    const errorMsg = Array.isArray(data.detail)
+      ? data.detail[0]?.msg || 'Xác thực OAuth thất bại'
+      : data.detail || 'Xác thực OAuth thất bại';
+    throw new Error(errorMsg);
+  }
+  setAccessToken(data.access_token);
+  return data;
+}
+
 export async function loginApi(payload: LoginPayload): Promise<AuthTokenResponse> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',

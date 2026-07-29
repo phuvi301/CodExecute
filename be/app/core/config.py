@@ -51,6 +51,15 @@ class Settings(BaseSettings):
     EMAILS_FROM_EMAIL: str = "noreply@codexecute.com"
     SMTP_TLS: bool = True
 
+    # Cấu hình OAuth Google & GitHub
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REDIRECT_URI: str = "http://localhost:5173/auth/callback"
+
+    GITHUB_CLIENT_ID: Optional[str] = None
+    GITHUB_CLIENT_SECRET: Optional[str] = None
+    GITHUB_REDIRECT_URI: str = "http://localhost:5173/auth/callback"
+
     # Tự động nạp các biến từ file .env nếu có
     model_config = SettingsConfigDict(
         env_file=".env", 

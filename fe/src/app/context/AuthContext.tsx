@@ -14,6 +14,7 @@ import {
   getAccessToken,
   setAccessToken,
   clearAccessToken,
+  oauthLoginApi,
 } from '../services/api';
 
 interface AuthContextType {
@@ -22,6 +23,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
+  oauthLogin: (provider: 'google' | 'github', code: string) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   updateProfile: (payload: UpdateProfilePayload) => Promise<UserProfile>;
   uploadAvatar: (file: File) => Promise<{ message: string; avatar_url: string; user: UserProfile }>;
@@ -102,6 +104,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const oauthLogin = async (provider: 'google' | 'github', code: string) => {
+    setIsLoading(true);
+    try {
+      const res = await oauthLoginApi({ provider, code });
+      updateRuntimeToken(res.access_token);
+
+      const userId = parseUserIdFromToken(res.access_token);
+      if (userId) {
+        const profile = await getProfileApi(userId);
+        setUser(profile);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const register = async (payload: RegisterPayload) => {
     setIsLoading(true);
     try {
@@ -143,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         login,
+        oauthLogin,
         register,
         updateProfile,
         uploadAvatar,

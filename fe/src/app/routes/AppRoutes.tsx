@@ -4,6 +4,7 @@ import { ProtectedRoute } from './ProtectedRoute';
 import { AdminRoute } from './AdminRoute';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { OAuthCallbackPage } from './pages/OAuthCallbackPage';
 import { HomeFeedPage } from './pages/HomeFeedPage';
 import { ProblemListPage } from './pages/ProblemListPage';
 import { ProblemEditorPage } from './pages/ProblemEditorPage';
@@ -20,6 +21,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/auth/callback" element={<OAuthCallbackPage />} />
       
       {/* Protected Routes - require login */}
       <Route element={<ProtectedRoute />}>

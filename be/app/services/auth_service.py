@@ -30,6 +30,44 @@ def create_user(user_data: dict):
     users_table.put_item(Item=user_data)
     return user_data
 
+def create_or_get_oauth_user(oauth_info: dict) -> dict:
+    import uuid
+    from datetime import datetime
+
+    email = oauth_info['email'].strip().lower()
+    existing_user = get_user_by_email(email)
+
+    if existing_user:
+        # Nếu user đã có avatar hoặc chưa có avatar nhưng OAuth có -> Cập nhật avatar nếu thích hợp
+        updates = {}
+        if not existing_user.get("AvatarUrl") and oauth_info.get("avatar_url"):
+            updates["AvatarUrl"] = oauth_info["avatar_url"]
+        if updates:
+            existing_user = update_user(existing_user["UserID"], updates)
+        return existing_user
+
+    # Tạo user mới từ OAuth
+    user_id = str(uuid.uuid4())
+    new_user_data = {
+        "UserID": user_id,
+        "Email": email,
+        "PasswordHash": "", # Không dùng mật khẩu khi đăng nhập bằng OAuth
+        "FullName": oauth_info.get("full_name") or email.split("@")[0],
+        "AvatarUrl": oauth_info.get("avatar_url", ""),
+        "Title": "Member",
+        "Address": "Unknown",
+        "Bio": f"Đăng nhập qua {oauth_info.get('provider', 'OAuth').title()}",
+        "CreatedAt": datetime.utcnow().isoformat(),
+        "Role": "user",
+        "IsEmailVerified": True,
+        "OAuthProvider": oauth_info.get("provider"),
+        "OAuthProviderID": oauth_info.get("provider_id")
+    }
+
+    create_user(new_user_data)
+    return new_user_data
+
+
 def update_user(user_id: str, update_fields: dict):
     update_expr = []
     expr_attr_values = {}

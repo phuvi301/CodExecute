@@ -51,4 +51,10 @@ class VerifyOTPRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"
+
+class OAuthLoginRequest(BaseModel):
+    provider: str  # "google" hoặc "github"
+    code: str
+    redirect_uri: Optional[str] = None
+
