@@ -542,13 +542,12 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 										<span>{problem.title}</span>
 										<Badge
 											variant="outline"
-											className={`text-xs px-2.5 py-0.5 font-medium border ${
-												problem.difficulty === 'Easy'
+											className={`text-xs px-2.5 py-0.5 font-medium border ${problem.difficulty === 'Easy'
 													? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
 													: problem.difficulty === 'Medium'
-													? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
-													: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
-											}`}
+														? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30'
+														: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30'
+												}`}
 										>
 											{problem.difficulty}
 										</Badge>
@@ -568,17 +567,33 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 														<Sparkles className="w-3.5 h-3.5 text-primary" />
 														<span>Example {index + 1}</span>
 													</div>
-													<div className="space-y-1.5 font-mono text-xs leading-relaxed bg-background/60 p-3 rounded-lg border border-border/40 overflow-x-auto">
+													<div className="space-y-2 font-mono text-xs leading-relaxed bg-background/60 p-3 rounded-lg border border-border/40 overflow-x-auto">
 														<div>
 															<span className="text-muted-foreground font-semibold">Input: </span>
-															<span className="text-foreground">{example.input}</span>
+															{example.input === '' ? (
+																<span className="italic text-muted-foreground font-sans text-[11px]">(empty)</span>
+															) : example.input?.includes('\n') ? (
+																<div className="text-foreground whitespace-pre-wrap mt-1 bg-background/80 p-2.5 rounded-lg border border-border/50 font-mono text-xs">
+																	{example.input}
+																</div>
+															) : (
+																<span className="text-foreground whitespace-pre-wrap">{example.input}</span>
+															)}
 														</div>
 														<div>
 															<span className="text-muted-foreground font-semibold">Output: </span>
-															<span className="text-primary font-semibold">{example.output}</span>
+															{example.output === '' ? (
+																<span className="italic text-muted-foreground font-sans text-[11px]">(empty)</span>
+															) : example.output?.includes('\n') ? (
+																<div className="text-primary font-semibold whitespace-pre-wrap mt-1 bg-background/80 p-2.5 rounded-lg border border-border/50 font-mono text-xs">
+																	{example.output}
+																</div>
+															) : (
+																<span className="text-primary font-semibold whitespace-pre-wrap">{example.output}</span>
+															)}
 														</div>
 														{example.explanation && (
-															<div className="pt-1 text-muted-foreground border-t border-border/40 text-[11px]">
+															<div className="pt-1.5 text-muted-foreground border-t border-border/40 text-[11px]">
 																<span className="font-semibold text-muted-foreground">Explanation: </span>
 																{example.explanation}
 															</div>
@@ -631,11 +646,10 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 										size="sm"
 										onClick={handleToggleLike}
 										disabled={isLikeLoading}
-										className={`gap-2 rounded-xl h-8 text-xs border-border transition-colors cursor-pointer ${
-											isLiked
+										className={`gap-2 rounded-xl h-8 text-xs border-border transition-colors cursor-pointer ${isLiked
 												? 'bg-blue-500/10 border-blue-500/30 text-blue-500 font-semibold'
 												: 'text-muted-foreground hover:text-foreground'
-										}`}
+											}`}
 									>
 										<ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-blue-500 text-blue-500' : ''}`} />
 										<span>{likesCount}</span>
@@ -645,11 +659,10 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 										size="sm"
 										onClick={handleToggleDislike}
 										disabled={isLikeLoading}
-										className={`gap-2 rounded-xl h-8 text-xs border-border transition-colors cursor-pointer ${
-											isDisliked
+										className={`gap-2 rounded-xl h-8 text-xs border-border transition-colors cursor-pointer ${isDisliked
 												? 'bg-rose-500/10 border-rose-500/30 text-rose-500 font-semibold'
 												: 'text-muted-foreground hover:text-foreground'
-										}`}
+											}`}
 									>
 										<ThumbsDown className={`w-3.5 h-3.5 ${isDisliked ? 'fill-rose-500 text-rose-500' : ''}`} />
 										<span>{dislikesCount}</span>
@@ -698,26 +711,24 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 											return (
 												<Card
 													key={sub.submission_id}
-													className={`p-4 border transition-all rounded-xl cursor-pointer ${
-														isAccepted
+													className={`p-4 border transition-all rounded-xl cursor-pointer ${isAccepted
 															? 'border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/60'
 															: isPending
-															? 'border-blue-500/30 bg-blue-500/5 hover:border-blue-500/60'
-															: 'border-rose-500/30 bg-rose-500/5 hover:border-rose-500/60'
-													}`}
+																? 'border-blue-500/30 bg-blue-500/5 hover:border-blue-500/60'
+																: 'border-rose-500/30 bg-rose-500/5 hover:border-rose-500/60'
+														}`}
 													onClick={() => setExpandedSubmissionId(isExpanded ? null : sub.submission_id)}
 												>
 													<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
 														<div className="flex items-center gap-3">
 															<Badge
 																variant="outline"
-																className={`text-xs px-2.5 py-0.5 font-semibold gap-1.5 shrink-0 ${
-																	isAccepted
+																className={`text-xs px-2.5 py-0.5 font-semibold gap-1.5 shrink-0 ${isAccepted
 																		? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30'
 																		: isPending
-																		? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
-																		: 'bg-rose-500/10 text-rose-500 border-rose-500/30'
-																}`}
+																			? 'bg-blue-500/10 text-blue-500 border-blue-500/30'
+																			: 'bg-rose-500/10 text-rose-500 border-rose-500/30'
+																	}`}
 															>
 																{isAccepted ? (
 																	<CheckCircle className="w-3.5 h-3.5" />
@@ -955,9 +966,8 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 													<div className="flex items-center gap-4 pt-2 border-t border-border/40 text-xs text-muted-foreground">
 														<button
 															onClick={() => handleToggleLikeDiscussion(disc.post_id)}
-															className={`flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer ${
-																isLiked ? 'text-primary font-bold' : ''
-															}`}
+															className={`flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer ${isLiked ? 'text-primary font-bold' : ''
+																}`}
 														>
 															<ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-primary' : ''}`} />
 															<span>{disc.likes_count || 0}</span>
@@ -975,13 +985,12 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 															disabled={isOwner}
 															title={isOwner ? "You cannot repost your own discussion post" : undefined}
 															onClick={() => !isOwner && handleToggleRepostDiscussion(disc.post_id)}
-															className={`flex items-center gap-1.5 transition-colors ${
-																isOwner
+															className={`flex items-center gap-1.5 transition-colors ${isOwner
 																	? 'opacity-40 cursor-not-allowed text-muted-foreground'
 																	: isReposted
-																	? 'text-emerald-500 font-bold hover:text-emerald-500'
-																	: 'hover:text-emerald-500 cursor-pointer'
-															}`}
+																		? 'text-emerald-500 font-bold hover:text-emerald-500'
+																		: 'hover:text-emerald-500 cursor-pointer'
+																}`}
 														>
 															<Repeat className="w-3.5 h-3.5" />
 															<span>{disc.reposts_count || 0}</span>
@@ -1234,11 +1243,10 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 											<button
 												key={idx}
 												onClick={() => setSelectedTestCase(idx)}
-												className={`px-3 py-1 rounded-lg text-xs font-mono transition-all shrink-0 ${
-													selectedTestCase === idx
+												className={`px-3 py-1 rounded-lg text-xs font-mono transition-all shrink-0 ${selectedTestCase === idx
 														? 'bg-primary text-primary-foreground font-semibold shadow-sm'
 														: 'bg-[#252526] text-gray-400 hover:text-gray-200 border border-gray-700/60'
-												}`}
+													}`}
 											>
 												Case {idx + 1}
 											</button>
@@ -1248,15 +1256,23 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 									<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 										<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
 											<p className="text-gray-400 text-xs font-mono">Input:</p>
-											<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-gray-200 overflow-x-auto whitespace-pre-wrap">
-												{problem.examples[selectedTestCase]?.input || 'nums = [2,7,11,15], target = 9'}
+											<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-gray-200 overflow-x-auto whitespace-pre-wrap min-h-[34px]">
+												{problem.examples[selectedTestCase]?.input === '' ? (
+													<span className="italic text-gray-500 font-sans text-[11px]">(empty)</span>
+												) : (
+													problem.examples[selectedTestCase]?.input ?? ''
+												)}
 											</div>
 										</div>
 
 										<div className="bg-[#1e1e1e] rounded-xl p-3 border border-gray-800 space-y-2">
 											<p className="text-gray-400 text-xs font-mono">Expected Output:</p>
-											<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-emerald-400 font-semibold overflow-x-auto whitespace-pre-wrap">
-												{problem.examples[selectedTestCase]?.output || ''}
+											<div className="bg-[#252526] p-2.5 rounded-lg border border-gray-700/60 font-mono text-xs text-emerald-400 font-semibold overflow-x-auto whitespace-pre-wrap min-h-[34px]">
+												{problem.examples[selectedTestCase]?.output === '' ? (
+													<span className="italic text-gray-500 font-sans text-[11px]">(empty)</span>
+												) : (
+													problem.examples[selectedTestCase]?.output ?? ''
+												)}
 											</div>
 										</div>
 									</div>
@@ -1272,11 +1288,10 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 									) : runResult ? (
 										<div className="space-y-3 font-mono text-xs">
 											{/* Performance Stats */}
-											<div className={`flex items-center gap-4 font-bold p-3 rounded-xl border flex-wrap ${
-												runResult.status === 'Accepted'
+											<div className={`flex items-center gap-4 font-bold p-3 rounded-xl border flex-wrap ${runResult.status === 'Accepted'
 													? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
 													: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
-											}`}>
+												}`}>
 												<div className="flex items-center gap-1.5">
 													{runResult.status === 'Accepted' ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
 													<span>{runResult.status}</span>
@@ -1321,13 +1336,12 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 				<DialogContent className="max-w-xl rounded-2xl p-6 border-border bg-card">
 					<DialogHeader>
 						<div className="flex items-center gap-3 mb-4">
-							<div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${
-								isSubmitting
+							<div className={`w-12 h-12 rounded-2xl flex items-center justify-center border ${isSubmitting
 									? 'bg-blue-500/10 border-blue-500/20'
 									: submissionResult?.status === 'Accepted'
-									? 'bg-emerald-500/10 border-emerald-500/20'
-									: 'bg-rose-500/10 border-rose-500/20'
-							}`}>
+										? 'bg-emerald-500/10 border-emerald-500/20'
+										: 'bg-rose-500/10 border-rose-500/20'
+								}`}>
 								{isSubmitting ? (
 									<Play className="w-7 h-7 text-blue-500 animate-spin" />
 								) : submissionResult?.status === 'Accepted' ? (
@@ -1337,21 +1351,20 @@ export function ProblemEditor({ problemId }: ProblemEditorProps) {
 								)}
 							</div>
 							<div>
-								<DialogTitle className={`text-2xl font-bold ${
-									isSubmitting
+								<DialogTitle className={`text-2xl font-bold ${isSubmitting
 										? 'text-blue-500'
 										: submissionResult?.status === 'Accepted'
-										? 'text-emerald-500'
-										: 'text-rose-500'
-								}`}>
+											? 'text-emerald-500'
+											: 'text-rose-500'
+									}`}>
 									{isSubmitting ? 'Evaluating Code...' : submissionResult?.status || 'Submission Result'}
 								</DialogTitle>
 								<DialogDescription className="text-muted-foreground text-xs">
 									{isSubmitting
 										? 'Your code has been queued and is executing against full testcases.'
 										: submissionResult?.status === 'Accepted'
-										? 'Congratulations! Your code passed all full testcases.'
-										: 'Your submission did not pass all testcases.'}
+											? 'Congratulations! Your code passed all full testcases.'
+											: 'Your submission did not pass all testcases.'}
 								</DialogDescription>
 							</div>
 						</div>

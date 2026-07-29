@@ -37,11 +37,47 @@ def convert_decimals(obj: Any) -> Any:
 
 
 def get_all_problems() -> List[Dict[str, Any]]:
-    """Retrieve list of problems from DynamoDB"""
+    """Retrieve list of problems from DynamoDB with real-time acceptance rate & submission stats"""
     try:
         response = problems_table.scan()
         items = response.get("Items", [])
-        return convert_decimals(items)
+        items = convert_decimals(items)
+
+        # Calculate actual acceptance rate and total submissions for each problem from Submissions table
+        sub_stats = {}
+        try:
+            sub_res = submissions_table.scan(
+                ProjectionExpression="ProblemID, #st",
+                ExpressionAttributeNames={"#st": "Status"}
+            )
+            for sub in sub_res.get("Items", []):
+                pid = sub.get("ProblemID")
+                if pid:
+                    if pid not in sub_stats:
+                        sub_stats[pid] = {"total": 0, "accepted": 0}
+                    sub_stats[pid]["total"] += 1
+                    if sub.get("Status") == "Accepted":
+                        sub_stats[pid]["accepted"] += 1
+        except Exception as e:
+            logger.warning(f"Error scanning submissions table for get_all_problems: {e}")
+
+        for item in items:
+            pid = item.get("ProblemID")
+            if pid in sub_stats and sub_stats[pid]["total"] > 0:
+                tot = sub_stats[pid]["total"]
+                acc = sub_stats[pid]["accepted"]
+                rate = round((acc / tot) * 100, 1)
+                item["AcceptanceRate"] = rate
+                item["acceptance_rate"] = rate
+                item["TotalSubmissions"] = tot
+                item["AcceptedSubmissions"] = acc
+            else:
+                item["AcceptanceRate"] = 0.0
+                item["acceptance_rate"] = 0.0
+                item["TotalSubmissions"] = 0
+                item["AcceptedSubmissions"] = 0
+
+        return items
     except Exception as e:
         logger.warning(f"Error scanning DynamoDB Problems: {e}")
         return []
@@ -64,11 +100,15 @@ def get_problem_details(problem_id: str) -> Optional[Dict[str, Any]]:
                 subs = sub_res.get("Items", [])
                 total_subs = len(subs)
                 accepted_subs = sum(1 for s in subs if s.get("Status") == "Accepted")
-                acc_rate = round((accepted_subs / total_subs * 100), 1) if total_subs > 0 else 0.0
+                if total_subs > 0:
+                    acc_rate = round((accepted_subs / total_subs * 100), 1)
+                else:
+                    acc_rate = 0.0
             except Exception as e:
                 logger.warning(f"Error scanning submissions for problem {problem_id}: {e}")
-                total_subs = int(item.get("Submissions", 0))
-                acc_rate = float(item.get("AcceptanceRate", 0.0))
+                total_subs = 0
+                accepted_subs = 0
+                acc_rate = 0.0
 
             liked_by = item.get("LikedBy", [])
             if not isinstance(liked_by, list):

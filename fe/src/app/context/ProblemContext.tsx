@@ -46,18 +46,6 @@ Output:
 			{ input: '3 3\n6', output: '0 1', explanation: '' }
 		],
 		constraints: ['2 <= nums.length <= 10⁴', '-10⁹ <= nums[i] <= 10⁹', '-10⁹ <= target <= 10⁹', 'Only one valid answer exists.']
-	},
-	{
-		id: '1',
-		title: 'Two Sum (Classic)',
-		difficulty: 'Easy',
-		acceptance: '48.2%',
-		submissions: '2.3M',
-		description: `Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.`,
-		examples: [
-			{ input: '2 7 11 15\n9', output: '0 1', explanation: '' }
-		],
-		constraints: ['2 <= nums.length <= 10⁴']
 	}
 ];
 
@@ -215,7 +203,11 @@ export function ProblemProvider({ children }: { children: React.ReactNode }) {
 					constraintArr = data.constraints;
 				}
 
-				const accRateStr = data.AcceptanceRate ? String(data.AcceptanceRate) : (data.acceptance || '0.0%');
+				const accRateStr = data.AcceptanceRate !== undefined && data.AcceptanceRate !== null
+					? String(data.AcceptanceRate)
+					: (data.acceptance_rate !== undefined && data.acceptance_rate !== null
+						? String(data.acceptance_rate)
+						: (data.acceptance || '0.0%'));
 				const totalSubsStr = data.TotalSubmissions !== undefined ? String(data.TotalSubmissions) : (data.submissions ? String(data.submissions) : '0');
 
 				setFetchedProblem({
@@ -415,25 +407,25 @@ export function useProblem() {
 	if (!context) {
 		return {
 			currentProblemId: 'two-sum',
-			setCurrentProblemId: () => {},
+			setCurrentProblemId: () => { },
 			problemsList: PROBLEMS_LIST.map((p) => ({ id: p.id, title: p.title })),
 			problem: PROBLEMS_LIST[0],
 			language: 'python',
-			setLanguage: () => {},
+			setLanguage: () => { },
 			code: CODE_TEMPLATES['python'],
-			setCode: () => {},
-			resetCodeToInit: () => {},
+			setCode: () => { },
+			resetCodeToInit: () => { },
 			isRunning: false,
 			isSubmitting: false,
-			runCode: async () => {},
-			submitCode: async () => {},
+			runCode: async () => { },
+			submitCode: async () => { },
 			showSubmitDialog: false,
-			setShowSubmitDialog: () => {},
+			setShowSubmitDialog: () => { },
 			testOutput: null,
 			submissionResult: null,
 			runResult: null,
 			activeTab: 'testcase',
-			setActiveTab: () => {},
+			setActiveTab: () => { },
 		};
 	}
 	return context;

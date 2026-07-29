@@ -19,7 +19,8 @@ import {
 	Sparkles,
 	HardDrive,
 	Loader2,
-	Calendar
+	Calendar,
+	Percent
 } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -299,7 +300,7 @@ export function SubmissionHistory() {
 					<p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Acceptance Rate</p>
 					<h3 className="text-3xl font-extrabold text-blue-500 font-mono">{acceptanceRate}%</h3>
 					<div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-500 border border-blue-500/20 flex items-center justify-center mt-1">
-						<Sparkles className="w-6 h-6" />
+						<Percent className="w-6 h-6" />
 					</div>
 				</Card>
 			</div>
@@ -419,7 +420,8 @@ export function SubmissionHistory() {
 							return (
 								<div
 									key={sub.submission_id}
-									className="p-4 bg-background/60 hover:bg-accent/40 rounded-xl border border-border/60 hover:border-primary/40 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+									onClick={() => setSelectedSubmission(sub)}
+									className="p-4 bg-background/60 hover:bg-accent/40 rounded-xl border border-border/60 hover:border-primary/40 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 group cursor-pointer"
 								>
 									{/* Left Section: Status & Problem Details */}
 									<div className="flex items-start md:items-center gap-3.5 flex-1 min-w-0">
@@ -430,8 +432,7 @@ export function SubmissionHistory() {
 										<div className="min-w-0 flex-1">
 											<div className="flex items-center gap-2 flex-wrap">
 												<h4
-													onClick={() => navigate(`/problems/${sub.problem_id}`)}
-													className="text-foreground font-bold text-sm hover:text-primary transition-colors cursor-pointer leading-tight truncate"
+													className="text-foreground font-bold text-sm group-hover:text-primary transition-colors leading-tight truncate"
 												>
 													{probInfo.title}
 												</h4>
@@ -488,7 +489,10 @@ export function SubmissionHistory() {
 											<Button
 												size="sm"
 												variant="outline"
-												onClick={() => setSelectedSubmission(sub)}
+												onClick={(e) => {
+													e.stopPropagation();
+													setSelectedSubmission(sub);
+												}}
 												className="rounded-xl border-border text-xs font-semibold gap-1.5 h-8 px-3 hover:bg-accent text-foreground cursor-pointer"
 											>
 												<Eye className="w-3.5 h-3.5 text-primary" />
@@ -498,7 +502,10 @@ export function SubmissionHistory() {
 											<Button
 												size="sm"
 												variant="ghost"
-												onClick={() => navigate(`/problems/${sub.problem_id}`)}
+												onClick={(e) => {
+													e.stopPropagation();
+													navigate(`/problems/${sub.problem_id}`);
+												}}
 												className="rounded-xl text-xs font-semibold h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-accent cursor-pointer"
 												title="Open Problem Editor"
 											>
@@ -518,7 +525,7 @@ export function SubmissionHistory() {
 				<DialogContent className="sm:max-w-3xl p-6 space-y-4 rounded-2xl border-border bg-card shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
 					{selectedSubmission && (
 						<>
-							<DialogHeader className="border-b border-border/60 pb-3">
+							<DialogHeader className="border-b border-border/60 pb-3 pr-10">
 								<div className="flex items-center justify-between gap-4 flex-wrap">
 									<DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
 										<Code2 className="w-5 h-5 text-primary" />
@@ -622,7 +629,6 @@ export function SubmissionHistory() {
 									className="rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold h-9 px-4 gap-1.5"
 								>
 									<span>Solve Problem Again</span>
-									<ExternalLink className="w-3.5 h-3.5" />
 								</Button>
 							</div>
 						</>

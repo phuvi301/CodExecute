@@ -45,16 +45,13 @@ def search_problems(query: str) -> List[Dict[str, Any]]:
     
     for p in all_problems:
         title = str(p.get("Title", "")).lower()
-        category = str(p.get("Category", "")).lower()
-        category_compact = category.replace(" ", "").replace("&", "")
-        
-        if q in title or q in category or q in category_compact:
+        if q in title:
             results.append({
                 "id": p.get("ProblemID", "1"),
                 "title": p.get("Title", "Untitled"),
                 "difficulty": p.get("Difficulty", "Easy"),
                 "category": p.get("Category", "General"),
-                "acceptance": f"{p.get('AcceptanceRate', 48.2)}%" if isinstance(p.get('AcceptanceRate'), (int, float)) else str(p.get('AcceptanceRate', '48.2%')),
+                "acceptance": f"{p.get('AcceptanceRate', p.get('acceptance_rate', 0.0))}%" if isinstance(p.get('AcceptanceRate', p.get('acceptance_rate', 0.0)), (int, float)) else str(p.get('AcceptanceRate', p.get('acceptance_rate', '0.0%'))),
                 "description": p.get("Description", "")
             })
             

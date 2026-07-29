@@ -65,11 +65,14 @@ export function ProblemList() {
 
 		let acceptance = '0%';
 		if (p.AcceptanceRate !== undefined && p.AcceptanceRate !== null) {
-			acceptance = `${p.AcceptanceRate}%`;
+			const val = String(p.AcceptanceRate);
+			acceptance = val.endsWith('%') ? val : `${val}%`;
 		} else if (p.acceptance_rate !== undefined && p.acceptance_rate !== null) {
-			acceptance = `${p.acceptance_rate}%`;
+			const val = String(p.acceptance_rate);
+			acceptance = val.endsWith('%') ? val : `${val}%`;
 		} else if (p.acceptance) {
-			acceptance = typeof p.acceptance === 'number' ? `${p.acceptance}%` : p.acceptance;
+			const val = String(p.acceptance);
+			acceptance = val.endsWith('%') ? val : `${val}%`;
 		}
 
 		let status: 'solved' | 'attempted' | 'todo' = 'todo';
@@ -92,6 +95,20 @@ export function ProblemList() {
 		};
 	});
 
+	// Extract unique topics dynamically from actual rawProblems loaded from database
+	const availableTopics = Array.from(
+		new Set(
+			rawProblems.flatMap((p) => {
+				const catStr = p.Category || p.category || '';
+				if (!catStr) return [];
+				return catStr
+					.split(/,\s*|\s*&\s*/)
+					.map((tag: string) => tag.trim())
+					.filter(Boolean);
+			})
+		)
+	).sort((a, b) => a.localeCompare(b));
+
 	// Stat calculations based on real database records
 	const easyProblems = problems.filter((p) => p.difficulty.toLowerCase() === 'easy');
 	const easySolved = easyProblems.filter((p) => p.status === 'solved').length;
@@ -113,12 +130,14 @@ export function ProblemList() {
 	const totalPercent = totalCount > 0 ? Math.round((totalSolved / totalCount) * 100) : 0;
 
 	const filteredProblems = problems.filter((problem) => {
-		const matchesSearch =
-			problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			problem.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			problem.id.toLowerCase().includes(searchQuery.toLowerCase());
+		const matchesSearch = problem.title.toLowerCase().includes(searchQuery.toLowerCase());
 		const matchesDifficulty = difficultyFilter === 'all' || problem.difficulty.toLowerCase() === difficultyFilter;
-		const matchesTopic = topicFilter === 'all' || problem.category.toLowerCase().includes(topicFilter.toLowerCase());
+		const matchesTopic =
+			topicFilter === 'all' ||
+			problem.category
+				.split(/,\s*|\s*&\s*/)
+				.some((t) => t.trim().toLowerCase() === topicFilter.toLowerCase()) ||
+			problem.category.toLowerCase().includes(topicFilter.toLowerCase());
 		const matchesStatus = statusFilter === 'all' || problem.status === statusFilter;
 		return matchesSearch && matchesDifficulty && matchesTopic && matchesStatus;
 	});
@@ -282,7 +301,7 @@ export function ProblemList() {
 							<SelectTrigger className="w-36 h-9 bg-background border-border rounded-xl text-xs font-medium">
 								<SelectValue placeholder="Difficulty" />
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent side="bottom" align="start">
 								<SelectItem value="all">All Difficulty</SelectItem>
 								<SelectItem value="easy">Easy</SelectItem>
 								<SelectItem value="medium">Medium</SelectItem>
@@ -294,13 +313,13 @@ export function ProblemList() {
 							<SelectTrigger className="w-36 h-9 bg-background border-border rounded-xl text-xs font-medium">
 								<SelectValue placeholder="Topic" />
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent side="bottom" align="start">
 								<SelectItem value="all">All Topics</SelectItem>
-								<SelectItem value="array">Array</SelectItem>
-								<SelectItem value="string">String</SelectItem>
-								<SelectItem value="linked list">Linked List</SelectItem>
-								<SelectItem value="hash table">Hash Table</SelectItem>
-								<SelectItem value="math">Math</SelectItem>
+								{availableTopics.map((topic) => (
+									<SelectItem key={topic} value={topic.toLowerCase()}>
+										{topic}
+									</SelectItem>
+								))}
 							</SelectContent>
 						</Select>
 
@@ -308,7 +327,7 @@ export function ProblemList() {
 							<SelectTrigger className="w-36 h-9 bg-background border-border rounded-xl text-xs font-medium">
 								<SelectValue placeholder="Status" />
 							</SelectTrigger>
-							<SelectContent>
+							<SelectContent side="bottom" align="start">
 								<SelectItem value="all">All Status</SelectItem>
 								<SelectItem value="todo">Todo</SelectItem>
 								<SelectItem value="solved">Solved</SelectItem>
