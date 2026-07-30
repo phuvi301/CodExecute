@@ -59,6 +59,31 @@ be/
 │
 ├── .env.example                # File mẫu biến môi trường (Local)
 ├── requirements.txt            # Danh sách thư viện Python
-├── template.yaml               # (Tùy chọn) File cấu hình AWS SAM để deploy tự động
+├── Dockerfile.lambda           # Container Sandbox Image hỗ trợ 4 ngôn ngữ (Python, C++, Java, Node.js)
+├── Dockerfile.local_worker     # Container Sandbox phục vụ test cục bộ
+├── docker-compose.yml          # Chạy sandbox worker cục bộ với Docker
+├── scripts/
+│   ├── build_and_push_lambda.ps1 # Script build & deploy Docker Sandbox lên AWS ECR + Lambda (PowerShell)
+│   └── build_and_push_lambda.sh  # Script build & deploy Docker Sandbox lên AWS ECR + Lambda (Bash)
 └── README.md
+
+## Deploy Multi-Language Sandbox Lambda Worker
+Mặc định AWS Lambda Managed Runtime chỉ có Python 3.12. Để chạy đủ 4 ngôn ngữ (**Python 3.12**, **C++17**, **Java 17**, **Node.js**), Lambda Worker được đóng gói dưới dạng **Docker Container Image**.
+
+### 1. Build & Push Container Image lên AWS ECR và Cập nhật Lambda Function
+- **Trên Windows (PowerShell):**
+  ```powershell
+  .\scripts\build_and_push_lambda.ps1
+  ```
+- **Trên Linux/macOS:**
+  ```bash
+  chmod +x scripts/build_and_push_lambda.sh
+  ./scripts/build_and_push_lambda.sh
+  ```
+
+### 2. Test Sandbox Cục Bộ bằng Docker Compose
+```bash
+docker compose up --build
+```
+
 ```

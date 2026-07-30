@@ -90,7 +90,7 @@ def execute_submission_local(
         if not compiler:
             compiler = "g++"
 
-        compile_cmd = [compiler, "-O2", code_file_path, "-o", binary_path]
+        compile_cmd = [compiler, "-O2", "-std=c++17", code_file_path, "-o", binary_path]
         run_cmd = [binary_path]
 
     elif lang_key == "java":
@@ -101,12 +101,12 @@ def execute_submission_local(
         javac_bin = shutil.which("javac") or "javac"
         java_bin = shutil.which("java") or "java"
         compile_cmd = [javac_bin, code_file_path]
-        run_cmd = [java_bin, "-cp", work_dir, "Main"]
+        run_cmd = [java_bin, f"-Xmx{memory_limit}m", "-cp", work_dir, "Main"]
 
     elif lang_key == "javascript":
         code_file_path = os.path.join(work_dir, "solution.js")
         node_bin = shutil.which("node") or "node"
-        run_cmd = [node_bin, code_file_path]
+        run_cmd = [node_bin, f"--max-old-space-size={memory_limit}", code_file_path]
 
     else:
         code_file_path = os.path.join(work_dir, "solution.py")

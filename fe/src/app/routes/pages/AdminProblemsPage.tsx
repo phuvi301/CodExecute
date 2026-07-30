@@ -6,7 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Badge } from '../../components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table';
 import { Plus, Search, Edit, Trash2, Code2, ArrowLeft, Loader2, RefreshCw } from 'lucide-react';
-import { adminDeleteProblemApi } from '../../services/api';
+import { adminDeleteProblemApi, getProblemsApi } from '../../services/api';
 
 export function AdminProblemsPage() {
   const navigate = useNavigate();
@@ -19,8 +19,7 @@ export function AdminProblemsPage() {
   const fetchProblems = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:8000/api/v1/problems');
-      const data = await res.json();
+      const data = await getProblemsApi();
       if (Array.isArray(data)) {
         setProblems(data);
       }

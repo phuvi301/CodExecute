@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  lambda-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.local_worker
+    container_name: codexecute_lambda_worker
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    command: python lambda_worker.py

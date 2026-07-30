@@ -119,7 +119,9 @@ def get_problem_details(problem_id: str) -> Optional[Dict[str, Any]]:
 
             item["TotalSubmissions"] = total_subs
             item["AcceptedSubmissions"] = accepted_subs
-            item["AcceptanceRate"] = f"{acc_rate:.1f}%"
+            item["AcceptanceRate"] = acc_rate
+            item["acceptance_rate"] = acc_rate
+            item["AcceptanceRateStr"] = f"{acc_rate:.1f}%"
             item["LikesCount"] = len(liked_by) if liked_by else int(item.get("Likes", 0))
             item["DislikesCount"] = len(disliked_by) if disliked_by else int(item.get("Dislikes", 0))
             item["LikedBy"] = liked_by
@@ -335,6 +337,16 @@ def get_admin_problem_detail(problem_id: str) -> Dict[str, Any]:
             "problem_id": problem_id
         })
 
+    raw_acc = prob.get("acceptance_rate")
+    if raw_acc is None:
+        raw_acc = prob.get("AcceptanceRate", 0.0)
+    if isinstance(raw_acc, str):
+        raw_acc = raw_acc.rstrip("%").strip()
+    try:
+        acc_rate_float = float(raw_acc)
+    except (ValueError, TypeError):
+        acc_rate_float = 0.0
+
     return {
         "problem_id": prob.get("ProblemID") or prob.get("problem_id") or problem_id,
         "title": prob.get("Title") or prob.get("title") or "",
@@ -347,7 +359,7 @@ def get_admin_problem_detail(problem_id: str) -> Dict[str, Any]:
         "description": prob.get("Description") or prob.get("description") or "",
         "constraints": prob.get("Constraints") or prob.get("constraints") or "",
         "init_code": prob.get("InitCode") or prob.get("init_code") or {},
-        "acceptance_rate": float(prob.get("AcceptanceRate", prob.get("acceptance_rate", 0.0))),
+        "acceptance_rate": acc_rate_float,
         "created_at": prob.get("CreatedAt") or prob.get("created_at") or "",
         "testcases": formatted_tcs
     }

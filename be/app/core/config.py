@@ -6,12 +6,16 @@ class Settings(BaseSettings):
     # Cấu hình Chung
     PROJECT_NAME: str = "CodExecute API"
     ENVIRONMENT: str = "development"
+    BACKEND_BASE_URL: str = "http://localhost:8000"
+    BACKEND_CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
     
     # Cấu hình AWS
     AWS_REGION: str = "ap-southeast-1"
-    AWS_ACCESS_KEY_ID: Optional[str] = None
-    AWS_SECRET_ACCESS_KEY: Optional[str] = None
-    AWS_ENDPOINT_URL: Optional[str] = None
     
     # Cấu hình Tên các bảng DynamoDB
     DYNAMODB_USERS_TABLE: str = "Users"

@@ -23,12 +23,7 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-allowed_origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+allowed_origins = list(settings.BACKEND_CORS_ORIGINS)
 if settings.CLOUDFRONT_DOMAIN:
     cf_url = settings.CLOUDFRONT_DOMAIN.rstrip("/")
     if cf_url not in allowed_origins:
@@ -41,9 +36,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-app.mount("/static", StaticFiles(directory=settings.UPLOAD_DIR), name="static")
 
 app.include_router(api_router, prefix="/api/v1")
 

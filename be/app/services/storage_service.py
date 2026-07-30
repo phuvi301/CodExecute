@@ -56,7 +56,7 @@ def delete_old_avatar_files(user_id: str):
 def get_public_avatar_url(raw_url: str) -> str:
     """
     Chuyển đổi đường dẫn avatar (S3 key hoặc direct S3 URL) 
-    thành CloudFront CDN URL (nếu có cấu hình) hoặc Presigned URL S3.
+    thành Presigned URL S3.
     """
     if not raw_url:
         return ""
@@ -67,11 +67,6 @@ def get_public_avatar_url(raw_url: str) -> str:
 
     # Trích xuất S3 key (ví dụ: avatars/user_id.png hoặc avatars/user_id/file.png)
     s3_key = f"avatars/{raw_url.split('avatars/')[1].split('?')[0]}"
-
-    # Nếu có cấu hình CLOUDFRONT_DOMAIN trong .env
-    if getattr(settings, "CLOUDFRONT_DOMAIN", None):
-        domain = settings.CLOUDFRONT_DOMAIN.rstrip("/")
-        return f"{domain}/{s3_key}"
 
     try:
         presigned_url = s3_client.generate_presigned_url(
@@ -125,11 +120,6 @@ async def upload_avatar_file(file: UploadFile, user_id: str) -> str:
             ContentType=content_type
         )
         logger.info(f"Successfully uploaded new avatar for user {user_id} to S3: {s3_key}")
-        
-        # Nếu có cấu hình CLOUDFRONT_DOMAIN trong .env
-        if getattr(settings, "CLOUDFRONT_DOMAIN", None):
-            domain = settings.CLOUDFRONT_DOMAIN.rstrip("/")
-            return f"{domain}/{s3_key}"
 
         # Tạo URL Presigned đọc trực tiếp từ AWS S3
         avatar_url = s3_client.generate_presigned_url(
@@ -148,7 +138,8 @@ async def upload_avatar_file(file: UploadFile, user_id: str) -> str:
     with open(local_path, "wb") as f:
         f.write(contents)
 
-    return f"http://localhost:8000/static/avatars/{filename}"
+    base_url = settings.BACKEND_BASE_URL.rstrip("/")
+    return f"{base_url}/static/avatars/{filename}"
 
 
 

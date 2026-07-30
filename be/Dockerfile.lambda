@@ -1,0 +1,33 @@
+# Multi-language Sandbox Dockerfile for AWS Lambda Worker
+# Hỗ trợ 4 ngôn ngữ: Python 3.12, C++17 (g++), Java 17 (javac/java), JavaScript (Node.js)
+
+FROM public.ecr.aws/lambda/python:3.12
+
+# 1. Cài đặt Trình biên dịch C++ (gcc-c++), Java JDK 17 (corretto), Node.js
+RUN dnf update -y && \
+    dnf install -y \
+    gcc-c++ \
+    make \
+    java-17-amazon-corretto-devel \
+    nodejs \
+    tar \
+    gzip && \
+    dnf clean all
+
+# 2. Kiểm tra phiên bản các compiler & runtimes trong quá trình build
+RUN g++ --version && \
+    javac -version && \
+    java -version && \
+    node --version && \
+    python3 --version
+
+# 3. Cài đặt Python Dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 4. Copy mã nguồn ứng dụng và entrypoint Lambda Worker
+COPY app/ ${LAMBDA_TASK_ROOT}/app/
+COPY lambda_worker.py ${LAMBDA_TASK_ROOT}/lambda_worker.py
+
+# 5. Handler Lambda mặc định
+CMD [ "lambda_worker.handler" ]

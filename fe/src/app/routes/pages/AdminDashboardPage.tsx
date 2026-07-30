@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { ShieldCheck, Code2, Users, Plus, ArrowRight, Activity } from 'lucide-react';
-import { adminGetUsersApi } from '../../services/api';
+import { adminGetUsersApi, getProblemsApi } from '../../services/api';
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -21,8 +21,7 @@ export function AdminDashboardPage() {
       }
 
       try {
-        const res = await fetch('http://localhost:8000/api/v1/problems');
-        const data = await res.json();
+        const data = await getProblemsApi();
         if (Array.isArray(data)) setProblemsCount(data.length);
       } catch (err) {
         setProblemsCount(0);
