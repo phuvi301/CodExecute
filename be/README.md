@@ -67,23 +67,43 @@ be/
 │   └── build_and_push_lambda.sh  # Script build & deploy Docker Sandbox lên AWS ECR + Lambda (Bash)
 └── README.md
 
-## Deploy Multi-Language Sandbox Lambda Worker
-Mặc định AWS Lambda Managed Runtime chỉ có Python 3.12. Để chạy đủ 4 ngôn ngữ (**Python 3.12**, **C++17**, **Java 17**, **Node.js**), Lambda Worker được đóng gói dưới dạng **Docker Container Image**.
+## Deploy Multi-Language Sandbox Lambda
 
-### 1. Build & Push Container Image lên AWS ECR và Cập nhật Lambda Function
-- **Trên Windows (PowerShell):**
+Trong hệ thống có **2 Lambda Function**:
+1. **`codeexecute-worker` (SQS Worker)**: Xử lý bài nộp khi bấm nút **SUBMIT** (Bất đồng bộ qua SQS).
+2. **`codeexecute-api` (FastAPI Server)**: Xử lý API Server và chạy trực tiếp testcases mẫu khi bấm nút **RUN** (Đồng bộ qua `/api/v1/submissions/run`).
+
+---
+
+### 1. Deploy Lambda Worker (`codeexecute-worker`)
+- **PowerShell (Windows):**
   ```powershell
   .\scripts\build_and_push_lambda.ps1
   ```
-- **Trên Linux/macOS:**
+- **Bash (Linux/macOS):**
   ```bash
   chmod +x scripts/build_and_push_lambda.sh
   ./scripts/build_and_push_lambda.sh
   ```
 
-### 2. Test Sandbox Cục Bộ bằng Docker Compose
+---
+
+### 2. Deploy Lambda API (`codeexecute-api`)
+*(Giải quyết lỗi nút RUN báo thiếu trình biên dịch g++, javac, node)*
+
+- **PowerShell (Windows):**
+  ```powershell
+  .\scripts\build_and_push_lambda_api.ps1
+  ```
+- **Bash (Linux/macOS):**
+  ```bash
+  chmod +x scripts/build_and_push_lambda_api.sh
+  ./scripts/build_and_push_lambda_api.sh
+  ```
+
+---
+
+### 3. Test Sandbox Cục Bộ bằng Docker Compose
 ```bash
 docker compose up --build
-```
-
 ```
