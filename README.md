@@ -27,40 +27,9 @@
 
 ## 🏗️ Kiến trúc Hệ thống (System Architecture)
 
-```mermaid
-graph TD
-    User([👤 Người dùng / Client])
-    
-    subgraph Frontend ["🎨 Frontend (React + Vite + Monaco Editor)"]
-        UI[Giao diện luyện tập & Cộng đồng]
-    end
-
-    subgraph Backend ["⚙️ Backend (FastAPI - API Server)"]
-        API[FastAPI Gateway / RESTful API]
-        Auth[Xác thực JWT / OAuth2 / OTP]
-    end
-
-    subgraph Cloud ["☁️ AWS Cloud Services"]
-        DDB[(AWS DynamoDB\nUsers, Problems, Submissions, Posts)]
-        S3[(AWS S3\nTestcases & Avatars)]
-        SQS[AWS SQS\nSubmission Queue]
-        LambdaAPI[AWS Lambda: codeexecute-api\nRun Sample Testcases]
-        LambdaWorker[AWS Lambda: codeexecute-worker\nSQS Sandbox Worker]
-    end
-
-    User <--> UI
-    UI <-->|REST API / HTTP| API
-    API <--> DDB
-    API <--> S3
-    
-    UI -->|Click RUN| LambdaAPI
-    UI -->|Click SUBMIT| API
-    API -->|Đẩy Job vào Queue| SQS
-    SQS -->|Trigger Event| LambdaWorker
-    LambdaWorker -->|Lấy Testcases| S3
-    LambdaWorker -->|Chấm bài trong Docker Sandbox| LambdaWorker
-    LambdaWorker -->|Lưu kết quả chấm| DDB
-```
+<p align="center">
+  <img src="architect-codexecute.png" alt="System Architecture" />
+</p>
 
 ---
 
